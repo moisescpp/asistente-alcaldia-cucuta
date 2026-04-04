@@ -163,12 +163,22 @@ function App() {
         body: JSON.stringify(payload),
       })
       if (!response.ok) {
-        throw new Error(editingId ? 'No fue posible actualizar el tramite.' : 'No fue posible crear el tramite.')
+        const errorData = await response.json().catch(() => null)
+        throw new Error(
+          errorData?.detail ||
+            (editingId
+              ? 'No fue posible actualizar el tramite.'
+              : 'No fue posible crear el tramite.'),
+        )
       }
 
       const savedTramite = await response.json()
       await refreshTramites()
-      setAdminMessage(editingId ? `Tramite "${savedTramite.nombre}" actualizado.` : `Tramite "${savedTramite.nombre}" creado.`)
+      setAdminMessage(
+        editingId
+          ? `Tramite "${savedTramite.nombre}" actualizado.`
+          : `Tramite "${savedTramite.nombre}" creado o reactivado correctamente.`,
+      )
       handleResetForm(false)
     } catch (error) {
       setAdminError(error instanceof Error ? error.message : 'Ocurrio un error al guardar el tramite.')
