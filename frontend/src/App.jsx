@@ -80,11 +80,13 @@ function App() {
     setFormData((current) => ({ ...current, [name]: value }))
   }
 
-  function handleResetForm() {
+  function handleResetForm(clearFeedback = true) {
     setEditingId(null)
     setFormData(EMPTY_FORM)
-    setAdminError('')
-    setAdminMessage('')
+    if (clearFeedback) {
+      setAdminError('')
+      setAdminMessage('')
+    }
   }
 
   function handleEdit(tramite) {
@@ -107,8 +109,8 @@ function App() {
   async function handleAdminSubmit(event) {
     event.preventDefault()
     const payload = normalizePayload(formData)
-    if (!payload.nombre || !payload.slug) {
-      setAdminError('Nombre y slug son obligatorios.')
+    if (!payload.nombre || !payload.slug || !payload.dependencia) {
+      setAdminError('Nombre, slug y dependencia son obligatorios.')
       return
     }
 
@@ -131,7 +133,7 @@ function App() {
       const savedTramite = await response.json()
       await refreshTramites()
       setAdminMessage(editingId ? `Tramite "${savedTramite.nombre}" actualizado.` : `Tramite "${savedTramite.nombre}" creado.`)
-      handleResetForm()
+      handleResetForm(false)
     } catch (error) {
       setAdminError(error instanceof Error ? error.message : 'Ocurrio un error al guardar el tramite.')
     } finally {
