@@ -44,19 +44,25 @@ def _score_tramite(tramite: Tramite, tokens: list[str]) -> int:
 
 
 def _build_response_text(best_match: Tramite, total_matches: int) -> str:
-    description = best_match.descripcion or "Sin descripcion registrada."
-    requirements = best_match.requisitos or "Sin requisitos registrados."
-    cost = best_match.costo or "Sin costo registrado."
-    schedule = best_match.horario or "Sin horario registrado."
-
     return (
         f"Encontre {total_matches} tramite(s) relacionado(s). "
-        f"El tramite mas relevante es '{best_match.nombre}'. "
-        f"Descripcion: {description} "
-        f"Requisitos: {requirements} "
-        f"Costo: {cost} "
-        f"Horario: {schedule} "
-        f"Dependencia responsable: {best_match.dependencia}."
+        f"El tramite mas relevante es '{best_match.nombre}', gestionado por "
+        f"{best_match.dependencia}. Revisa sus requisitos, costo y horario "
+        "para orientarte antes de acudir al punto de atencion."
+    )
+
+
+def _build_match(tramite: Tramite) -> ConsultaMatch:
+    return ConsultaMatch(
+        id=tramite.id,
+        nombre=tramite.nombre,
+        slug=tramite.slug,
+        descripcion=tramite.descripcion,
+        requisitos=tramite.requisitos,
+        costo=tramite.costo,
+        horario=tramite.horario,
+        dependencia=tramite.dependencia,
+        fuente_url=tramite.fuente_url,
     )
 
 
@@ -71,7 +77,9 @@ def process_consulta(pregunta: str, tramites: list[Tramite]) -> ConsultaResponse
                 "La consulta es demasiado corta. Intenta incluir el nombre del tramite "
                 "o una palabra clave como impuesto, predial, pago o devolucion."
             ),
+            mensaje_estado="Consulta demasiado corta",
             total_resultados=0,
+            tramite_principal=None,
             tramites_relacionados=[],
         )
 
@@ -90,25 +98,21 @@ def process_consulta(pregunta: str, tramites: list[Tramite]) -> ConsultaResponse
                 "No encontre tramites relacionados con tu consulta en la base actual. "
                 "Intenta usar otras palabras clave o revisa si el tramite pertenece a otro proceso."
             ),
+            mensaje_estado="Sin coincidencias en la base actual",
             total_resultados=0,
+            tramite_principal=None,
             tramites_relacionados=[],
         )
 
     matches = [tramite for _, tramite in scored_tramites[:3]]
-    response_matches = [
-        ConsultaMatch(
-            id=tramite.id,
-            nombre=tramite.nombre,
-            slug=tramite.slug,
-            dependencia=tramite.dependencia,
-            fuente_url=tramite.fuente_url,
-        )
-        for tramite in matches
-    ]
+    response_matches = [_build_match(tramite) for tramite in matches]
+    best_match = matches[0]
 
     return ConsultaResponse(
         pregunta=pregunta,
-        respuesta=_build_response_text(matches[0], len(scored_tramites)),
+        respuesta=_build_response_text(best_match, len(scored_tramites)),
+        mensaje_estado="Coincidencias encontradas",
         total_resultados=len(scored_tramites),
+        tramite_principal=_build_match(best_match),
         tramites_relacionados=response_matches,
     )

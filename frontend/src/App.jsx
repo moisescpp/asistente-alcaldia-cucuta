@@ -331,26 +331,93 @@ function ConsultaResult({ consulta }) {
 
       {consulta ? (
         <div className="mt-6 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">
+              {consulta.mensaje_estado}
+            </span>
+            <span className="text-sm text-slate-300">
+              {consulta.total_resultados} coincidencia(s)
+            </span>
+          </div>
+
           <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Pregunta enviada</p>
             <p className="mt-2 text-lg font-medium text-white">{consulta.pregunta}</p>
           </div>
+
           <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-200">Respuesta del asistente</p>
             <p className="mt-3 text-base leading-7 text-emerald-50">{consulta.respuesta}</p>
           </div>
-          <div className="grid gap-4">
-            {consulta.tramites_relacionados.map((tramite) => (
-              <article key={tramite.id} className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h4 className="text-lg font-semibold text-white">{tramite.nombre}</h4>
-                    <p className="mt-2 text-sm text-slate-300">{tramite.dependencia}</p>
-                  </div>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">ID {tramite.id}</span>
+
+          {consulta.tramite_principal ? (
+            <article className="rounded-3xl border border-white/10 bg-white/5 p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-300">
+                    Tramite principal
+                  </p>
+                  <h4 className="mt-2 text-xl font-semibold text-white">
+                    {consulta.tramite_principal.nombre}
+                  </h4>
+                  <p className="mt-2 text-sm text-slate-300">
+                    {consulta.tramite_principal.dependencia}
+                  </p>
                 </div>
-              </article>
-            ))}
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+                  ID {consulta.tramite_principal.id}
+                </span>
+              </div>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <DetailCard
+                  label="Descripcion"
+                  value={consulta.tramite_principal.descripcion}
+                />
+                <DetailCard
+                  label="Requisitos"
+                  value={consulta.tramite_principal.requisitos}
+                />
+                <DetailCard
+                  label="Costo"
+                  value={consulta.tramite_principal.costo}
+                />
+                <DetailCard
+                  label="Horario"
+                  value={consulta.tramite_principal.horario}
+                />
+              </div>
+
+              {consulta.tramite_principal.fuente_url ? (
+                <a
+                  href={consulta.tramite_principal.fuente_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-5 inline-flex text-sm font-semibold text-emerald-300 transition hover:text-emerald-200"
+                >
+                  Ver fuente oficial
+                </a>
+              ) : null}
+            </article>
+          ) : null}
+
+          <div>
+            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
+              Tramites relacionados
+            </p>
+            <div className="grid gap-4">
+              {consulta.tramites_relacionados.map((tramite) => (
+                <article key={tramite.id} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h4 className="text-lg font-semibold text-white">{tramite.nombre}</h4>
+                      <p className="mt-2 text-sm text-slate-300">{tramite.dependencia}</p>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">ID {tramite.id}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       ) : (
@@ -358,6 +425,17 @@ function ConsultaResult({ consulta }) {
           La respuesta aparecera aqui cuando envies una consulta al asistente.
         </div>
       )}
+    </div>
+  )
+}
+
+function DetailCard({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-300">{label}</p>
+      <p className="mt-2 text-sm leading-6 text-white">
+        {value || 'Sin informacion registrada.'}
+      </p>
     </div>
   )
 }
