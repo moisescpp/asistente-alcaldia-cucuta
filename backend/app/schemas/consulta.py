@@ -24,3 +24,4 @@ class ConsultaResponse(BaseModel):
     total_resultados: int
     tramite_principal: ConsultaMatch | None = None
     tramites_relacionados: list[ConsultaMatch]
+    sugerencias: list[str] = []

@@ -5,6 +5,12 @@ import unicodedata
 from app.models import Tramite
 from app.schemas.consulta import ConsultaMatch, ConsultaResponse
 
+DEFAULT_SUGGESTIONS = [
+    "Consulta por impuesto predial unificado",
+    "Pregunta por facilidades de pago",
+    "Pregunta por devolucion de pagos en exceso",
+]
+
 
 def _normalize_text(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value)
@@ -81,6 +87,7 @@ def process_consulta(pregunta: str, tramites: list[Tramite]) -> ConsultaResponse
             total_resultados=0,
             tramite_principal=None,
             tramites_relacionados=[],
+            sugerencias=DEFAULT_SUGGESTIONS,
         )
 
     scored_tramites = []
@@ -102,6 +109,7 @@ def process_consulta(pregunta: str, tramites: list[Tramite]) -> ConsultaResponse
             total_resultados=0,
             tramite_principal=None,
             tramites_relacionados=[],
+            sugerencias=DEFAULT_SUGGESTIONS,
         )
 
     matches = [tramite for _, tramite in scored_tramites[:3]]
@@ -115,4 +123,5 @@ def process_consulta(pregunta: str, tramites: list[Tramite]) -> ConsultaResponse
         total_resultados=len(scored_tramites),
         tramite_principal=_build_match(best_match),
         tramites_relacionados=response_matches,
+        sugerencias=[],
     )

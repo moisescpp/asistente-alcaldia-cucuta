@@ -15,6 +15,12 @@ const EMPTY_FORM = {
 
 const inputClassName =
   'w-full rounded-3xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100'
+const EMPTY_ADMIN_ERRORS = {
+  nombre: '',
+  slug: '',
+  dependencia: '',
+  fuente_url: '',
+}
 
 function App() {
   const [view, setView] = useState('ciudadania')
@@ -31,6 +37,8 @@ function App() {
   const [adminMessage, setAdminMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
+  const [adminFieldErrors, setAdminFieldErrors] = useState(EMPTY_ADMIN_ERRORS)
+  const [slugTouched, setSlugTouched] = useState(false)
 
   useEffect(() => {
     refreshTramites()
@@ -77,12 +85,34 @@ function App() {
 
   function handleInputChange(event) {
     const { name, value } = event.target
-    setFormData((current) => ({ ...current, [name]: value }))
+
+    if (name === 'slug') {
+      setSlugTouched(true)
+    }
+
+    setFormData((current) => {
+      const nextState = { ...current, [name]: value }
+
+      if (name === 'nombre' && !slugTouched && !editingId) {
+        nextState.slug = slugify(value)
+      }
+
+      return nextState
+    })
+
+    if (name in EMPTY_ADMIN_ERRORS) {
+      setAdminFieldErrors((current) => ({
+        ...current,
+        [name]: '',
+      }))
+    }
   }
 
   function handleResetForm(clearFeedback = true) {
     setEditingId(null)
     setFormData(EMPTY_FORM)
+    setAdminFieldErrors(EMPTY_ADMIN_ERRORS)
+    setSlugTouched(false)
     if (clearFeedback) {
       setAdminError('')
       setAdminMessage('')
@@ -101,6 +131,8 @@ function App() {
       dependencia: tramite.dependencia ?? '',
       fuente_url: tramite.fuente_url ?? '',
     })
+    setAdminFieldErrors(EMPTY_ADMIN_ERRORS)
+    setSlugTouched(true)
     setAdminError('')
     setAdminMessage(`Editando "${tramite.nombre}".`)
     setView('admin')
@@ -109,14 +141,18 @@ function App() {
   async function handleAdminSubmit(event) {
     event.preventDefault()
     const payload = normalizePayload(formData)
-    if (!payload.nombre || !payload.slug || !payload.dependencia) {
-      setAdminError('Nombre, slug y dependencia son obligatorios.')
+    const nextFieldErrors = validateAdminForm(payload)
+
+    if (hasAdminErrors(nextFieldErrors)) {
+      setAdminFieldErrors(nextFieldErrors)
+      setAdminError('Revisa los campos marcados antes de guardar.')
       return
     }
 
     setIsSaving(true)
     setAdminError('')
     setAdminMessage('')
+    setAdminFieldErrors(EMPTY_ADMIN_ERRORS)
     const endpoint = editingId ? `${API_URL}/admin/tramites/${editingId}` : `${API_URL}/admin/tramites`
     const method = editingId ? 'PUT' : 'POST'
 
@@ -233,7 +269,7 @@ function App() {
                 {consultaError ? <Message tone="error">{consultaError}</Message> : null}
               </div>
 
-              <ConsultaResult consulta={consulta} />
+              <ConsultaResult consulta={consulta} onUseSuggestion={setQuestion} />
             </section>
 
             <aside className="space-y-6">
@@ -248,6 +284,9 @@ function App() {
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Panel administrativo inicial</p>
                   <h2 className="mt-2 text-3xl font-bold text-slate-950">Gestion de tramites estrella</h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                    Este formulario ya crea y actualiza tramites reales. Ahora incluye validaciones, ayuda de slug y mensajes de feedback mas claros.
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Endpoints usados</p>
@@ -255,11 +294,32 @@ function App() {
                 </div>
               </div>
 
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
+                  editingId
+                    ? 'border border-amber-200 bg-amber-50 text-amber-700'
+                    : 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                }`}>
+                  {editingId ? 'Modo edicion' : 'Nuevo tramite'}
+                </span>
+                <span className="text-sm text-slate-500">
+                  Los campos con <span className="font-semibold text-rose-500">*</span> son obligatorios.
+                </span>
+              </div>
+
               <form className="mt-8 grid gap-4 md:grid-cols-2" onSubmit={handleAdminSubmit}>
-                <Field label="Nombre" required><input className={inputClassName} name="nombre" value={formData.nombre} onChange={handleInputChange} /></Field>
-                <Field label="Slug" required><input className={inputClassName} name="slug" value={formData.slug} onChange={handleInputChange} /></Field>
-                <Field label="Dependencia"><input className={inputClassName} name="dependencia" value={formData.dependencia} onChange={handleInputChange} /></Field>
-                <Field label="Fuente oficial"><input className={inputClassName} name="fuente_url" value={formData.fuente_url} onChange={handleInputChange} /></Field>
+                <Field label="Nombre" required error={adminFieldErrors.nombre}>
+                  <input className={fieldClassName(adminFieldErrors.nombre)} name="nombre" value={formData.nombre} onChange={handleInputChange} />
+                </Field>
+                <Field label="Slug" required hint="Si no lo escribes manualmente, se genera a partir del nombre." error={adminFieldErrors.slug}>
+                  <input className={fieldClassName(adminFieldErrors.slug)} name="slug" value={formData.slug} onChange={handleInputChange} />
+                </Field>
+                <Field label="Dependencia" required error={adminFieldErrors.dependencia}>
+                  <input className={fieldClassName(adminFieldErrors.dependencia)} name="dependencia" value={formData.dependencia} onChange={handleInputChange} />
+                </Field>
+                <Field label="Fuente oficial" hint="Opcional. Usa una URL completa con http o https." error={adminFieldErrors.fuente_url}>
+                  <input className={fieldClassName(adminFieldErrors.fuente_url)} name="fuente_url" value={formData.fuente_url} onChange={handleInputChange} />
+                </Field>
                 <Field label="Costo"><input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} /></Field>
                 <Field label="Horario"><input className={inputClassName} name="horario" value={formData.horario} onChange={handleInputChange} /></Field>
                 <Field className="md:col-span-2" label="Descripcion"><textarea className={`${inputClassName} min-h-28`} name="descripcion" value={formData.descripcion} onChange={handleInputChange} /></Field>
@@ -318,7 +378,63 @@ function normalizePayload(data) {
   )
 }
 
-function ConsultaResult({ consulta }) {
+function validateAdminForm(payload) {
+  const errors = { ...EMPTY_ADMIN_ERRORS }
+
+  if (!payload.nombre) {
+    errors.nombre = 'Ingresa el nombre del tramite.'
+  }
+
+  if (!payload.slug) {
+    errors.slug = 'Ingresa o genera un slug para el tramite.'
+  } else if (!/^[a-z0-9-]+$/.test(payload.slug)) {
+    errors.slug = 'El slug solo debe contener minusculas, numeros y guiones.'
+  }
+
+  if (!payload.dependencia) {
+    errors.dependencia = 'Indica la dependencia responsable.'
+  }
+
+  if (payload.fuente_url && !isValidUrl(payload.fuente_url)) {
+    errors.fuente_url = 'La fuente oficial debe ser una URL valida con http o https.'
+  }
+
+  return errors
+}
+
+function hasAdminErrors(errors) {
+  return Object.values(errors).some(Boolean)
+}
+
+function slugify(value) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+}
+
+function isValidUrl(value) {
+  try {
+    const parsedUrl = new URL(value)
+    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function fieldClassName(hasError) {
+  return `${inputClassName} ${
+    hasError
+      ? 'border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100'
+      : ''
+  }`
+}
+
+function ConsultaResult({ consulta, onUseSuggestion }) {
   return (
     <div className="rounded-[2rem] border border-slate-200/70 bg-slate-950 p-6 text-white shadow-[0_30px_80px_-45px_rgba(15,23,42,0.7)]">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -349,6 +465,26 @@ function ConsultaResult({ consulta }) {
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-200">Respuesta del asistente</p>
             <p className="mt-3 text-base leading-7 text-emerald-50">{consulta.respuesta}</p>
           </div>
+
+          {consulta.sugerencias?.length ? (
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-300">
+                Sugerencias para continuar
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {consulta.sugerencias.map((sugerencia) => (
+                  <button
+                    key={sugerencia}
+                    type="button"
+                    onClick={() => onUseSuggestion(sugerencia)}
+                    className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-400/20"
+                  >
+                    {sugerencia}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {consulta.tramite_principal ? (
             <article className="rounded-3xl border border-white/10 bg-white/5 p-5">
@@ -401,24 +537,26 @@ function ConsultaResult({ consulta }) {
             </article>
           ) : null}
 
-          <div>
-            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
-              Tramites relacionados
-            </p>
-            <div className="grid gap-4">
-              {consulta.tramites_relacionados.map((tramite) => (
-                <article key={tramite.id} className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h4 className="text-lg font-semibold text-white">{tramite.nombre}</h4>
-                      <p className="mt-2 text-sm text-slate-300">{tramite.dependencia}</p>
+          {consulta.tramites_relacionados.length ? (
+            <div>
+              <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
+                Tramites relacionados
+              </p>
+              <div className="grid gap-4">
+                {consulta.tramites_relacionados.map((tramite) => (
+                  <article key={tramite.id} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h4 className="text-lg font-semibold text-white">{tramite.nombre}</h4>
+                        <p className="mt-2 text-sm text-slate-300">{tramite.dependencia}</p>
+                      </div>
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">ID {tramite.id}</span>
                     </div>
-                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">ID {tramite.id}</span>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       ) : (
         <div className="mt-6 rounded-3xl border border-dashed border-white/20 bg-white/5 p-8 text-center text-slate-300">
@@ -551,13 +689,22 @@ function ViewButton({ active, children, onClick }) {
   )
 }
 
-function Field({ label, children, className = '', required = false }) {
+function Field({
+  label,
+  children,
+  className = '',
+  required = false,
+  hint = '',
+  error = '',
+}) {
   return (
     <label className={`block ${className}`}>
       <span className="mb-2 block text-sm font-medium text-slate-700">
         {label} {required ? <span className="text-rose-500">*</span> : null}
       </span>
       {children}
+      {hint ? <span className="mt-2 block text-xs text-slate-500">{hint}</span> : null}
+      {error ? <span className="mt-2 block text-xs font-medium text-rose-600">{error}</span> : null}
     </label>
   )
 }
