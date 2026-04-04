@@ -1,16 +1,21 @@
-# React + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interfaz web del asistente de tramites estrella de rentas e impuestos.
 
-Currently, two official plugins are available:
+## Objetivo de esta base
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Dejar una aplicacion React lista para conectar:
 
-## React Compiler
+- chat ciudadano,
+- panel administrativo,
+- y servicios del backend en FastAPI.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Scripts
 
-## Expanding the ESLint configuration
+- `npm run dev`: levanta el entorno local.
+- `npm run lint`: valida reglas de estilo.
+- `npm run build`: genera el build de produccion.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Variable de entorno
+
+Usa `.env.example` como referencia para definir `VITE_API_URL`.
