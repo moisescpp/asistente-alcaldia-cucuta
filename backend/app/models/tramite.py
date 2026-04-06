@@ -21,6 +21,8 @@ class Tramite(Base):
     dependencia: Mapped[str] = mapped_column(String(255), nullable=False)
     fuente_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Reservado para la recuperacion semantica de la Iteracion 3, cuando la
+    # integracion con OpenAI pueda ejecutarse con facturacion habilitada.
     embedding_vector: Mapped[list[float] | None] = mapped_column(
         Vector(settings.embedding_dimensions),
         nullable=True,

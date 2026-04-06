@@ -267,10 +267,10 @@ function App() {
                   </label>
 
                   <div className="flex flex-wrap items-center gap-3">
-                    <button type="submit" disabled={isSubmitting} className="inline-flex items-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400">
+                    <button type="submit" disabled={isSubmitting} className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
                       {isSubmitting ? 'Consultando...' : 'Consultar asistente'}
                     </button>
-                    <button type="button" onClick={() => setQuestion(DEFAULT_QUESTION)} className="inline-flex items-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
+                    <button type="button" onClick={() => setQuestion(DEFAULT_QUESTION)} className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto">
                       Usar ejemplo
                     </button>
                   </div>
@@ -279,7 +279,7 @@ function App() {
                 {consultaError ? <Message tone="error">{consultaError}</Message> : null}
               </div>
 
-              <ConsultaResult consulta={consulta} onUseSuggestion={setQuestion} />
+              <ConsultaResult consulta={consulta} isSubmitting={isSubmitting} onUseSuggestion={setQuestion} />
             </section>
 
             <aside className="space-y-6">
@@ -337,10 +337,10 @@ function App() {
 
                 <div className="md:col-span-2">
                   <div className="flex flex-wrap items-center gap-3">
-                    <button type="submit" disabled={isSaving} className="inline-flex items-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400">
+                    <button type="submit" disabled={isSaving} className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
                       {isSaving ? 'Guardando...' : editingId ? 'Actualizar tramite' : 'Crear tramite'}
                     </button>
-                    <button type="button" onClick={handleResetForm} className="inline-flex items-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
+                    <button type="button" onClick={handleResetForm} className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto">
                       Limpiar formulario
                     </button>
                   </div>
@@ -444,7 +444,7 @@ function fieldClassName(hasError) {
   }`
 }
 
-function ConsultaResult({ consulta, onUseSuggestion }) {
+function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
   return (
     <div className="rounded-[2rem] border border-slate-200/70 bg-slate-950 p-6 text-white shadow-[0_30px_80px_-45px_rgba(15,23,42,0.7)]">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -455,7 +455,21 @@ function ConsultaResult({ consulta, onUseSuggestion }) {
         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">MVP conectado al backend</span>
       </div>
 
-      {consulta ? (
+      {isSubmitting ? (
+        <div className="mt-6 space-y-4">
+          <div className="h-6 w-40 animate-pulse rounded-full bg-white/10" />
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div className="h-4 w-32 animate-pulse rounded-full bg-white/10" />
+            <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-white/10" />
+            <div className="mt-3 h-4 w-5/6 animate-pulse rounded-full bg-white/10" />
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div className="h-4 w-36 animate-pulse rounded-full bg-white/10" />
+            <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-white/10" />
+            <div className="mt-3 h-4 w-4/5 animate-pulse rounded-full bg-white/10" />
+          </div>
+        </div>
+      ) : consulta ? (
         <div className="mt-6 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">
@@ -571,6 +585,10 @@ function ConsultaResult({ consulta, onUseSuggestion }) {
       ) : (
         <div className="mt-6 rounded-3xl border border-dashed border-white/20 bg-white/5 p-8 text-center text-slate-300">
           La respuesta aparecera aqui cuando envies una consulta al asistente.
+          <p className="mt-3 text-sm leading-6 text-slate-400">
+            Puedes empezar con una pregunta sobre impuesto predial, facilidades
+            de pago o devolucion de pagos en exceso.
+          </p>
         </div>
       )}
     </div>
@@ -591,6 +609,14 @@ function DetailCard({ label, value }) {
 function TramitesPanel({ tramites, loadingTramites, tramitesError }) {
   if (loadingTramites) return <LoadingPanel title="Base de consulta disponible" />
   if (tramitesError) return <Message tone="error">{tramitesError}</Message>
+  if (!tramites.length) {
+    return (
+      <EmptyPanel
+        title="Base de consulta disponible"
+        body="Todavia no hay tramites activos cargados para consulta ciudadana."
+      />
+    )
+  }
   return (
     <div className="rounded-[2rem] border border-slate-200/70 bg-white/80 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Tramites activos</p>
@@ -616,6 +642,19 @@ function TramitesPanel({ tramites, loadingTramites, tramitesError }) {
 function TramitesAdminList({ tramites, loadingTramites, tramitesError, editingId, deletingId, onEdit, onDelete }) {
   if (loadingTramites) return <LoadingPanel title="Tramites disponibles" />
   if (tramitesError) return <Message tone="error">{tramitesError}</Message>
+  if (!tramites.length) {
+    return (
+      <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+        <p className="text-base font-semibold text-slate-700">
+          No hay tramites activos registrados.
+        </p>
+        <p className="mt-3 text-sm leading-6 text-slate-500">
+          Usa el formulario de la izquierda para crear el primer tramite
+          estrella y comenzar a poblar la base administrativa.
+        </p>
+      </div>
+    )
+  }
   return (
     <div className="grid gap-4">
       {tramites.map((tramite) => (
@@ -628,9 +667,9 @@ function TramitesAdminList({ tramites, loadingTramites, tramitesError, editingId
               </div>
               <p className="text-sm text-slate-600">{tramite.dependencia}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => onEdit(tramite)} className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-white">Editar</button>
-              <button type="button" onClick={() => onDelete(tramite)} disabled={deletingId === tramite.id} className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60">
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+              <button type="button" onClick={() => onEdit(tramite)} className="inline-flex flex-1 items-center justify-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-white sm:flex-none">Editar</button>
+              <button type="button" onClick={() => onDelete(tramite)} disabled={deletingId === tramite.id} className="inline-flex flex-1 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none">
                 {deletingId === tramite.id ? 'Desactivando...' : 'Desactivar'}
               </button>
             </div>
@@ -648,6 +687,18 @@ function LoadingPanel({ title }) {
       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{title}</p>
       <div className="mt-6 space-y-3">
         {[1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-3xl bg-slate-100" />)}
+      </div>
+    </div>
+  )
+}
+
+function EmptyPanel({ title, body }) {
+  return (
+    <div className="rounded-[2rem] border border-slate-200/70 bg-white/80 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{title}</p>
+      <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+        <p className="text-base font-semibold text-slate-700">Sin informacion disponible</p>
+        <p className="mt-3 text-sm leading-6 text-slate-500">{body}</p>
       </div>
     </div>
   )
