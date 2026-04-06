@@ -13,4 +13,4 @@ Esta base queda preparada para cerrar la Iteracion 1 de XP:
 
 - entorno organizado,
 - estructura tecnica separada por frontend y backend,
-- y archivos iniciales para comenzar a construir historias de usuario.
+- y archivos iniciales para comenzar a construir historias de usuario de la alcaldía.
