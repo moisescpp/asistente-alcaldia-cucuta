@@ -30,7 +30,10 @@ def test_consulta_returns_main_match_and_related_results(client, test_slug_prefi
 
     assert response.status_code == 200
     data = response.json()
-    assert data["mensaje_estado"] == "Coincidencias encontradas"
+    assert data["mensaje_estado"] in {
+        "Coincidencias encontradas",
+        "Coincidencias semanticas encontradas",
+    }
     assert data["total_resultados"] >= 1
     assert data["tramite_principal"] is not None
     assert "predial" in data["tramite_principal"]["nombre"].lower()

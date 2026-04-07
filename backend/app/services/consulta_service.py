@@ -2,60 +2,32 @@ from __future__ import annotations
 
 import unicodedata
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.models import Tramite
 from app.schemas.consulta import ConsultaMatch, ConsultaResponse
+from app.services.embedding_service import generate_embedding
+from app.services.rag_service import generate_rag_response
+
 
 DEFAULT_SUGGESTIONS = [
-    "Consulta por impuesto predial unificado",
-    "Pregunta por facilidades de pago",
-    "Pregunta por devolucion de pagos en exceso",
+    "Consulta por impuesto predial",
+    "Consulta por facilidades de pago",
+    "Consulta por devolucion o compensacion de pagos",
 ]
 
+SEMANTIC_RESULT_LIMIT = 3
+SEMANTIC_DISTANCE_THRESHOLD = 0.55
 
-def _normalize_text(value: str) -> str:
+
+def _normalize_text(value: str | None) -> str:
+    if not value:
+        return ""
+
     normalized = unicodedata.normalize("NFKD", value)
-    return "".join(char for char in normalized if not unicodedata.combining(char)).lower()
-
-
-def _build_haystack(tramite: Tramite) -> str:
-    parts = [
-        tramite.nombre,
-        tramite.descripcion or "",
-        tramite.requisitos or "",
-        tramite.costo or "",
-        tramite.horario or "",
-        tramite.dependencia,
-    ]
-    return _normalize_text(" ".join(parts))
-
-
-def _score_tramite(tramite: Tramite, tokens: list[str]) -> int:
-    haystack = _build_haystack(tramite)
-    score = 0
-
-    for token in tokens:
-        if token in haystack:
-            score += 1
-
-    normalized_name = _normalize_text(tramite.nombre)
-    normalized_slug = _normalize_text(tramite.slug.replace("-", " "))
-
-    for token in tokens:
-        if token in normalized_name:
-            score += 2
-        if token in normalized_slug:
-            score += 1
-
-    return score
-
-
-def _build_response_text(best_match: Tramite, total_matches: int) -> str:
-    return (
-        f"Encontre {total_matches} tramite(s) relacionado(s). "
-        f"El tramite mas relevante es '{best_match.nombre}', gestionado por "
-        f"{best_match.dependencia}. Revisa sus requisitos, costo y horario "
-        "para orientarte antes de acudir al punto de atencion."
-    )
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    return normalized.lower().strip()
 
 
 def _build_match(tramite: Tramite) -> ConsultaMatch:
@@ -72,56 +44,152 @@ def _build_match(tramite: Tramite) -> ConsultaMatch:
     )
 
 
-def process_consulta(pregunta: str, tramites: list[Tramite]) -> ConsultaResponse:
-    normalized_question = _normalize_text(pregunta)
-    tokens = [token for token in normalized_question.split() if len(token) >= 3]
+def _build_success_response(
+    *,
+    pregunta: str,
+    tramites: list[Tramite],
+    message_status: str,
+) -> ConsultaResponse:
+    tramite_principal = tramites[0]
+    tramite_match = _build_match(tramite_principal)
+    related_matches = [_build_match(tramite) for tramite in tramites]
 
-    if not tokens:
-        return ConsultaResponse(
+    fallback_text = (
+        f"Encontre {len(tramites)} tramite(s) relacionado(s). "
+        f"El tramite mas relevante es '{tramite_principal.nombre}'. "
+        f"Descripcion: {tramite_principal.descripcion or 'Sin descripcion registrada.'} "
+        f"Requisitos: {tramite_principal.requisitos or 'Sin requisitos registrados.'} "
+        f"Costo: {tramite_principal.costo or 'Sin costo registrado.'} "
+        f"Horario: {tramite_principal.horario or 'Sin horario registrado.'} "
+        f"Dependencia responsable: {tramite_principal.dependencia}."
+    )
+
+    try:
+        response_text = generate_rag_response(
             pregunta=pregunta,
-            respuesta=(
-                "La consulta es demasiado corta. Intenta incluir el nombre del tramite "
-                "o una palabra clave como impuesto, predial, pago o devolucion."
-            ),
-            mensaje_estado="Consulta demasiado corta",
-            total_resultados=0,
-            tramite_principal=None,
-            tramites_relacionados=[],
-            sugerencias=DEFAULT_SUGGESTIONS,
+            tramites=tramites,
         )
-
-    scored_tramites = []
-    for tramite in tramites:
-        score = _score_tramite(tramite, tokens)
-        if score > 0:
-            scored_tramites.append((score, tramite))
-
-    scored_tramites.sort(key=lambda item: (-item[0], item[1].nombre))
-
-    if not scored_tramites:
-        return ConsultaResponse(
-            pregunta=pregunta,
-            respuesta=(
-                "No encontre tramites relacionados con tu consulta en la base actual. "
-                "Intenta usar otras palabras clave o revisa si el tramite pertenece a otro proceso."
-            ),
-            mensaje_estado="Sin coincidencias en la base actual",
-            total_resultados=0,
-            tramite_principal=None,
-            tramites_relacionados=[],
-            sugerencias=DEFAULT_SUGGESTIONS,
-        )
-
-    matches = [tramite for _, tramite in scored_tramites[:3]]
-    response_matches = [_build_match(tramite) for tramite in matches]
-    best_match = matches[0]
+    except Exception:
+        response_text = fallback_text
 
     return ConsultaResponse(
         pregunta=pregunta,
-        respuesta=_build_response_text(best_match, len(scored_tramites)),
-        mensaje_estado="Coincidencias encontradas",
-        total_resultados=len(scored_tramites),
-        tramite_principal=_build_match(best_match),
-        tramites_relacionados=response_matches,
+        respuesta=response_text,
+        mensaje_estado=message_status,
+        total_resultados=len(tramites),
+        tramite_principal=tramite_match,
+        tramites_relacionados=related_matches,
         sugerencias=[],
     )
+
+
+def _build_empty_response(pregunta: str) -> ConsultaResponse:
+    return ConsultaResponse(
+        pregunta=pregunta,
+        respuesta=(
+            "No encontre un tramite directamente relacionado en la base actual. "
+            "Prueba con una consulta mas especifica o usa una de las sugerencias."
+        ),
+        mensaje_estado="Sin coincidencias en la base actual",
+        total_resultados=0,
+        tramite_principal=None,
+        tramites_relacionados=[],
+        sugerencias=DEFAULT_SUGGESTIONS,
+    )
+
+
+def _text_match_score(pregunta: str, tramite: Tramite) -> int:
+    normalized_question = _normalize_text(pregunta)
+    tokens = [token for token in normalized_question.split() if len(token) > 2]
+
+    searchable_text = " ".join(
+        [
+            _normalize_text(tramite.nombre),
+            _normalize_text(tramite.descripcion),
+            _normalize_text(tramite.requisitos),
+            _normalize_text(tramite.costo),
+            _normalize_text(tramite.horario),
+            _normalize_text(tramite.dependencia),
+        ]
+    )
+
+    return sum(1 for token in tokens if token in searchable_text)
+
+
+def process_consulta_textual(
+    pregunta: str,
+    tramites: list[Tramite],
+) -> ConsultaResponse:
+    scored_tramites = [
+        (tramite, _text_match_score(pregunta, tramite))
+        for tramite in tramites
+        if tramite.activo
+    ]
+
+    matched_tramites = [tramite for tramite, score in scored_tramites if score > 0]
+    matched_tramites.sort(
+        key=lambda tramite: _text_match_score(pregunta, tramite),
+        reverse=True,
+    )
+
+    if not matched_tramites:
+        return _build_empty_response(pregunta)
+
+    return _build_success_response(
+        pregunta=pregunta,
+        tramites=matched_tramites[:SEMANTIC_RESULT_LIMIT],
+        message_status="Coincidencias encontradas",
+    )
+
+
+def process_consulta_semantica(
+    db: Session,
+    pregunta: str,
+) -> ConsultaResponse:
+    embedding = generate_embedding(pregunta)
+
+    distance_label = Tramite.embedding_vector.cosine_distance(embedding).label("distance")
+    query = (
+        select(Tramite, distance_label)
+        .where(
+            Tramite.activo.is_(True),
+            Tramite.embedding_vector.is_not(None),
+        )
+        .order_by(distance_label)
+        .limit(SEMANTIC_RESULT_LIMIT)
+    )
+
+    results = db.execute(query).all()
+
+    filtered_tramites = [
+        tramite
+        for tramite, distance in results
+        if distance is not None and distance <= SEMANTIC_DISTANCE_THRESHOLD
+    ]
+
+    if not filtered_tramites:
+        return _build_empty_response(pregunta)
+
+    return _build_success_response(
+        pregunta=pregunta,
+        tramites=filtered_tramites,
+        message_status="Coincidencias semanticas encontradas",
+    )
+
+
+def process_consulta(
+    db: Session,
+    pregunta: str,
+    tramites: list[Tramite],
+) -> ConsultaResponse:
+    has_semantic_data = any(
+        tramite.activo and tramite.embedding_vector is not None for tramite in tramites
+    )
+
+    if has_semantic_data:
+        try:
+            return process_consulta_semantica(db, pregunta)
+        except Exception:
+            return process_consulta_textual(pregunta, tramites)
+
+    return process_consulta_textual(pregunta, tramites)

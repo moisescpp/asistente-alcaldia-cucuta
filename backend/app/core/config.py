@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     embedding_model: str = "text-embedding-3-small"
+    response_model: str = "gpt-5-nano"
+    response_max_output_tokens: int = 450
+    response_reasoning_effort: str = "minimal"
+    response_text_verbosity: str = "low"
     database_url: str = (
         "postgresql+psycopg://postgres:postgres@localhost:5432/alcaldia_cucuta"
     )

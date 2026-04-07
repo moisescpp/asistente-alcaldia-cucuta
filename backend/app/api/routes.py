@@ -257,4 +257,4 @@ def consulta_tramites(payload: ConsultaRequest, db: DbSession) -> ConsultaRespon
             detail="No fue posible consultar la base de datos.",
         ) from exc
 
-    return process_consulta(payload.pregunta, tramites)
+    return process_consulta(db, payload.pregunta, tramites)
