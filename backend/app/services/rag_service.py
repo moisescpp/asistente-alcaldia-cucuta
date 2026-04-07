@@ -62,12 +62,20 @@ def generate_rag_response(
             "Eres un asistente institucional de tramites estrella de rentas e impuestos "
             "de la Alcaldia de San Jose de Cucuta. Responde en espanol claro, sin inventar "
             "informacion, usando solo el contexto entregado. Si el contexto no alcanza, dilo "
-            "de manera breve y orienta al ciudadano a validar en la fuente oficial."
+            "de manera breve y orienta al ciudadano a validar en la fuente oficial. "
+            "Debes priorizar claramente el tramite mas relevante y no mezclar todos los tramites "
+            "al mismo nivel."
         ),
         "input": (
             f"Pregunta del ciudadano: {pregunta}\n\n"
             f"Contexto recuperado:\n{context}\n\n"
-            "Redacta una respuesta corta, util y bien organizada para el ciudadano."
+            "Redacta la respuesta con esta estructura exacta:\n"
+            "1. Una linea breve que diga cual es el tramite principal.\n"
+            "2. Una seccion corta con: requisitos, costo, horario, dependencia y fuente oficial.\n"
+            "3. Si hay otros tramites en el contexto, agregalos al final bajo el titulo "
+            "'Tambien pueden interesarte', en una lista corta.\n"
+            "4. Usa saltos de linea y vietas simples para que la respuesta sea facil de leer.\n"
+            "5. No inventes datos ni agregues tramites fuera del contexto recuperado."
         ),
         "max_output_tokens": settings.response_max_output_tokens,
         "reasoning": {"effort": settings.response_reasoning_effort},

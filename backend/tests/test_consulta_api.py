@@ -37,7 +37,7 @@ def test_consulta_returns_main_match_and_related_results(client, test_slug_prefi
     assert data["total_resultados"] >= 1
     assert data["tramite_principal"] is not None
     assert "predial" in data["tramite_principal"]["nombre"].lower()
-    assert data["tramites_relacionados"]
+    assert len(data["tramites_relacionados"]) == max(data["total_resultados"] - 1, 0)
     assert data["sugerencias"] == []
 
 

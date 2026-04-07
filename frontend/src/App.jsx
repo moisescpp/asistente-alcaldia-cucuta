@@ -487,7 +487,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
 
           <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-200">Respuesta del asistente</p>
-            <p className="mt-3 text-base leading-7 text-emerald-50">{consulta.respuesta}</p>
+            <p className="mt-3 whitespace-pre-line text-base leading-7 text-emerald-50">{consulta.respuesta}</p>
           </div>
 
           {consulta.sugerencias?.length ? (

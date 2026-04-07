@@ -52,16 +52,15 @@ def _build_success_response(
 ) -> ConsultaResponse:
     tramite_principal = tramites[0]
     tramite_match = _build_match(tramite_principal)
-    related_matches = [_build_match(tramite) for tramite in tramites]
+    related_matches = [_build_match(tramite) for tramite in tramites[1:]]
 
     fallback_text = (
-        f"Encontre {len(tramites)} tramite(s) relacionado(s). "
-        f"El tramite mas relevante es '{tramite_principal.nombre}'. "
-        f"Descripcion: {tramite_principal.descripcion or 'Sin descripcion registrada.'} "
-        f"Requisitos: {tramite_principal.requisitos or 'Sin requisitos registrados.'} "
-        f"Costo: {tramite_principal.costo or 'Sin costo registrado.'} "
-        f"Horario: {tramite_principal.horario or 'Sin horario registrado.'} "
-        f"Dependencia responsable: {tramite_principal.dependencia}."
+        f"Tramite principal: {tramite_principal.nombre}.\n"
+        f"Dependencia: {tramite_principal.dependencia}.\n"
+        f"Descripcion: {tramite_principal.descripcion or 'Sin descripcion registrada.'}\n"
+        f"Requisitos: {tramite_principal.requisitos or 'Sin requisitos registrados.'}\n"
+        f"Costo: {tramite_principal.costo or 'Sin costo registrado.'}\n"
+        f"Horario: {tramite_principal.horario or 'Sin horario registrado.'}"
     )
 
     try:
