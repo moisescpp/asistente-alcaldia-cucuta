@@ -15,6 +15,7 @@ DEFAULT_SUGGESTIONS = [
     "Consulta por impuesto predial",
     "Consulta por facilidades de pago",
     "Consulta por devolucion o compensacion de pagos",
+    "Consulta por impuesto vehicular"
 ]
 
 SEMANTIC_QUERY_LIMIT = 5
@@ -71,22 +72,42 @@ def _build_success_response(
     tramite_match = _build_match(tramite_principal)
     related_matches = [_build_match(tramite) for tramite in tramites[1:]]
 
-    fallback_text = (
-        f"Tramite principal: {tramite_principal.nombre}.\n"
-        f"Dependencia: {tramite_principal.dependencia}.\n"
-        f"Descripcion: {tramite_principal.descripcion or 'Sin descripcion registrada.'}\n"
-        f"Requisitos: {tramite_principal.requisitos or 'Sin requisitos registrados.'}\n"
-        f"Costo: {tramite_principal.costo or 'Sin costo registrado.'}\n"
-        f"Horario: {tramite_principal.horario or 'Sin horario registrado.'}"
+    fallback_intro = (
+        f"El tramite principal para tu consulta es '{tramite_principal.nombre}'. "
+        "A continuacion te comparto la informacion registrada en el sistema."
     )
 
     try:
-        response_text = generate_rag_response(
+        intro_text = generate_rag_response(
             pregunta=pregunta,
             tramites=tramites,
         )
     except Exception:
-        response_text = fallback_text
+        intro_text = fallback_intro
+
+    response_parts = [
+        intro_text.strip(),
+        "",
+        f"Trámite principal: {tramite_principal.nombre}",
+        "",
+        "Datos registrados:",
+        f"- Requisitos: {tramite_principal.requisitos or 'No hay informacion registrada en el sistema para este campo.'}",
+        f"- Costo: {tramite_principal.costo or 'No hay informacion registrada en el sistema para este campo.'}",
+        f"- Horario: {tramite_principal.horario or 'No hay informacion registrada en el sistema para este campo.'}",
+        f"- Dependencia: {tramite_principal.dependencia}",
+        f"- Fuente oficial: {tramite_principal.fuente_url or 'No hay informacion registrada en el sistema para este campo.'}",
+    ]
+
+    if related_matches:
+        response_parts.extend(
+            [
+                "",
+                "También pueden interesarte:",
+                *[f"- {tramite.nombre}" for tramite in related_matches],
+            ]
+        )
+
+    response_text = "\n".join(response_parts).strip()
 
     return ConsultaResponse(
         pregunta=pregunta,

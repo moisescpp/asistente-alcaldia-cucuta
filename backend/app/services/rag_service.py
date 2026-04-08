@@ -76,23 +76,15 @@ def generate_rag_response(
             "de la Alcaldia de San Jose de Cucuta. Responde en espanol claro, sin inventar "
             "informacion, usando solo el contexto entregado. Si el contexto no alcanza, dilo "
             "de manera breve y orienta al ciudadano a validar en la fuente oficial. "
-            "Debes priorizar claramente el tramite mas relevante y no mezclar todos los tramites "
-            "al mismo nivel. Si un dato no aparece en el contexto, debes decir "
-            "'No hay informacion registrada en el sistema para este campo' y nunca completarlo "
-            "con suposiciones."
+            "Solo debes redactar una orientacion corta de una o dos oraciones sobre el tramite "
+            "principal. No listes requisitos, costo, horario ni fuente; esos datos los agrega "
+            "el sistema despues. No uses numeracion ni vietas. No inventes datos ni completes "
+            "campos faltantes con suposiciones."
         ),
         "input": (
             f"Pregunta del ciudadano: {pregunta}\n\n"
             f"Contexto recuperado:\n{context}\n\n"
-            "Redacta la respuesta con esta estructura exacta:\n"
-            "1. Una linea breve que diga cual es el tramite principal.\n"
-            "2. Una seccion corta con: requisitos, costo, horario, dependencia y fuente oficial.\n"
-            "3. Si hay otros tramites en el contexto, agregalos al final bajo el titulo "
-            "'Tambien pueden interesarte', en una lista corta.\n"
-            "3.1. Si solo existe un tramite en el contexto, no escribas la seccion "
-            "'Tambien pueden interesarte' ni agregues aclaraciones sobre ausencia de resultados.\n"
-            "4. Usa saltos de linea y vietas simples para que la respuesta sea facil de leer.\n"
-            "5. No inventes datos ni agregues tramites fuera del contexto recuperado."
+            "Redacta solo una breve orientacion inicial para el ciudadano sobre el tramite principal."
         ),
         "max_output_tokens": settings.response_max_output_tokens,
         "reasoning": {"effort": settings.response_reasoning_effort},
