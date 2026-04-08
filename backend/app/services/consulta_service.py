@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Tramite
 from app.schemas.consulta import ConsultaMatch, ConsultaResponse
-from app.services.embedding_service import generate_embedding
+from app.services.embedding_service import generate_embedding, get_tramite_semantic_aliases
 from app.services.rag_service import generate_rag_response
 
 
@@ -127,6 +127,7 @@ def _text_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, int, boo
             _normalize_text(tramite.costo),
             _normalize_text(tramite.horario),
             _normalize_text(tramite.dependencia),
+            _normalize_text(" ".join(get_tramite_semantic_aliases(tramite))),
         ]
     )
 

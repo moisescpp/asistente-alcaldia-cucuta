@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, or_
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -33,7 +33,14 @@ def cleanup_test_tramites() -> None:
 
     db = SessionLocal()
     try:
-        db.execute(delete(Tramite).where(Tramite.slug.like("test-%")))
+        db.execute(
+            delete(Tramite).where(
+                or_(
+                    Tramite.slug.like("test-%"),
+                    Tramite.nombre.like("Test %"),
+                ),
+            ),
+        )
         db.commit()
     finally:
         db.close()

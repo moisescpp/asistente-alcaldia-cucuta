@@ -110,3 +110,27 @@ def test_consulta_falls_back_to_text_when_tramite_has_no_embedding(
     data = response.json()
     assert data["tramite_principal"] is not None
     assert "vehicular" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_understands_citizen_synonym_for_house(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "casa"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "predial" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_understands_citizen_synonym_for_car(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "carro"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "vehicular" in data["tramite_principal"]["nombre"].lower()
