@@ -44,6 +44,19 @@ def _extract_output_text(data: dict[str, Any]) -> str:
     return "\n\n".join(fragment for fragment in text_fragments if fragment).strip()
 
 
+def _sanitize_output_text(output_text: str, *, total_tramites: int) -> str:
+    if total_tramites > 1:
+        return output_text.strip()
+
+    normalized = output_text.replace("\r\n", "\n")
+    marker = "Tambien pueden interesarte"
+
+    if marker in normalized:
+        normalized = normalized.split(marker, 1)[0].rstrip()
+
+    return normalized.strip()
+
+
 def generate_rag_response(
     *,
     pregunta: str,
@@ -74,6 +87,8 @@ def generate_rag_response(
             "2. Una seccion corta con: requisitos, costo, horario, dependencia y fuente oficial.\n"
             "3. Si hay otros tramites en el contexto, agregalos al final bajo el titulo "
             "'Tambien pueden interesarte', en una lista corta.\n"
+            "3.1. Si solo existe un tramite en el contexto, no escribas la seccion "
+            "'Tambien pueden interesarte' ni agregues aclaraciones sobre ausencia de resultados.\n"
             "4. Usa saltos de linea y vietas simples para que la respuesta sea facil de leer.\n"
             "5. No inventes datos ni agregues tramites fuera del contexto recuperado."
         ),
@@ -94,7 +109,10 @@ def generate_rag_response(
     response.raise_for_status()
 
     data = response.json()
-    output_text = _extract_output_text(data)
+    output_text = _sanitize_output_text(
+        _extract_output_text(data),
+        total_tramites=len(tramites),
+    )
 
     if not output_text:
         raise ValueError("La API de OpenAI no devolvio texto en la respuesta RAG.")

@@ -60,3 +60,16 @@ def test_consulta_returns_no_match_message_and_suggestions(client) -> None:
     assert data["tramite_principal"] is None
     assert data["tramites_relacionados"] == []
     assert len(data["sugerencias"]) >= 1
+
+
+def test_consulta_rejects_semantically_close_but_incorrect_topic(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "Impuesto vehicular"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Sin coincidencias en la base actual"
+    assert data["tramite_principal"] is None
+    assert data["tramites_relacionados"] == []
