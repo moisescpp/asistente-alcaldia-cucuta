@@ -19,6 +19,21 @@ DEFAULT_SUGGESTIONS = [
 
 SEMANTIC_RESULT_LIMIT = 3
 SEMANTIC_DISTANCE_THRESHOLD = 0.50
+GENERIC_QUERY_TOKENS = {
+    "consulta",
+    "consultar",
+    "informacion",
+    "informacion",
+    "tramite",
+    "tramites",
+    "impuesto",
+    "impuestos",
+    "pago",
+    "pagos",
+    "sobre",
+    "necesito",
+    "quiero",
+}
 
 
 def _normalize_text(value: str | None) -> str:
@@ -97,9 +112,10 @@ def _build_empty_response(pregunta: str) -> ConsultaResponse:
     )
 
 
-def _text_match_score(pregunta: str, tramite: Tramite) -> int:
+def _text_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, int, bool]:
     normalized_question = _normalize_text(pregunta)
     tokens = [token for token in normalized_question.split() if len(token) > 2]
+    specific_tokens = [token for token in tokens if token not in GENERIC_QUERY_TOKENS]
 
     searchable_text = " ".join(
         [
@@ -112,22 +128,46 @@ def _text_match_score(pregunta: str, tramite: Tramite) -> int:
         ]
     )
 
-    return sum(1 for token in tokens if token in searchable_text)
+    total_matches = sum(1 for token in tokens if token in searchable_text)
+    specific_matches = sum(1 for token in specific_tokens if token in searchable_text)
+    phrase_match = len(normalized_question) >= 5 and normalized_question in searchable_text
+
+    return total_matches, specific_matches, phrase_match
 
 
 def process_consulta_textual(
     pregunta: str,
     tramites: list[Tramite],
 ) -> ConsultaResponse:
-    scored_tramites = [
-        (tramite, _text_match_score(pregunta, tramite))
-        for tramite in tramites
-        if tramite.activo
-    ]
+    scored_tramites: list[tuple[Tramite, int, int, bool]] = []
+    for tramite in tramites:
+        if not tramite.activo:
+            continue
 
-    matched_tramites = [tramite for tramite, score in scored_tramites if score > 0]
+        total_matches, specific_matches, phrase_match = _text_match_metadata(
+            pregunta,
+            tramite,
+        )
+
+        if total_matches > 0 and (specific_matches > 0 or phrase_match):
+            scored_tramites.append(
+                (tramite, total_matches, specific_matches, phrase_match),
+            )
+
+    matched_tramites = [tramite for tramite, _, _, _ in scored_tramites]
     matched_tramites.sort(
-        key=lambda tramite: _text_match_score(pregunta, tramite),
+        key=lambda candidate: next(
+            (
+                (
+                    specific_matches,
+                    total_matches,
+                    1 if phrase_match else 0,
+                )
+                for tramite, total_matches, specific_matches, phrase_match in scored_tramites
+                if tramite.id == candidate.id
+            ),
+            (0, 0, 0),
+        ),
         reverse=True,
     )
 
@@ -187,7 +227,15 @@ def process_consulta(
 
     if has_semantic_data:
         try:
-            return process_consulta_semantica(db, pregunta)
+            semantic_response = process_consulta_semantica(db, pregunta)
+            if semantic_response.total_resultados > 0:
+                return semantic_response
+
+            textual_response = process_consulta_textual(pregunta, tramites)
+            if textual_response.total_resultados > 0:
+                return textual_response
+
+            return semantic_response
         except Exception:
             return process_consulta_textual(pregunta, tramites)
 

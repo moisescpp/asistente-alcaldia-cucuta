@@ -10,11 +10,20 @@ from app.database import get_db_session
 from app.models import Tramite
 from app.schemas.consulta import ConsultaRequest, ConsultaResponse
 from app.schemas.tramite import TramiteCreate, TramiteRead, TramiteUpdate
-from app.services import process_consulta
+from app.services import process_consulta, update_tramite_embedding
 
 
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db_session)]
+
+
+def _sync_tramite_embedding(db: Session, tramite: Tramite) -> None:
+    try:
+        update_tramite_embedding(db, tramite)
+    except Exception:
+        # Si el embedding no puede actualizarse en este momento, el tramite sigue
+        # disponible y la consulta puede apoyarse en el respaldo textual.
+        pass
 
 
 def _find_tramite_by_name_or_slug(
@@ -123,6 +132,8 @@ def create_tramite(payload: TramiteCreate, db: DbSession) -> TramiteRead:
                 detail="No fue posible reactivar el tramite existente.",
             ) from exc
 
+        _sync_tramite_embedding(db, existing_tramite)
+
         return TramiteRead.model_validate(existing_tramite)
 
     tramite = Tramite(**payload.model_dump())
@@ -143,6 +154,8 @@ def create_tramite(payload: TramiteCreate, db: DbSession) -> TramiteRead:
             status_code=400,
             detail="No fue posible crear el tramite.",
         ) from exc
+
+    _sync_tramite_embedding(db, tramite)
 
     return TramiteRead.model_validate(tramite)
 
@@ -205,6 +218,8 @@ def update_tramite(
             status_code=400,
             detail="No fue posible actualizar el tramite.",
         ) from exc
+
+    _sync_tramite_embedding(db, tramite)
 
     return TramiteRead.model_validate(tramite)
 

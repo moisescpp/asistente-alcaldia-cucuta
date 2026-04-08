@@ -1,3 +1,7 @@
+from app.database import SessionLocal
+from app.models import Tramite
+
+
 def build_payload(slug: str, **overrides) -> dict:
     payload = {
         "nombre": f"Test consulta {slug}",
@@ -65,7 +69,7 @@ def test_consulta_returns_no_match_message_and_suggestions(client) -> None:
 def test_consulta_rejects_semantically_close_but_incorrect_topic(client) -> None:
     response = client.post(
         "/api/consulta",
-        json={"pregunta": "Impuesto vehicular"},
+        json={"pregunta": "Impuesto aeroportuario"},
     )
 
     assert response.status_code == 200
@@ -73,3 +77,36 @@ def test_consulta_rejects_semantically_close_but_incorrect_topic(client) -> None
     assert data["mensaje_estado"] == "Sin coincidencias en la base actual"
     assert data["tramite_principal"] is None
     assert data["tramites_relacionados"] == []
+
+
+def test_consulta_falls_back_to_text_when_tramite_has_no_embedding(
+    client,
+    test_slug_prefix,
+) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-vehicular",
+        nombre=f"Impuesto vehicular {test_slug_prefix}",
+        descripcion="Consulta orientativa del impuesto vehicular.",
+        dependencia="Secretaria de transito y movilidad",
+    )
+    creation_response = client.post("/api/admin/tramites", json=payload)
+    tramite_id = creation_response.json()["id"]
+
+    db = SessionLocal()
+    try:
+        tramite = db.get(Tramite, tramite_id)
+        tramite.embedding_vector = None
+        db.add(tramite)
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "Impuesto vehicular"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "vehicular" in data["tramite_principal"]["nombre"].lower()
