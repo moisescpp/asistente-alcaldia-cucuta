@@ -77,7 +77,9 @@ def generate_rag_response(
             "informacion, usando solo el contexto entregado. Si el contexto no alcanza, dilo "
             "de manera breve y orienta al ciudadano a validar en la fuente oficial. "
             "Debes priorizar claramente el tramite mas relevante y no mezclar todos los tramites "
-            "al mismo nivel."
+            "al mismo nivel. Si un dato no aparece en el contexto, debes decir "
+            "'No hay informacion registrada en el sistema para este campo' y nunca completarlo "
+            "con suposiciones."
         ),
         "input": (
             f"Pregunta del ciudadano: {pregunta}\n\n"

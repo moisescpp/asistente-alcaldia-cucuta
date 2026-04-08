@@ -17,8 +17,10 @@ DEFAULT_SUGGESTIONS = [
     "Consulta por devolucion o compensacion de pagos",
 ]
 
+SEMANTIC_QUERY_LIMIT = 5
 SEMANTIC_RESULT_LIMIT = 3
 SEMANTIC_DISTANCE_THRESHOLD = 0.50
+SEMANTIC_RELATED_DISTANCE_MARGIN = 0.08
 GENERIC_QUERY_TOKENS = {
     "consulta",
     "consultar",
@@ -195,16 +197,31 @@ def process_consulta_semantica(
             Tramite.embedding_vector.is_not(None),
         )
         .order_by(distance_label)
-        .limit(SEMANTIC_RESULT_LIMIT)
+        .limit(SEMANTIC_QUERY_LIMIT)
     )
 
     results = db.execute(query).all()
 
-    filtered_tramites = [
-        tramite
-        for tramite, distance in results
-        if distance is not None and distance <= SEMANTIC_DISTANCE_THRESHOLD
-    ]
+    if not results:
+        return _build_empty_response(pregunta)
+
+    best_tramite, best_distance = results[0]
+    if best_distance is None or best_distance > SEMANTIC_DISTANCE_THRESHOLD:
+        return _build_empty_response(pregunta)
+
+    related_distance_limit = min(
+        SEMANTIC_DISTANCE_THRESHOLD,
+        best_distance + SEMANTIC_RELATED_DISTANCE_MARGIN,
+    )
+
+    filtered_tramites = [best_tramite]
+    for tramite, distance in results[1:]:
+        if distance is None:
+            continue
+        if distance <= related_distance_limit:
+            filtered_tramites.append(tramite)
+
+    filtered_tramites = filtered_tramites[:SEMANTIC_RESULT_LIMIT]
 
     if not filtered_tramites:
         return _build_empty_response(pregunta)

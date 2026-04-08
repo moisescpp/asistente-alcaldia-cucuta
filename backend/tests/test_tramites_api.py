@@ -1,3 +1,4 @@
+import app.api.routes as routes_module
 from app.database import SessionLocal
 from app.models import Tramite
 
@@ -129,3 +130,50 @@ def test_reactivated_tramite_is_persisted_as_active_in_database(client, test_slu
         assert record.slug == slug
     finally:
         db.close()
+
+
+def test_create_tramite_attempts_embedding_sync(
+    client,
+    test_slug_prefix,
+    monkeypatch,
+) -> None:
+    payload = build_payload(f"{test_slug_prefix}-embedding")
+    sync_calls: list[str] = []
+
+    def fake_update_tramite_embedding(db, tramite):
+        sync_calls.append(tramite.slug)
+        return tramite
+
+    monkeypatch.setattr(
+        routes_module,
+        "update_tramite_embedding",
+        fake_update_tramite_embedding,
+    )
+
+    response = client.post("/api/admin/tramites", json=payload)
+
+    assert response.status_code == 201
+    assert sync_calls == [payload["slug"]]
+
+
+def test_create_tramite_still_succeeds_if_embedding_sync_fails(
+    client,
+    test_slug_prefix,
+    monkeypatch,
+) -> None:
+    payload = build_payload(f"{test_slug_prefix}-embedding-fail")
+
+    def fake_update_tramite_embedding(db, tramite):
+        raise RuntimeError("Fallo simulado de embeddings")
+
+    monkeypatch.setattr(
+        routes_module,
+        "update_tramite_embedding",
+        fake_update_tramite_embedding,
+    )
+
+    response = client.post("/api/admin/tramites", json=payload)
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["slug"] == payload["slug"]
