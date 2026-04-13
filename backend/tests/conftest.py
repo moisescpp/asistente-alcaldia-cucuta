@@ -29,6 +29,20 @@ def test_slug_prefix() -> str:
 
 @pytest.fixture(autouse=True)
 def cleanup_test_tramites() -> None:
+    db = SessionLocal()
+    try:
+        db.execute(
+            delete(Tramite).where(
+                or_(
+                    Tramite.slug.like("test-%"),
+                    Tramite.nombre.like("Test %"),
+                ),
+            ),
+        )
+        db.commit()
+    finally:
+        db.close()
+
     yield
 
     db = SessionLocal()

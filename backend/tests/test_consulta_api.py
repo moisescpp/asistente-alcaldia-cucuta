@@ -227,3 +227,39 @@ def test_consulta_requests_more_specific_query_for_generic_light_term(client) ->
     assert data["mensaje_estado"] == "Consulta demasiado general"
     assert data["tramite_principal"] is None
     assert len(data["sugerencias"]) >= 1
+
+
+def test_consulta_prioritizes_predial_for_requirements_question(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "¿Cuales son los requisitos para el impuesto predial?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "predial" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_rejects_out_of_scope_transit_license_query(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "¿Cuanto cuesta el duplicado de la licencia de transito?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Sin coincidencias en la base actual"
+    assert data["tramite_principal"] is None
+
+
+def test_consulta_rejects_industria_y_comercio_when_no_specific_tramite_exists(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "Como hago para el negocio, lo de industria y comercio"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Sin coincidencias en la base actual"
+    assert data["tramite_principal"] is None

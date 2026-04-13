@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import unicodedata
 
 from sqlalchemy import select
@@ -59,6 +60,50 @@ GENERIC_QUERY_TOKENS = {
     "luz",
 }
 
+INTENT_QUERY_TOKENS = {
+    "cual",
+    "cuales",
+    "que",
+    "cuanto",
+    "cuanta",
+    "cuesta",
+    "coste",
+    "donde",
+    "cuando",
+    "requisito",
+    "requisitos",
+    "costo",
+    "costos",
+    "horario",
+    "horarios",
+    "tramito",
+    "tramita",
+    "tramitar",
+    "saco",
+    "sacar",
+    "renovar",
+    "renovarlo",
+    "duplicado",
+    "hago",
+    "hacen",
+    "hacer",
+    "alcaldia",
+    "municipio",
+    "para",
+    "los",
+    "las",
+    "unos",
+    "unas",
+    "son",
+    "del",
+    "ante",
+    "desde",
+    "este",
+    "esta",
+    "estos",
+    "estas",
+}
+
 
 def _normalize_text(value: str | None) -> str:
     if not value:
@@ -66,7 +111,8 @@ def _normalize_text(value: str | None) -> str:
 
     normalized = unicodedata.normalize("NFKD", value)
     normalized = normalized.encode("ascii", "ignore").decode("ascii")
-    return normalized.lower().strip()
+    normalized = re.sub(r"[^a-zA-Z0-9]+", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).lower().strip()
 
 
 def _build_match(tramite: Tramite) -> ConsultaMatch:
@@ -203,8 +249,8 @@ def _build_clarification_response(pregunta: str) -> ConsultaResponse:
 
 def _text_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, int, bool]:
     normalized_question = _normalize_text(pregunta)
-    tokens = [token for token in normalized_question.split() if len(token) > 2]
-    specific_tokens = [token for token in tokens if token not in GENERIC_QUERY_TOKENS]
+    tokens = _query_tokens(pregunta)
+    specific_tokens = _query_specific_tokens(pregunta)
 
     searchable_text = " ".join(
         [
@@ -227,8 +273,7 @@ def _text_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, int, boo
 
 def _identifier_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, bool]:
     normalized_question = _normalize_text(pregunta)
-    tokens = [token for token in normalized_question.split() if len(token) > 2]
-    specific_tokens = [token for token in tokens if token not in GENERIC_QUERY_TOKENS]
+    specific_tokens = _query_specific_tokens(pregunta)
 
     identifier_text = " ".join(
         [
@@ -247,7 +292,11 @@ def _identifier_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, bo
 def _query_specific_tokens(pregunta: str) -> list[str]:
     normalized_question = _normalize_text(pregunta)
     tokens = [token for token in normalized_question.split() if len(token) > 2]
-    return [token for token in tokens if token not in GENERIC_QUERY_TOKENS]
+    return [
+        token
+        for token in tokens
+        if token not in GENERIC_QUERY_TOKENS and token not in INTENT_QUERY_TOKENS
+    ]
 
 
 def _query_tokens(pregunta: str) -> list[str]:
@@ -260,7 +309,9 @@ def _is_overly_generic_query(pregunta: str) -> bool:
     if not tokens:
         return True
 
-    return len(tokens) == 1 and tokens[0] in GENERIC_QUERY_TOKENS
+    return len(tokens) == 1 and (
+        tokens[0] in GENERIC_QUERY_TOKENS or tokens[0] in INTENT_QUERY_TOKENS
+    )
 
 
 def _candidate_support(pregunta: str, tramite: Tramite) -> tuple[int, int, bool, int, int, bool]:
@@ -269,7 +320,7 @@ def _candidate_support(pregunta: str, tramite: Tramite) -> tuple[int, int, bool,
         pregunta,
         tramite,
     )
-    support_rank = 2 if phrase_match else 1 if specific_matches > 0 else 0
+    support_rank = 2 if identifier_phrase_match else 1 if identifier_specific_matches > 0 else 0
     return (
         support_rank,
         identifier_specific_matches,
@@ -360,26 +411,6 @@ def _select_semantic_candidates(
         ]
         return selected[:SEMANTIC_RESULT_LIMIT]
 
-    best_tramite, best_distance, _, _, _, _, _, _ = min(
-        ranked_results,
-        key=lambda item: item[1],
-    )
-    second_distance = min(
-        (
-            item[1]
-            for item in ranked_results
-            if item[0].id != best_tramite.id
-        ),
-        default=None,
-    )
-    has_confident_gap = (
-        second_distance is None
-        or second_distance - best_distance >= SEMANTIC_MIN_DISTANCE_GAP
-    )
-
-    if specific_tokens and best_distance <= SEMANTIC_CONFIDENT_DISTANCE_THRESHOLD and has_confident_gap:
-        return [(best_tramite, best_distance)]
-
     return []
 
 
@@ -389,6 +420,7 @@ def process_consulta_textual(
 ) -> ConsultaResponse:
     tokens = _query_tokens(pregunta)
     generic_phrase_allowed = len(tokens) >= 2
+    specific_tokens = _query_specific_tokens(pregunta)
     scored_tramites: list[tuple[Tramite, int, int, bool]] = []
 
     for tramite in tramites:
@@ -399,11 +431,31 @@ def process_consulta_textual(
             pregunta,
             tramite,
         )
+        identifier_specific_matches, identifier_phrase_match = _identifier_match_metadata(
+            pregunta,
+            tramite,
+        )
+
+        has_identifier_support = (
+            identifier_specific_matches > 0 or identifier_phrase_match
+        )
 
         if total_matches > 0 and (
-            specific_matches > 0 or (phrase_match and generic_phrase_allowed)
+            has_identifier_support
+            or (
+                not specific_tokens
+                and phrase_match
+                and generic_phrase_allowed
+            )
         ):
-            scored_tramites.append((tramite, total_matches, specific_matches, phrase_match))
+            scored_tramites.append(
+                (
+                    tramite,
+                    total_matches,
+                    max(specific_matches, identifier_specific_matches),
+                    phrase_match or identifier_phrase_match,
+                )
+            )
 
     matched_tramites = [tramite for tramite, _, _, _ in scored_tramites]
     matched_tramites.sort(

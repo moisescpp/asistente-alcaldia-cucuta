@@ -4,7 +4,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import not_, or_, select
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
@@ -39,7 +39,7 @@ VALIDATION_CASES = [
         expected_principal_contains="predial",
     ),
     ValidationCase(
-        question="Necesito saber los requisitos del impuesto predial",
+        question="¿Cuales son los requisitos para el impuesto predial?",
         category="directa",
         expected_status="positiva",
         expected_principal_contains="predial",
@@ -123,12 +123,22 @@ VALIDATION_CASES = [
         expected_status="Sin coincidencias en la base actual",
     ),
     ValidationCase(
+        question="¿Cuanto cuesta el duplicado de la licencia de transito?",
+        category="negativa",
+        expected_status="Sin coincidencias en la base actual",
+    ),
+    ValidationCase(
         question="licencia conduccion",
         category="negativa",
         expected_status="Sin coincidencias en la base actual",
     ),
     ValidationCase(
         question="permiso construccion",
+        category="negativa",
+        expected_status="Sin coincidencias en la base actual",
+    ),
+    ValidationCase(
+        question="Como hago para el negocio, lo de industria y comercio",
         category="negativa",
         expected_status="Sin coincidencias en la base actual",
     ),
@@ -162,7 +172,17 @@ def main() -> None:
 
     try:
         tramites = db.scalars(
-            select(Tramite).where(Tramite.activo.is_(True)).order_by(Tramite.nombre),
+            select(Tramite)
+            .where(
+                Tramite.activo.is_(True),
+                not_(
+                    or_(
+                        Tramite.slug.like("test-%"),
+                        Tramite.nombre.like("Test %"),
+                    )
+                ),
+            )
+            .order_by(Tramite.nombre),
         ).all()
 
         print("Bateria final de validacion RAG")

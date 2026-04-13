@@ -33,7 +33,6 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
     normalized_name = _normalize(tramite.nombre)
     normalized_slug = _normalize(tramite.slug)
     searchable_text = f"{normalized_name} {normalized_slug}"
-    dynamic_aliases = _split_alias_text(tramite.alias_ciudadanos)
 
     inferred_aliases: list[str]
 
@@ -50,7 +49,7 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
             "inmueble",
             "terreno",
         ]
-        return list(dict.fromkeys(inferred_aliases + dynamic_aliases))
+        return list(dict.fromkeys(inferred_aliases))
 
     if "vehicular" in searchable_text:
         inferred_aliases = [
@@ -62,10 +61,8 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
             "automovil",
             "moto",
             "placa",
-            "transito",
-            "movilidad",
         ]
-        return list(dict.fromkeys(inferred_aliases + dynamic_aliases))
+        return list(dict.fromkeys(inferred_aliases))
 
     if "facilidades" in searchable_text or "obligaciones-tributarias" in searchable_text:
         inferred_aliases = [
@@ -87,7 +84,7 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
             "pagar deuda",
             "ayuda con pagos",
         ]
-        return list(dict.fromkeys(inferred_aliases + dynamic_aliases))
+        return list(dict.fromkeys(inferred_aliases))
 
     if "devolucion" in searchable_text or "compensacion" in searchable_text:
         inferred_aliases = [
@@ -100,9 +97,9 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
             "devolucion de pago",
             "recuperar dinero pagado",
         ]
-        return list(dict.fromkeys(inferred_aliases + dynamic_aliases))
+        return list(dict.fromkeys(inferred_aliases))
 
-    return list(dict.fromkeys(dynamic_aliases))
+    return []
 
 
 def build_tramite_embedding_text(tramite: Tramite) -> str:
