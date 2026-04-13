@@ -178,3 +178,91 @@ def test_create_tramite_still_succeeds_if_embedding_sync_fails(
     data = response.json()
     assert data["slug"] == payload["slug"]
 
+
+def test_created_tramite_is_immediately_available_for_consulta(
+    client,
+    test_slug_prefix,
+) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-consulta-create",
+        nombre=f"Certificado tributario especial {test_slug_prefix}",
+        descripcion=(
+            "Emision de certificado tributario especial para validar la "
+            "integracion entre administracion y consulta."
+        ),
+    )
+
+    created_response = client.post("/api/admin/tramites", json=payload)
+    created = created_response.json()
+
+    consulta_response = client.post(
+        "/api/consulta",
+        json={"pregunta": payload["nombre"]},
+    )
+
+    assert created_response.status_code == 201
+    assert consulta_response.status_code == 200
+    consulta = consulta_response.json()
+    assert consulta["tramite_principal"] is not None
+    assert consulta["tramite_principal"]["id"] == created["id"]
+    assert payload["nombre"] in consulta["respuesta"]
+
+
+def test_updated_tramite_is_reflected_in_consulta_results(
+    client,
+    test_slug_prefix,
+) -> None:
+    create_payload = build_payload(
+        f"{test_slug_prefix}-consulta-update",
+        nombre=f"Liquidacion temporal {test_slug_prefix}",
+        descripcion="Descripcion inicial para validar la actualizacion.",
+    )
+    created = client.post("/api/admin/tramites", json=create_payload).json()
+
+    update_payload = {
+        "nombre": f"Liquidacion definitiva {test_slug_prefix}",
+        "descripcion": "Descripcion actualizada para validar la consulta final.",
+    }
+    update_response = client.put(
+        f"/api/admin/tramites/{created['id']}",
+        json=update_payload,
+    )
+    consulta_response = client.post(
+        "/api/consulta",
+        json={"pregunta": update_payload["nombre"]},
+    )
+
+    assert update_response.status_code == 200
+    assert consulta_response.status_code == 200
+    consulta = consulta_response.json()
+    assert consulta["tramite_principal"] is not None
+    assert consulta["tramite_principal"]["id"] == created["id"]
+    assert consulta["tramite_principal"]["nombre"] == update_payload["nombre"]
+    assert consulta["tramite_principal"]["descripcion"] == update_payload["descripcion"]
+
+
+def test_deactivated_tramite_is_no_longer_available_for_consulta(
+    client,
+    test_slug_prefix,
+) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-consulta-delete",
+        nombre=f"Recibo tributario temporal {test_slug_prefix}",
+        descripcion="Tramite temporal para validar desactivacion en consulta.",
+    )
+    created = client.post("/api/admin/tramites", json=payload).json()
+
+    delete_response = client.delete(f"/api/admin/tramites/{created['id']}")
+    consulta_response = client.post(
+        "/api/consulta",
+        json={"pregunta": payload["nombre"]},
+    )
+
+    assert delete_response.status_code == 200
+    assert consulta_response.status_code == 200
+    consulta = consulta_response.json()
+    assert consulta["mensaje_estado"] in {
+        "Sin coincidencias en la base actual",
+        "Consulta demasiado general",
+    }
+    assert consulta["tramite_principal"] is None
