@@ -178,15 +178,3 @@ def test_create_tramite_still_succeeds_if_embedding_sync_fails(
     data = response.json()
     assert data["slug"] == payload["slug"]
 
-
-def test_create_tramite_persists_admin_defined_aliases(client, test_slug_prefix) -> None:
-    payload = build_payload(
-        f"{test_slug_prefix}-alias-admin",
-        alias_ciudadanos="paz y salvo, certificado tributario",
-    )
-
-    response = client.post("/api/admin/tramites", json=payload)
-
-    assert response.status_code == 201
-    data = response.json()
-    assert data["alias_ciudadanos"] == payload["alias_ciudadanos"]

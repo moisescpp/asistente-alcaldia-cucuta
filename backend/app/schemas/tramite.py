@@ -12,7 +12,6 @@ class TramiteBase(BaseModel):
     horario: str | None = None
     dependencia: str
     fuente_url: str | None = None
-    alias_ciudadanos: str | None = None
     activo: bool = True
 
 
@@ -29,7 +28,6 @@ class TramiteUpdate(BaseModel):
     horario: str | None = None
     dependencia: str | None = None
     fuente_url: str | None = None
-    alias_ciudadanos: str | None = None
     activo: bool | None = None
 
 

@@ -18,6 +18,13 @@ DEFAULT_SUGGESTIONS = [
     "Consulta por impuesto vehicular"
 ]
 
+CLARIFICATION_SUGGESTIONS = [
+    "Consulta por impuesto predial",
+    "Consulta por impuesto vehicular",
+    "Consulta por facilidades de pago",
+    "Consulta por devolucion de pagos",
+]
+
 SEMANTIC_QUERY_LIMIT = 5
 SEMANTIC_RESULT_LIMIT = 3
 SEMANTIC_DISTANCE_THRESHOLD = 0.78
@@ -50,6 +57,7 @@ GENERIC_QUERY_TOKENS = {
     "publico",
     "publica",
     "servicio",
+    "luz",
 }
 
 
@@ -149,6 +157,21 @@ def _build_empty_response(pregunta: str) -> ConsultaResponse:
     )
 
 
+def _build_clarification_response(pregunta: str) -> ConsultaResponse:
+    return ConsultaResponse(
+        pregunta=pregunta,
+        respuesta=(
+            "La consulta es demasiado general para identificar un tramite con suficiente confianza. "
+            "Especifica mejor el tema, por ejemplo el impuesto, servicio o gestion que necesitas."
+        ),
+        mensaje_estado="Consulta demasiado general",
+        total_resultados=0,
+        tramite_principal=None,
+        tramites_relacionados=[],
+        sugerencias=CLARIFICATION_SUGGESTIONS,
+    )
+
+
 def _text_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, int, bool]:
     normalized_question = _normalize_text(pregunta)
     tokens = [token for token in normalized_question.split() if len(token) > 2]
@@ -182,6 +205,14 @@ def _query_specific_tokens(pregunta: str) -> list[str]:
 def _query_tokens(pregunta: str) -> list[str]:
     normalized_question = _normalize_text(pregunta)
     return [token for token in normalized_question.split() if len(token) > 2]
+
+
+def _is_overly_generic_query(pregunta: str) -> bool:
+    tokens = _query_tokens(pregunta)
+    if not tokens:
+        return True
+
+    return len(tokens) == 1 and tokens[0] in GENERIC_QUERY_TOKENS
 
 
 def _candidate_support(pregunta: str, tramite: Tramite) -> tuple[int, int, bool]:
@@ -364,6 +395,9 @@ def process_consulta(
     pregunta: str,
     tramites: list[Tramite],
 ) -> ConsultaResponse:
+    if _is_overly_generic_query(pregunta):
+        return _build_clarification_response(pregunta)
+
     has_semantic_data = any(
         tramite.activo and tramite.embedding_vector is not None for tramite in tramites
     )
