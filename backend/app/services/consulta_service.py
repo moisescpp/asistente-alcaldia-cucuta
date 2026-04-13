@@ -15,7 +15,7 @@ DEFAULT_SUGGESTIONS = [
     "Consulta por impuesto predial",
     "Consulta por facilidades de pago",
     "Consulta por devolucion o compensacion de pagos",
-    "Consulta por impuesto vehicular"
+    "Consulta por impuesto vehicular",
 ]
 
 CLARIFICATION_SUGGESTIONS = [
@@ -34,7 +34,6 @@ SEMANTIC_MIN_DISTANCE_GAP = 0.03
 GENERIC_QUERY_TOKENS = {
     "consulta",
     "consultar",
-    "informacion",
     "informacion",
     "tramite",
     "tramites",
@@ -107,24 +106,54 @@ def _build_success_response(
     except Exception:
         intro_text = fallback_intro
 
+    data_lines: list[str] = []
+    missing_fields: list[str] = []
+
+    if tramite_principal.requisitos:
+        data_lines.append(f"- Requisitos: {tramite_principal.requisitos}")
+    else:
+        missing_fields.append("requisitos")
+
+    if tramite_principal.costo:
+        data_lines.append(f"- Costo: {tramite_principal.costo}")
+    else:
+        missing_fields.append("costo")
+
+    if tramite_principal.horario:
+        data_lines.append(f"- Horario: {tramite_principal.horario}")
+    else:
+        missing_fields.append("horario")
+
+    data_lines.append(f"- Dependencia: {tramite_principal.dependencia}")
+
+    if tramite_principal.fuente_url:
+        data_lines.append(f"- Fuente oficial: {tramite_principal.fuente_url}")
+    else:
+        missing_fields.append("fuente oficial")
+
     response_parts = [
         intro_text.strip(),
         "",
-        f"Trámite principal: {tramite_principal.nombre}",
+        f"Tramite principal: {tramite_principal.nombre}",
         "",
         "Datos registrados:",
-        f"- Requisitos: {tramite_principal.requisitos or 'No hay informacion registrada en el sistema para este campo.'}",
-        f"- Costo: {tramite_principal.costo or 'No hay informacion registrada en el sistema para este campo.'}",
-        f"- Horario: {tramite_principal.horario or 'No hay informacion registrada en el sistema para este campo.'}",
-        f"- Dependencia: {tramite_principal.dependencia}",
-        f"- Fuente oficial: {tramite_principal.fuente_url or 'No hay informacion registrada en el sistema para este campo.'}",
+        *data_lines,
     ]
+
+    if missing_fields:
+        response_parts.extend(
+            [
+                "",
+                "Informacion pendiente en el sistema:",
+                f"- {', '.join(missing_fields).capitalize()}.",
+            ]
+        )
 
     if related_matches:
         response_parts.extend(
             [
                 "",
-                "También pueden interesarte:",
+                "Tambien pueden interesarte:",
                 *[f"- {tramite.nombre}" for tramite in related_matches],
             ]
         )
@@ -196,6 +225,25 @@ def _text_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, int, boo
     return total_matches, specific_matches, phrase_match
 
 
+def _identifier_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, bool]:
+    normalized_question = _normalize_text(pregunta)
+    tokens = [token for token in normalized_question.split() if len(token) > 2]
+    specific_tokens = [token for token in tokens if token not in GENERIC_QUERY_TOKENS]
+
+    identifier_text = " ".join(
+        [
+            _normalize_text(tramite.nombre),
+            _normalize_text(tramite.slug),
+            _normalize_text(" ".join(get_tramite_semantic_aliases(tramite))),
+        ]
+    )
+
+    specific_matches = sum(1 for token in specific_tokens if token in identifier_text)
+    phrase_match = len(normalized_question) >= 5 and normalized_question in identifier_text
+
+    return specific_matches, phrase_match
+
+
 def _query_specific_tokens(pregunta: str) -> list[str]:
     normalized_question = _normalize_text(pregunta)
     tokens = [token for token in normalized_question.split() if len(token) > 2]
@@ -215,10 +263,21 @@ def _is_overly_generic_query(pregunta: str) -> bool:
     return len(tokens) == 1 and tokens[0] in GENERIC_QUERY_TOKENS
 
 
-def _candidate_support(pregunta: str, tramite: Tramite) -> tuple[int, int, bool]:
+def _candidate_support(pregunta: str, tramite: Tramite) -> tuple[int, int, bool, int, int, bool]:
     total_matches, specific_matches, phrase_match = _text_match_metadata(pregunta, tramite)
+    identifier_specific_matches, identifier_phrase_match = _identifier_match_metadata(
+        pregunta,
+        tramite,
+    )
     support_rank = 2 if phrase_match else 1 if specific_matches > 0 else 0
-    return support_rank, total_matches, phrase_match
+    return (
+        support_rank,
+        identifier_specific_matches,
+        identifier_phrase_match,
+        specific_matches,
+        total_matches,
+        phrase_match,
+    )
 
 
 def _select_semantic_candidates(
@@ -230,14 +289,33 @@ def _select_semantic_candidates(
 
     tokens = _query_tokens(pregunta)
     specific_tokens = _query_specific_tokens(pregunta)
-    ranked_results: list[tuple[Tramite, float, int, int, bool]] = []
+    ranked_results: list[tuple[Tramite, float, int, int, bool, int, int, bool]] = []
 
     for tramite, distance in results:
         if distance is None:
             continue
-        support_rank, total_matches, phrase_match = _candidate_support(pregunta, tramite)
+        (
+            support_rank,
+            identifier_specific_matches,
+            identifier_phrase_match,
+            specific_matches,
+            total_matches,
+            phrase_match,
+        ) = _candidate_support(
+            pregunta,
+            tramite,
+        )
         ranked_results.append(
-            (tramite, distance, support_rank, total_matches, phrase_match),
+            (
+                tramite,
+                distance,
+                support_rank,
+                identifier_specific_matches,
+                identifier_phrase_match,
+                specific_matches,
+                total_matches,
+                phrase_match,
+            )
         )
 
     if not ranked_results:
@@ -262,6 +340,9 @@ def _select_semantic_candidates(
                 item[2],
                 item[3],
                 1 if item[4] else 0,
+                item[5],
+                item[6],
+                1 if item[7] else 0,
                 -item[1],
             ),
             reverse=True,
@@ -273,16 +354,13 @@ def _select_semantic_candidates(
         )
         selected = [
             (tramite, distance)
-            for tramite, distance, support_rank, _, _ in supported_results
+            for tramite, distance, support_rank, _, _, _, _, _ in supported_results
             if tramite.id == principal[0].id
-            or (
-                support_rank > 0
-                and distance <= related_limit
-            )
+            or (support_rank > 0 and distance <= related_limit)
         ]
         return selected[:SEMANTIC_RESULT_LIMIT]
 
-    best_tramite, best_distance, _, _, _ = min(
+    best_tramite, best_distance, _, _, _, _, _, _ = min(
         ranked_results,
         key=lambda item: item[1],
     )
@@ -312,6 +390,7 @@ def process_consulta_textual(
     tokens = _query_tokens(pregunta)
     generic_phrase_allowed = len(tokens) >= 2
     scored_tramites: list[tuple[Tramite, int, int, bool]] = []
+
     for tramite in tramites:
         if not tramite.activo:
             continue
@@ -324,9 +403,7 @@ def process_consulta_textual(
         if total_matches > 0 and (
             specific_matches > 0 or (phrase_match and generic_phrase_allowed)
         ):
-            scored_tramites.append(
-                (tramite, total_matches, specific_matches, phrase_match),
-            )
+            scored_tramites.append((tramite, total_matches, specific_matches, phrase_match))
 
     matched_tramites = [tramite for tramite, _, _, _ in scored_tramites]
     matched_tramites.sort(

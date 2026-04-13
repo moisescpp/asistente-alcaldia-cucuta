@@ -45,16 +45,40 @@ def _extract_output_text(data: dict[str, Any]) -> str:
 
 
 def _sanitize_output_text(output_text: str, *, total_tramites: int) -> str:
-    if total_tramites > 1:
-        return output_text.strip()
-
     normalized = output_text.replace("\r\n", "\n")
     marker = "Tambien pueden interesarte"
 
     if marker in normalized:
         normalized = normalized.split(marker, 1)[0].rstrip()
 
-    return normalized.strip()
+    cleaned_lines: list[str] = []
+    for raw_line in normalized.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith(("-", "*", "1.", "2.", "3.")):
+            line = line.lstrip("-*0123456789. ").strip()
+        if line:
+            cleaned_lines.append(line)
+
+    cleaned_text = " ".join(cleaned_lines).strip()
+    if not cleaned_text:
+        return ""
+
+    sentence_count = 0
+    collected: list[str] = []
+    for character in cleaned_text:
+        collected.append(character)
+        if character in ".!?":
+            sentence_count += 1
+            if sentence_count >= 2:
+                break
+
+    trimmed_text = "".join(collected).strip()
+    if trimmed_text and trimmed_text[-1] not in ".!?":
+        trimmed_text = f"{trimmed_text}."
+
+    return trimmed_text
 
 
 def generate_rag_response(
@@ -76,10 +100,12 @@ def generate_rag_response(
             "de la Alcaldia de San Jose de Cucuta. Responde en espanol claro, sin inventar "
             "informacion, usando solo el contexto entregado. Si el contexto no alcanza, dilo "
             "de manera breve y orienta al ciudadano a validar en la fuente oficial. "
-            "Solo debes redactar una orientacion corta de una o dos oraciones sobre el tramite "
-            "principal. No listes requisitos, costo, horario ni fuente; esos datos los agrega "
-            "el sistema despues. No uses numeracion ni vietas. No inventes datos ni completes "
-            "campos faltantes con suposiciones."
+            "Solo debes redactar una orientacion corta de maximo dos oraciones sobre el tramite "
+            "principal, enfocada unicamente en el proposito del tramite y la dependencia responsable. "
+            "No listes requisitos, costo, horario ni fuente; esos datos los agrega el sistema despues. "
+            "No menciones documentos, pasos, canales, tiempos, actos administrativos ni acciones "
+            "que no esten literalmente sustentadas en el contexto. No uses numeracion ni vietas. "
+            "No inventes datos ni completes campos faltantes con suposiciones."
         ),
         "input": (
             f"Pregunta del ciudadano: {pregunta}\n\n"

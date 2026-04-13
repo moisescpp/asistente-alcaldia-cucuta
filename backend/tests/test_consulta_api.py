@@ -43,7 +43,7 @@ def test_consulta_returns_main_match_and_related_results(client, test_slug_prefi
     assert "predial" in data["tramite_principal"]["nombre"].lower()
     assert len(data["tramites_relacionados"]) == max(data["total_resultados"] - 1, 0)
     assert data["sugerencias"] == []
-    assert "Trámite principal:" in data["respuesta"]
+    assert "Tramite principal:" in data["respuesta"]
     assert "Datos registrados:" in data["respuesta"]
     assert "- Fuente oficial:" in data["respuesta"]
 
@@ -125,7 +125,7 @@ def test_consulta_understands_citizen_synonym_for_house(client) -> None:
     data = response.json()
     assert data["tramite_principal"] is not None
     assert "predial" in data["tramite_principal"]["nombre"].lower()
-    assert "También pueden interesarte:" not in data["respuesta"]
+    assert "Tambien pueden interesarte:" not in data["respuesta"]
 
 
 def test_consulta_understands_citizen_synonym_for_car(client) -> None:
@@ -139,6 +139,8 @@ def test_consulta_understands_citizen_synonym_for_car(client) -> None:
     assert data["tramite_principal"] is not None
     assert "vehicular" in data["tramite_principal"]["nombre"].lower()
     assert "Datos registrados:" in data["respuesta"]
+    assert "Informacion pendiente en el sistema:" in data["respuesta"]
+    assert "No hay informacion registrada en el sistema para este campo." not in data["respuesta"]
 
 
 def test_consulta_prioritizes_supported_payment_candidate(client) -> None:
@@ -163,6 +165,18 @@ def test_consulta_understands_payment_help_alias(client) -> None:
     data = response.json()
     assert data["tramite_principal"] is not None
     assert "facilidades de pago" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_prioritizes_vehicular_over_incidental_transit_matches(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "Necesito informacion de transito sobre impuesto vehicular"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "vehicular" in data["tramite_principal"]["nombre"].lower()
 
 
 def test_consulta_rejects_overly_generic_tax_query(client) -> None:
