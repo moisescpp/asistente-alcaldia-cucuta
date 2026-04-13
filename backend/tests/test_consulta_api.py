@@ -139,3 +139,51 @@ def test_consulta_understands_citizen_synonym_for_car(client) -> None:
     assert data["tramite_principal"] is not None
     assert "vehicular" in data["tramite_principal"]["nombre"].lower()
     assert "Datos registrados:" in data["respuesta"]
+
+
+def test_consulta_prioritizes_supported_payment_candidate(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "pagar atrasado"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "facilidades de pago" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_understands_payment_help_alias(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "ayuda con pagos"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "facilidades de pago" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_rejects_overly_generic_tax_query(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "impuestos"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Sin coincidencias en la base actual"
+    assert data["tramite_principal"] is None
+
+
+def test_consulta_rejects_overly_generic_payment_query(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "pagar algo"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Sin coincidencias en la base actual"
+    assert data["tramite_principal"] is None

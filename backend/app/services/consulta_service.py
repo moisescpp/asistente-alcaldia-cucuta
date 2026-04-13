@@ -20,8 +20,10 @@ DEFAULT_SUGGESTIONS = [
 
 SEMANTIC_QUERY_LIMIT = 5
 SEMANTIC_RESULT_LIMIT = 3
-SEMANTIC_DISTANCE_THRESHOLD = 0.50
+SEMANTIC_DISTANCE_THRESHOLD = 0.78
+SEMANTIC_CONFIDENT_DISTANCE_THRESHOLD = 0.50
 SEMANTIC_RELATED_DISTANCE_MARGIN = 0.08
+SEMANTIC_MIN_DISTANCE_GAP = 0.03
 GENERIC_QUERY_TOKENS = {
     "consulta",
     "consultar",
@@ -31,11 +33,20 @@ GENERIC_QUERY_TOKENS = {
     "tramites",
     "impuesto",
     "impuestos",
+    "pagar",
     "pago",
     "pagos",
     "sobre",
     "necesito",
     "quiero",
+    "ayuda",
+    "algo",
+    "como",
+    "funciona",
+    "funcionan",
+    "saber",
+    "tema",
+    "tramitar",
 }
 
 
@@ -159,10 +170,113 @@ def _text_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, int, boo
     return total_matches, specific_matches, phrase_match
 
 
+def _query_specific_tokens(pregunta: str) -> list[str]:
+    normalized_question = _normalize_text(pregunta)
+    tokens = [token for token in normalized_question.split() if len(token) > 2]
+    return [token for token in tokens if token not in GENERIC_QUERY_TOKENS]
+
+
+def _query_tokens(pregunta: str) -> list[str]:
+    normalized_question = _normalize_text(pregunta)
+    return [token for token in normalized_question.split() if len(token) > 2]
+
+
+def _candidate_support(pregunta: str, tramite: Tramite) -> tuple[int, int, bool]:
+    total_matches, specific_matches, phrase_match = _text_match_metadata(pregunta, tramite)
+    support_rank = 2 if phrase_match else 1 if specific_matches > 0 else 0
+    return support_rank, total_matches, phrase_match
+
+
+def _select_semantic_candidates(
+    pregunta: str,
+    results: list[tuple[Tramite, float | None]],
+) -> list[tuple[Tramite, float]]:
+    if not results:
+        return []
+
+    tokens = _query_tokens(pregunta)
+    specific_tokens = _query_specific_tokens(pregunta)
+    ranked_results: list[tuple[Tramite, float, int, int, bool]] = []
+
+    for tramite, distance in results:
+        if distance is None:
+            continue
+        support_rank, total_matches, phrase_match = _candidate_support(pregunta, tramite)
+        ranked_results.append(
+            (tramite, distance, support_rank, total_matches, phrase_match),
+        )
+
+    if not ranked_results:
+        return []
+
+    supported_results = [
+        item
+        for item in ranked_results
+        if item[2] > 0 and item[1] <= SEMANTIC_DISTANCE_THRESHOLD
+    ]
+    if supported_results:
+        if not specific_tokens:
+            supported_results = [
+                item
+                for item in supported_results
+                if len(tokens) >= 2 and item[4]
+            ]
+            if not supported_results:
+                return []
+        supported_results.sort(
+            key=lambda item: (
+                item[2],
+                item[3],
+                1 if item[4] else 0,
+                -item[1],
+            ),
+            reverse=True,
+        )
+        principal = supported_results[0]
+        related_limit = min(
+            SEMANTIC_DISTANCE_THRESHOLD,
+            principal[1] + SEMANTIC_RELATED_DISTANCE_MARGIN,
+        )
+        selected = [
+            (tramite, distance)
+            for tramite, distance, support_rank, _, _ in supported_results
+            if tramite.id == principal[0].id
+            or (
+                support_rank > 0
+                and distance <= related_limit
+            )
+        ]
+        return selected[:SEMANTIC_RESULT_LIMIT]
+
+    best_tramite, best_distance, _, _, _ = min(
+        ranked_results,
+        key=lambda item: item[1],
+    )
+    second_distance = min(
+        (
+            item[1]
+            for item in ranked_results
+            if item[0].id != best_tramite.id
+        ),
+        default=None,
+    )
+    has_confident_gap = (
+        second_distance is None
+        or second_distance - best_distance >= SEMANTIC_MIN_DISTANCE_GAP
+    )
+
+    if specific_tokens and best_distance <= SEMANTIC_CONFIDENT_DISTANCE_THRESHOLD and has_confident_gap:
+        return [(best_tramite, best_distance)]
+
+    return []
+
+
 def process_consulta_textual(
     pregunta: str,
     tramites: list[Tramite],
 ) -> ConsultaResponse:
+    tokens = _query_tokens(pregunta)
+    generic_phrase_allowed = len(tokens) >= 2
     scored_tramites: list[tuple[Tramite, int, int, bool]] = []
     for tramite in tramites:
         if not tramite.activo:
@@ -173,7 +287,9 @@ def process_consulta_textual(
             tramite,
         )
 
-        if total_matches > 0 and (specific_matches > 0 or phrase_match):
+        if total_matches > 0 and (
+            specific_matches > 0 or (phrase_match and generic_phrase_allowed)
+        ):
             scored_tramites.append(
                 (tramite, total_matches, specific_matches, phrase_match),
             )
@@ -227,23 +343,8 @@ def process_consulta_semantica(
     if not results:
         return _build_empty_response(pregunta)
 
-    best_tramite, best_distance = results[0]
-    if best_distance is None or best_distance > SEMANTIC_DISTANCE_THRESHOLD:
-        return _build_empty_response(pregunta)
-
-    related_distance_limit = min(
-        SEMANTIC_DISTANCE_THRESHOLD,
-        best_distance + SEMANTIC_RELATED_DISTANCE_MARGIN,
-    )
-
-    filtered_tramites = [best_tramite]
-    for tramite, distance in results[1:]:
-        if distance is None:
-            continue
-        if distance <= related_distance_limit:
-            filtered_tramites.append(tramite)
-
-    filtered_tramites = filtered_tramites[:SEMANTIC_RESULT_LIMIT]
+    filtered_results = _select_semantic_candidates(pregunta, results)
+    filtered_tramites = [tramite for tramite, _ in filtered_results]
 
     if not filtered_tramites:
         return _build_empty_response(pregunta)

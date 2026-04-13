@@ -49,6 +49,7 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
     if "facilidades" in searchable_text or "obligaciones-tributarias" in searchable_text:
         return [
             "acuerdo de pago",
+            "acuerdos de pago",
             "cuotas",
             "financiacion de deuda",
             "deuda de impuestos",
@@ -56,6 +57,14 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
             "ponerse al dia",
             "mora",
             "deudor",
+            "pagar atrasado",
+            "pagos atrasados",
+            "pago atrasado",
+            "pago pendiente",
+            "pagos pendientes",
+            "deuda vencida",
+            "pagar deuda",
+            "ayuda con pagos",
         ]
 
     if "devolucion" in searchable_text or "compensacion" in searchable_text:

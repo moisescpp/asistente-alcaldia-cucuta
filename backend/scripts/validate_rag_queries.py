@@ -18,13 +18,21 @@ from app.services.consulta_service import process_consulta
 REAL_WORLD_QUESTIONS = [
     "Quiero informacion sobre impuesto predial",
     "Necesito saber los requisitos del impuesto predial",
+    "casa",
+    "vivienda",
     "Como funcionan las facilidades de pago",
     "Quiero informacion sobre acuerdos de pago",
+    "pagar atrasado",
+    "ayuda con pagos",
     "Necesito saber sobre devolucion de pagos en exceso",
     "Como funciona la compensacion de pagos no debidos",
     "Impuesto vehicular",
+    "carro",
+    "moto",
     "Necesito informacion de transito sobre impuesto vehicular",
     "Impuesto aeroportuario",
+    "impuestos",
+    "pagar algo",
     "Tramite para devolver pagos realizados por error",
 ]
 
