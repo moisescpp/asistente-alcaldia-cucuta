@@ -47,6 +47,9 @@ GENERIC_QUERY_TOKENS = {
     "saber",
     "tema",
     "tramitar",
+    "publico",
+    "publica",
+    "servicio",
 }
 
 

@@ -11,6 +11,7 @@ const EMPTY_FORM = {
   horario: '',
   dependencia: '',
   fuente_url: '',
+  alias_ciudadanos: '',
 }
 
 const inputClassName =
@@ -130,6 +131,7 @@ function App() {
       horario: tramite.horario ?? '',
       dependencia: tramite.dependencia ?? '',
       fuente_url: tramite.fuente_url ?? '',
+      alias_ciudadanos: tramite.alias_ciudadanos ?? '',
     })
     setAdminFieldErrors(EMPTY_ADMIN_ERRORS)
     setSlugTouched(true)
@@ -334,6 +336,19 @@ function App() {
                 <Field label="Horario"><input className={inputClassName} name="horario" value={formData.horario} onChange={handleInputChange} /></Field>
                 <Field className="md:col-span-2" label="Descripcion"><textarea className={`${inputClassName} min-h-28`} name="descripcion" value={formData.descripcion} onChange={handleInputChange} /></Field>
                 <Field className="md:col-span-2" label="Requisitos"><textarea className={`${inputClassName} min-h-28`} name="requisitos" value={formData.requisitos} onChange={handleInputChange} /></Field>
+                <Field
+                  className="md:col-span-2"
+                  label="Alias ciudadanos"
+                  hint="Opcional. Escribe palabras o frases que usaria un ciudadano, separadas por comas o saltos de linea."
+                >
+                  <textarea
+                    className={`${inputClassName} min-h-28`}
+                    name="alias_ciudadanos"
+                    value={formData.alias_ciudadanos}
+                    onChange={handleInputChange}
+                    placeholder="Ejemplo: alumbrado publico, luz publica, impuesto de alumbrado"
+                  />
+                </Field>
 
                 <div className="md:col-span-2">
                   <div className="flex flex-wrap items-center gap-3">

@@ -13,13 +13,32 @@ def _normalize(value: str | None) -> str:
     return (value or "").strip().lower()
 
 
+def _split_alias_text(value: str | None) -> list[str]:
+    if not value:
+        return []
+
+    raw_aliases = value.replace("\r", "\n").replace(";", ",").splitlines()
+    aliases: list[str] = []
+
+    for chunk in raw_aliases:
+        for item in chunk.split(","):
+            normalized = item.strip()
+            if normalized:
+                aliases.append(normalized)
+
+    return aliases
+
+
 def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
     normalized_name = _normalize(tramite.nombre)
     normalized_slug = _normalize(tramite.slug)
     searchable_text = f"{normalized_name} {normalized_slug}"
+    dynamic_aliases = _split_alias_text(tramite.alias_ciudadanos)
+
+    inferred_aliases: list[str]
 
     if "predial" in searchable_text:
-        return [
+        inferred_aliases = [
             "impuesto de casa",
             "impuesto de vivienda",
             "impuesto de hogar",
@@ -31,9 +50,10 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
             "inmueble",
             "terreno",
         ]
+        return list(dict.fromkeys(inferred_aliases + dynamic_aliases))
 
     if "vehicular" in searchable_text:
-        return [
+        inferred_aliases = [
             "impuesto de carro",
             "impuesto de vehiculo",
             "impuesto de moto",
@@ -45,9 +65,10 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
             "transito",
             "movilidad",
         ]
+        return list(dict.fromkeys(inferred_aliases + dynamic_aliases))
 
     if "facilidades" in searchable_text or "obligaciones-tributarias" in searchable_text:
-        return [
+        inferred_aliases = [
             "acuerdo de pago",
             "acuerdos de pago",
             "cuotas",
@@ -66,9 +87,10 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
             "pagar deuda",
             "ayuda con pagos",
         ]
+        return list(dict.fromkeys(inferred_aliases + dynamic_aliases))
 
     if "devolucion" in searchable_text or "compensacion" in searchable_text:
-        return [
+        inferred_aliases = [
             "devolver dinero",
             "reintegro",
             "reembolso",
@@ -78,8 +100,9 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
             "devolucion de pago",
             "recuperar dinero pagado",
         ]
+        return list(dict.fromkeys(inferred_aliases + dynamic_aliases))
 
-    return []
+    return list(dict.fromkeys(dynamic_aliases))
 
 
 def build_tramite_embedding_text(tramite: Tramite) -> str:

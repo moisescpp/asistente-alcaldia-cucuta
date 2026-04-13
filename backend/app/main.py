@@ -1,8 +1,18 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.core.config import settings
+from app.database import create_database_tables, ensure_database_schema
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    create_database_tables()
+    ensure_database_schema()
+    yield
 
 
 app = FastAPI(
@@ -12,6 +22,7 @@ app = FastAPI(
         "API base para el asistente de tramites estrella "
         "de rentas e impuestos de la Alcaldia de Cucuta."
     ),
+    lifespan=lifespan,
 )
 
 app.add_middleware(

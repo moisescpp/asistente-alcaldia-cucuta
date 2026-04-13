@@ -187,3 +187,47 @@ def test_consulta_rejects_overly_generic_payment_query(client) -> None:
     data = response.json()
     assert data["mensaje_estado"] == "Sin coincidencias en la base actual"
     assert data["tramite_principal"] is None
+
+
+def test_consulta_uses_admin_defined_aliases_for_new_tramite(client, test_slug_prefix) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-alumbrado",
+        nombre=f"Impuesto sobre el servicio de alumbrado publico {test_slug_prefix}",
+        descripcion="Tramite para gestionar el impuesto asociado al alumbrado publico.",
+        dependencia="Secretaria de Hacienda - Rentas e Impuestos",
+        alias_ciudadanos="luz publica, alumbrado publico, impuesto alumbrado",
+    )
+    creation_response = client.post("/api/admin/tramites", json=payload)
+    assert creation_response.status_code == 201
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "luz publica"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "alumbrado publico" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_rejects_overly_generic_public_term(client, test_slug_prefix) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-alumbrado-publico",
+        nombre=f"Impuesto sobre el servicio de alumbrado publico {test_slug_prefix}",
+        descripcion="Tramite para gestionar el impuesto asociado al alumbrado publico.",
+        dependencia="Secretaria de Hacienda - Rentas e Impuestos",
+        alias_ciudadanos="luz publica, alumbrado publico, impuesto alumbrado",
+    )
+    creation_response = client.post("/api/admin/tramites", json=payload)
+    assert creation_response.status_code == 201
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "publico"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Sin coincidencias en la base actual"
+    assert data["tramite_principal"] is None

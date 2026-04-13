@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
@@ -25,3 +25,13 @@ def get_db_session() -> Generator[Session, None, None]:
 
 def create_database_tables() -> None:
     Base.metadata.create_all(bind=engine)
+
+
+def ensure_database_schema() -> None:
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE tramites "
+                "ADD COLUMN IF NOT EXISTS alias_ciudadanos TEXT"
+            )
+        )

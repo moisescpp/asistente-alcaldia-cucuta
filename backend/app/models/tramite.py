@@ -20,6 +20,7 @@ class Tramite(Base):
     horario: Mapped[str | None] = mapped_column(String(120), nullable=True)
     dependencia: Mapped[str] = mapped_column(String(255), nullable=False)
     fuente_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    alias_ciudadanos: Mapped[str | None] = mapped_column(Text, nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Reservado para la recuperacion semantica de la Iteracion 3, cuando la
     # integracion con OpenAI pueda ejecutarse con facturacion habilitada.
