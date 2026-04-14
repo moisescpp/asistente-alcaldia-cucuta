@@ -35,7 +35,9 @@ def cleanup_test_tramites() -> None:
             delete(Tramite).where(
                 or_(
                     Tramite.slug.like("test-%"),
+                    Tramite.slug.like("%test-%"),
                     Tramite.nombre.like("Test %"),
+                    Tramite.nombre.like("%test-%"),
                 ),
             ),
         )
@@ -51,7 +53,9 @@ def cleanup_test_tramites() -> None:
             delete(Tramite).where(
                 or_(
                     Tramite.slug.like("test-%"),
+                    Tramite.slug.like("%test-%"),
                     Tramite.nombre.like("Test %"),
+                    Tramite.nombre.like("%test-%"),
                 ),
             ),
         )

@@ -253,7 +253,7 @@ def test_consulta_rejects_out_of_scope_transit_license_query(client) -> None:
     assert data["tramite_principal"] is None
 
 
-def test_consulta_rejects_industria_y_comercio_when_no_specific_tramite_exists(client) -> None:
+def test_consulta_returns_industria_y_comercio_tramite_when_registered(client) -> None:
     response = client.post(
         "/api/consulta",
         json={"pregunta": "Como hago para el negocio, lo de industria y comercio"},
@@ -261,5 +261,9 @@ def test_consulta_rejects_industria_y_comercio_when_no_specific_tramite_exists(c
 
     assert response.status_code == 200
     data = response.json()
-    assert data["mensaje_estado"] == "Sin coincidencias en la base actual"
-    assert data["tramite_principal"] is None
+    assert data["mensaje_estado"] in {
+        "Coincidencias encontradas",
+        "Coincidencias semanticas encontradas",
+    }
+    assert data["tramite_principal"] is not None
+    assert "industria y comercio" in data["tramite_principal"]["nombre"].lower()

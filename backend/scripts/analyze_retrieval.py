@@ -55,7 +55,9 @@ def main() -> None:
                     not_(
                         or_(
                             Tramite.slug.like("test-%"),
+                            Tramite.slug.like("%test-%"),
                             Tramite.nombre.like("Test %"),
+                            Tramite.nombre.like("%test-%"),
                         )
                     ),
                 )

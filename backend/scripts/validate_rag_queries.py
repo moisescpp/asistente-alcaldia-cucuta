@@ -139,8 +139,9 @@ VALIDATION_CASES = [
     ),
     ValidationCase(
         question="Como hago para el negocio, lo de industria y comercio",
-        category="negativa",
-        expected_status="Sin coincidencias en la base actual",
+        category="directa",
+        expected_status="positiva",
+        expected_principal_contains="industria y comercio",
     ),
     ValidationCase(
         question="impuestos",
@@ -178,7 +179,9 @@ def main() -> None:
                 not_(
                     or_(
                         Tramite.slug.like("test-%"),
+                        Tramite.slug.like("%test-%"),
                         Tramite.nombre.like("Test %"),
+                        Tramite.nombre.like("%test-%"),
                     )
                 ),
             )
