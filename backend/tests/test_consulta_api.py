@@ -189,6 +189,7 @@ def test_consulta_rejects_overly_generic_tax_query(client) -> None:
     data = response.json()
     assert data["mensaje_estado"] == "Consulta demasiado general"
     assert data["tramite_principal"] is None
+    assert "Puedes intentar con algo como:" in data["respuesta"]
 
 
 def test_consulta_rejects_overly_generic_payment_query(client) -> None:
@@ -201,6 +202,7 @@ def test_consulta_rejects_overly_generic_payment_query(client) -> None:
     data = response.json()
     assert data["mensaje_estado"] == "Sin coincidencias en la base actual"
     assert data["tramite_principal"] is None
+    assert "Esta version del asistente esta enfocada en rentas e impuestos" in data["respuesta"]
 
 
 def test_consulta_requests_more_specific_query_for_generic_public_term(client) -> None:

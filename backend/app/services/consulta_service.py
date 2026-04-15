@@ -218,11 +218,13 @@ def _build_success_response(
 
 
 def _build_empty_response(pregunta: str) -> ConsultaResponse:
+    example_text = ", ".join(DEFAULT_SUGGESTIONS[:3])
     return ConsultaResponse(
         pregunta=pregunta,
         respuesta=(
             "No encontre un tramite directamente relacionado en la base actual. "
-            "Prueba con una consulta mas especifica o usa una de las sugerencias."
+            "Esta version del asistente esta enfocada en rentas e impuestos; prueba con una consulta mas especifica o usa una de las sugerencias, por ejemplo: "
+            f"{example_text}."
         ),
         mensaje_estado="Sin coincidencias en la base actual",
         total_resultados=0,
@@ -233,11 +235,13 @@ def _build_empty_response(pregunta: str) -> ConsultaResponse:
 
 
 def _build_clarification_response(pregunta: str) -> ConsultaResponse:
+    example_text = ", ".join(CLARIFICATION_SUGGESTIONS[:3])
     return ConsultaResponse(
         pregunta=pregunta,
         respuesta=(
             "La consulta es demasiado general para identificar un tramite con suficiente confianza. "
-            "Especifica mejor el tema, por ejemplo el impuesto, servicio o gestion que necesitas."
+            "Especifica mejor el tema, por ejemplo el impuesto, servicio o gestion que necesitas. "
+            f"Puedes intentar con algo como: {example_text}."
         ),
         mensaje_estado="Consulta demasiado general",
         total_resultados=0,

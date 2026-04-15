@@ -211,14 +211,14 @@ function App() {
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl space-y-4">
               <span className="inline-flex w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
-                Iteracion 2 en construccion
+                Iteracion 4 en optimizacion
               </span>
               <div className="space-y-3">
                 <h1 className="max-w-3xl text-4xl font-black tracking-tight text-slate-950 md:text-5xl">
                   Asistente de tramites estrella para rentas e impuestos
                 </h1>
                 <p className="max-w-3xl text-base leading-7 text-slate-600 md:text-lg">
-                  Ya tenemos consulta ciudadana y una primera vista administrativa conectadas al backend real.
+                  El sistema ya cuenta con consulta semantica, respuestas RAG y panel administrativo; ahora estamos afinando claridad, precision y experiencia de uso.
                 </p>
               </div>
             </div>
@@ -292,10 +292,10 @@ function App() {
             <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Panel administrativo inicial</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Panel administrativo</p>
                   <h2 className="mt-2 text-3xl font-bold text-slate-950">Gestion de tramites estrella</h2>
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                    Este formulario ya crea y actualiza tramites reales. Ahora incluye validaciones, ayuda de slug y mensajes de feedback mas claros.
+                    Este formulario ya crea y actualiza tramites reales. En esta fase lo usamos para mantener coherencia entre la base administrativa y la experiencia de consulta ciudadana.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
@@ -444,6 +444,26 @@ function fieldClassName(hasError) {
 }
 
 function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
+  const statusConfig = getConsultaStatusConfig(consulta?.mensaje_estado)
+  const summaryText = consulta ? extractSummaryText(consulta.respuesta) : ''
+  const availableFields = consulta?.tramite_principal
+    ? [
+        { label: 'Descripcion', value: consulta.tramite_principal.descripcion },
+        { label: 'Requisitos', value: consulta.tramite_principal.requisitos },
+        { label: 'Costo', value: consulta.tramite_principal.costo },
+        { label: 'Horario', value: consulta.tramite_principal.horario },
+      ].filter((item) => item.value)
+    : []
+  const missingFields = consulta?.tramite_principal
+    ? [
+        !consulta.tramite_principal.descripcion ? 'Descripcion' : null,
+        !consulta.tramite_principal.requisitos ? 'Requisitos' : null,
+        !consulta.tramite_principal.costo ? 'Costo' : null,
+        !consulta.tramite_principal.horario ? 'Horario' : null,
+        !consulta.tramite_principal.fuente_url ? 'Fuente oficial' : null,
+      ].filter(Boolean)
+    : []
+
   return (
     <div className="rounded-[2rem] border border-slate-200/70 bg-slate-950 p-6 text-white shadow-[0_30px_80px_-45px_rgba(15,23,42,0.7)]">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -451,7 +471,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">Respuesta actual</p>
           <h3 className="mt-2 text-2xl font-bold">Resultado de la consulta</h3>
         </div>
-        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">MVP conectado al backend</span>
+        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">RAG conectado al backend</span>
       </div>
 
       {isSubmitting ? (
@@ -471,7 +491,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
       ) : consulta ? (
         <div className="mt-6 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">
+            <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
               {consulta.mensaje_estado}
             </span>
             <span className="text-sm text-slate-300">
@@ -484,9 +504,9 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
             <p className="mt-2 text-lg font-medium text-white">{consulta.pregunta}</p>
           </div>
 
-          <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-emerald-200">Respuesta del asistente</p>
-            <p className="mt-3 whitespace-pre-line text-base leading-7 text-emerald-50">{consulta.respuesta}</p>
+          <div className={`rounded-3xl border p-5 ${statusConfig.panelClassName}`}>
+            <p className={`text-xs uppercase tracking-[0.2em] ${statusConfig.labelClassName}`}>{statusConfig.panelLabel}</p>
+            <p className="mt-3 text-base leading-7 text-white">{summaryText}</p>
           </div>
 
           {consulta.sugerencias?.length ? (
@@ -529,23 +549,27 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
               </div>
 
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <DetailCard
-                  label="Descripcion"
-                  value={consulta.tramite_principal.descripcion}
-                />
-                <DetailCard
-                  label="Requisitos"
-                  value={consulta.tramite_principal.requisitos}
-                />
-                <DetailCard
-                  label="Costo"
-                  value={consulta.tramite_principal.costo}
-                />
-                <DetailCard
-                  label="Horario"
-                  value={consulta.tramite_principal.horario}
-                />
+                {availableFields.length ? (
+                  availableFields.map((field) => (
+                    <DetailCard key={field.label} label={field.label} value={field.value} />
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-4 md:col-span-2">
+                    <p className="text-sm leading-6 text-slate-300">
+                      Este tramite existe en la base, pero todavia no tiene detalles ampliados para mostrar en esta vista.
+                    </p>
+                  </div>
+                )}
               </div>
+
+              {missingFields.length ? (
+                <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-amber-200">Informacion pendiente</p>
+                  <p className="mt-2 text-sm leading-6 text-amber-50">
+                    Aun no hay datos registrados para: {missingFields.join(', ')}.
+                  </p>
+                </div>
+              ) : null}
 
               {consulta.tramite_principal.fuente_url ? (
                 <a
@@ -598,9 +622,7 @@ function DetailCard({ label, value }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <p className="text-xs uppercase tracking-[0.18em] text-slate-300">{label}</p>
-      <p className="mt-2 text-sm leading-6 text-white">
-        {value || 'Sin informacion registrada.'}
-      </p>
+      <p className="mt-2 text-sm leading-6 text-white">{value}</p>
     </div>
   )
 }
@@ -706,13 +728,49 @@ function EmptyPanel({ title, body }) {
 function Callout() {
   return (
     <div className="rounded-[2rem] border border-slate-200/70 bg-[linear-gradient(135deg,#0f172a_0%,#1f2937_50%,#1a4334_100%)] p-6 text-white shadow-[0_25px_80px_-45px_rgba(15,23,42,0.7)]">
-      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-200">Siguiente paso tecnico</p>
-      <h2 className="mt-2 text-2xl font-bold">Embeddings y retrieval semantico</h2>
+      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-200">Foco actual</p>
+      <h2 className="mt-2 text-2xl font-bold">Claridad, precision y experiencia</h2>
       <p className="mt-4 text-sm leading-6 text-slate-200">
-        Ya tenemos consulta textual y panel administrativo inicial. El siguiente salto sera usar <code>embedding_vector</code> para retrieval semantico real.
+        La arquitectura RAG ya funciona; ahora estamos puliendo la forma en que se muestran los resultados, la desambiguacion de consultas y la experiencia del ciudadano.
       </p>
     </div>
   )
+}
+
+function extractSummaryText(responseText) {
+  if (!responseText) {
+    return 'Todavia no hay una respuesta disponible para esta consulta.'
+  }
+
+  const [summary] = responseText.split('\n\nTramite principal:')
+  return summary.trim() || responseText
+}
+
+function getConsultaStatusConfig(messageStatus) {
+  if (messageStatus === 'Consulta demasiado general') {
+    return {
+      badgeClassName: 'border-amber-300/30 bg-amber-300/10 text-amber-200',
+      panelClassName: 'border-amber-300/30 bg-amber-300/10',
+      labelClassName: 'text-amber-200',
+      panelLabel: 'Necesitamos mas precision',
+    }
+  }
+
+  if (messageStatus === 'Sin coincidencias en la base actual') {
+    return {
+      badgeClassName: 'border-rose-300/30 bg-rose-300/10 text-rose-200',
+      panelClassName: 'border-rose-300/30 bg-rose-300/10',
+      labelClassName: 'text-rose-200',
+      panelLabel: 'Sin coincidencia suficiente',
+    }
+  }
+
+  return {
+    badgeClassName: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
+    panelClassName: 'border-emerald-400/20 bg-emerald-400/10',
+    labelClassName: 'text-emerald-200',
+    panelLabel: 'Orientacion del asistente',
+  }
 }
 
 function Message({ children, tone }) {
