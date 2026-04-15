@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from difflib import SequenceMatcher
 import re
 import unicodedata
 
@@ -113,6 +114,36 @@ def _normalize_text(value: str | None) -> str:
     normalized = normalized.encode("ascii", "ignore").decode("ascii")
     normalized = re.sub(r"[^a-zA-Z0-9]+", " ", normalized)
     return re.sub(r"\s+", " ", normalized).lower().strip()
+
+
+def _tokenize_text(value: str | None) -> list[str]:
+    normalized = _normalize_text(value)
+    return [token for token in normalized.split() if len(token) > 2]
+
+
+def _is_fuzzy_token_match(token: str, candidate: str) -> bool:
+    if token == candidate:
+        return True
+
+    if min(len(token), len(candidate)) < 5:
+        return False
+
+    if token[0] != candidate[0]:
+        return False
+
+    return SequenceMatcher(None, token, candidate).ratio() >= 0.84
+
+
+def _count_token_matches(tokens: list[str], searchable_words: set[str]) -> int:
+    if not tokens or not searchable_words:
+        return 0
+
+    matches = 0
+    for token in tokens:
+        if any(_is_fuzzy_token_match(token, word) for word in searchable_words):
+            matches += 1
+
+    return matches
 
 
 def _build_match(tramite: Tramite) -> ConsultaMatch:
@@ -267,9 +298,10 @@ def _text_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, int, boo
             _normalize_text(" ".join(get_tramite_semantic_aliases(tramite))),
         ]
     )
+    searchable_words = set(_tokenize_text(searchable_text))
 
-    total_matches = sum(1 for token in tokens if token in searchable_text)
-    specific_matches = sum(1 for token in specific_tokens if token in searchable_text)
+    total_matches = _count_token_matches(tokens, searchable_words)
+    specific_matches = _count_token_matches(specific_tokens, searchable_words)
     phrase_match = len(normalized_question) >= 5 and normalized_question in searchable_text
 
     return total_matches, specific_matches, phrase_match
@@ -286,8 +318,9 @@ def _identifier_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, bo
             _normalize_text(" ".join(get_tramite_semantic_aliases(tramite))),
         ]
     )
+    identifier_words = set(_tokenize_text(identifier_text))
 
-    specific_matches = sum(1 for token in specific_tokens if token in identifier_text)
+    specific_matches = _count_token_matches(specific_tokens, identifier_words)
     phrase_match = len(normalized_question) >= 5 and normalized_question in identifier_text
 
     return specific_matches, phrase_match

@@ -261,8 +261,8 @@ def test_deactivated_tramite_is_no_longer_available_for_consulta(
     assert delete_response.status_code == 200
     assert consulta_response.status_code == 200
     consulta = consulta_response.json()
-    assert consulta["mensaje_estado"] in {
-        "Sin coincidencias en la base actual",
-        "Consulta demasiado general",
-    }
-    assert consulta["tramite_principal"] is None
+    principal_id = consulta["tramite_principal"]["id"] if consulta["tramite_principal"] else None
+    related_ids = [tramite["id"] for tramite in consulta["tramites_relacionados"]]
+
+    assert created["id"] != principal_id
+    assert created["id"] not in related_ids

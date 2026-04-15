@@ -269,3 +269,39 @@ def test_consulta_returns_industria_y_comercio_tramite_when_registered(client) -
     }
     assert data["tramite_principal"] is not None
     assert "industria y comercio" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_tolerates_typo_for_predial_query(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "Necesito informacion del impuetso predial"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "predial" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_tolerates_typo_for_vehicular_query(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "impuesto vehivular"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "vehicular" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_tolerates_typo_for_paz_y_salvo_query(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "paz y salbo"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "paz y salvo" in data["tramite_principal"]["nombre"].lower()

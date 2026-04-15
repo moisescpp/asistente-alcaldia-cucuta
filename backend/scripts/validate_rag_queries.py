@@ -100,8 +100,20 @@ VALIDATION_CASES = [
         expected_response_contains="Informacion pendiente en el sistema:",
     ),
     ValidationCase(
+        question="Necesito informacion del impuetso predial",
+        category="ortografia",
+        expected_status="positiva",
+        expected_principal_contains="predial",
+    ),
+    ValidationCase(
         question="carro",
         category="lenguaje ciudadano",
+        expected_status="positiva",
+        expected_principal_contains="vehicular",
+    ),
+    ValidationCase(
+        question="impuesto vehivular",
+        category="ortografia",
         expected_status="positiva",
         expected_principal_contains="vehicular",
     ),
@@ -142,6 +154,12 @@ VALIDATION_CASES = [
         category="directa",
         expected_status="positiva",
         expected_principal_contains="industria y comercio",
+    ),
+    ValidationCase(
+        question="paz y salbo",
+        category="ortografia",
+        expected_status="positiva",
+        expected_principal_contains="paz y salvo",
     ),
     ValidationCase(
         question="impuestos",
