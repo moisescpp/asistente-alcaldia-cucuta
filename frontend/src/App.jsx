@@ -230,7 +230,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#f8f4ea_0%,#eef5f3_45%,#dfe8ea_100%)] text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-8 px-4 py-8 lg:px-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1680px] flex-col gap-8 px-4 py-8 lg:px-8 xl:px-10">
         <header className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-[0_25px_80px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl space-y-4">
@@ -312,7 +312,7 @@ function App() {
             </aside>
           </div>
         ) : (
-          <div className="grid gap-8 lg:grid-cols-[1.05fr_1fr]">
+          <div className="grid gap-8 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)]">
             <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -374,36 +374,35 @@ function App() {
               </form>
             </section>
 
-            <aside className="space-y-6">
-              <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-                <div className="mb-6 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Inventario activo</p>
-                    <h3 className="mt-2 text-2xl font-bold text-slate-950">Tramites disponibles</h3>
-                  </div>
-                  <button type="button" onClick={refreshTramites} className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
-                    Actualizar lista
-                  </button>
+            <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+              <div className="mb-6 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Inventario activo</p>
+                  <h3 className="mt-2 text-2xl font-bold text-slate-950">Tramites disponibles</h3>
                 </div>
+                <button type="button" onClick={refreshTramites} className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
+                  Actualizar lista
+                </button>
+              </div>
 
-                <TramitesAdminList
-                  tramites={tramites}
-                  loadingTramites={loadingTramites}
-                  tramitesError={tramitesError}
-                  editingId={editingId}
-                  deletingId={deletingId}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              </section>
-
-              <ConsultaActivityPanel
-                logs={consultaLogs}
-                loading={loadingConsultaLogs}
-                error={consultaLogsError}
-                onRefresh={refreshConsultaLogs}
+              <TramitesAdminList
+                tramites={tramites}
+                loadingTramites={loadingTramites}
+                tramitesError={tramitesError}
+                editingId={editingId}
+                deletingId={deletingId}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
               />
-            </aside>
+            </section>
+
+            <ConsultaActivityPanel
+              logs={consultaLogs}
+              loading={loadingConsultaLogs}
+              error={consultaLogsError}
+              onRefresh={refreshConsultaLogs}
+              className="xl:col-span-2"
+            />
           </div>
         )}
       </div>
@@ -735,7 +734,7 @@ function TramitesAdminList({ tramites, loadingTramites, tramitesError, editingId
   )
 }
 
-function ConsultaActivityPanel({ logs, loading, error, onRefresh }) {
+function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = '' }) {
   const [expandedLogId, setExpandedLogId] = useState(null)
   const stats = logs.reduce(
     (summary, log) => {
@@ -748,7 +747,7 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh }) {
   )
 
   return (
-    <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+    <section className={`rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur ${className}`}>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Actividad del asistente</p>
@@ -786,18 +785,18 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh }) {
       ) : null}
 
       {!loading && !error && logs.length ? (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
             <p>Mostrando {logs.length} consulta(s) recientes para seguimiento del sistema.</p>
             <p>Despliega una tarjeta para ver la pregunta exacta del ciudadano.</p>
           </div>
 
-          <div className="max-h-[42rem] space-y-4 overflow-y-auto pr-1">
+          <div className="grid gap-4 xl:grid-cols-2">
             {logs.map((log) => {
               const statusConfig = getConsultaLogStatusConfig(log.mensaje_estado)
               const isExpanded = expandedLogId === log.id
               return (
-                <article key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5">
+                <article key={log.id} className="rounded-3xl border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#f8fafc_55%,#f1f5f9_100%)] px-5 py-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-3">
                       <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
@@ -828,14 +827,14 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh }) {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-3">
-                    <LogDetail label="Resultados" value={String(log.total_resultados)} />
-                    <LogDetail label="Origen" value={humanizeResponseOrigin(log.origen_respuesta)} />
-                    <LogDetail label="Estado" value={shortStatusLabel(log.mensaje_estado)} />
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <LogPill label="Resultados" value={String(log.total_resultados)} />
+                    <LogPill label="Origen" value={humanizeResponseOrigin(log.origen_respuesta)} />
+                    <LogPill label="Estado" value={shortStatusLabel(log.mensaje_estado)} />
                   </div>
 
                   {isExpanded ? (
-                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
                         Pregunta realizada por el ciudadano
                       </p>
@@ -854,10 +853,10 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh }) {
   )
 }
 
-function LogDetail({ label, value }) {
+function LogPill({ label, value }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
+    <div className="min-w-[11rem] rounded-2xl border border-slate-200 bg-white px-4 py-3">
+      <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</p>
       <p className="mt-2 text-sm font-medium leading-6 text-slate-800">{value}</p>
     </div>
   )
