@@ -235,6 +235,12 @@ def _build_success_response(
             ]
         )
 
+    follow_up_suggestions: list[str] = []
+    if related_matches and len(_query_specific_tokens(pregunta)) <= 1:
+        follow_up_suggestions = [
+            f"Consulta por {tramite.nombre}" for tramite in related_matches[:3]
+        ]
+
     response_text = "\n".join(response_parts).strip()
 
     return ConsultaResponse(
@@ -244,7 +250,7 @@ def _build_success_response(
         total_resultados=len(tramites),
         tramite_principal=tramite_match,
         tramites_relacionados=related_matches,
-        sugerencias=[],
+        sugerencias=follow_up_suggestions,
     )
 
 
