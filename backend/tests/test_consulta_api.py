@@ -1,5 +1,6 @@
 from app.database import SessionLocal
-from app.models import Tramite
+from app.main import app
+from app.models import ConsultaLog, Tramite
 
 
 def build_payload(slug: str, **overrides) -> dict:
@@ -308,3 +309,48 @@ def test_consulta_tolerates_typo_for_paz_y_salvo_query(client) -> None:
     data = response.json()
     assert data["tramite_principal"] is not None
     assert "paz y salvo" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_persists_log_entry_when_logging_is_enabled(client) -> None:
+    app.state.disable_consulta_logging = False
+    question = "test-log-carro"
+
+    try:
+        response = client.post(
+            "/api/consulta",
+            json={"pregunta": question},
+        )
+
+        assert response.status_code == 200
+
+        db = SessionLocal()
+        try:
+            log_entry = db.query(ConsultaLog).filter(ConsultaLog.pregunta == question).one_or_none()
+            assert log_entry is not None
+            assert log_entry.mensaje_estado == "Coincidencias semanticas encontradas"
+            assert log_entry.origen_respuesta == "semantica"
+            assert log_entry.tramite_principal_nombre is not None
+            assert "vehicular" in log_entry.tramite_principal_nombre.lower()
+        finally:
+            db.close()
+    finally:
+        app.state.disable_consulta_logging = True
+
+
+def test_admin_can_list_recent_consulta_logs(client) -> None:
+    app.state.disable_consulta_logging = False
+    question = "test-log-impuestos"
+
+    try:
+        client.post(
+            "/api/consulta",
+            json={"pregunta": question},
+        )
+
+        response = client.get("/api/admin/consultas")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert any(item["pregunta"] == question for item in data)
+    finally:
+        app.state.disable_consulta_logging = True

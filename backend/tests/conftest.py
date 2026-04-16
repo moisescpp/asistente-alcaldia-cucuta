@@ -14,11 +14,12 @@ if str(ROOT_DIR) not in sys.path:
 
 from app.main import app
 from app.database import SessionLocal
-from app.models import Tramite
+from app.models import ConsultaLog, Tramite
 
 
 @pytest.fixture
 def client() -> TestClient:
+    app.state.disable_consulta_logging = True
     return TestClient(app)
 
 
@@ -41,6 +42,7 @@ def cleanup_test_tramites() -> None:
                 ),
             ),
         )
+        db.execute(delete(ConsultaLog).where(ConsultaLog.pregunta.like("test-%")))
         db.commit()
     finally:
         db.close()
@@ -59,6 +61,7 @@ def cleanup_test_tramites() -> None:
                 ),
             ),
         )
+        db.execute(delete(ConsultaLog).where(ConsultaLog.pregunta.like("test-%")))
         db.commit()
     finally:
         db.close()

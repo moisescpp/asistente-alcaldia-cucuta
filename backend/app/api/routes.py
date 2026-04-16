@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -8,9 +8,15 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.database import get_db_session
 from app.models import Tramite
+from app.schemas.consulta_log import ConsultaLogRead
 from app.schemas.consulta import ConsultaRequest, ConsultaResponse
 from app.schemas.tramite import TramiteCreate, TramiteRead, TramiteUpdate
-from app.services import process_consulta, update_tramite_embedding
+from app.services import (
+    list_recent_consulta_logs,
+    log_consulta_result,
+    process_consulta,
+    update_tramite_embedding,
+)
 
 
 router = APIRouter()
@@ -257,12 +263,26 @@ def delete_tramite(tramite_id: int, db: DbSession) -> TramiteRead:
     return TramiteRead.model_validate(tramite)
 
 
+@router.get(
+    "/admin/consultas",
+    response_model=list[ConsultaLogRead],
+    tags=["admin-consultas"],
+)
+def list_consulta_logs(db: DbSession) -> list[ConsultaLogRead]:
+    logs = list_recent_consulta_logs(db)
+    return [ConsultaLogRead.model_validate(log) for log in logs]
+
+
 @router.post(
     "/consulta",
     response_model=ConsultaResponse,
     tags=["consulta"],
 )
-def consulta_tramites(payload: ConsultaRequest, db: DbSession) -> ConsultaResponse:
+def consulta_tramites(
+    payload: ConsultaRequest,
+    request: Request,
+    db: DbSession,
+) -> ConsultaResponse:
     try:
         query = select(Tramite).where(Tramite.activo.is_(True)).order_by(Tramite.nombre)
         tramites = db.scalars(query).all()
@@ -272,4 +292,16 @@ def consulta_tramites(payload: ConsultaRequest, db: DbSession) -> ConsultaRespon
             detail="No fue posible consultar la base de datos.",
         ) from exc
 
-    return process_consulta(db, payload.pregunta, tramites)
+    response = process_consulta(db, payload.pregunta, tramites)
+
+    if not getattr(request.app.state, "disable_consulta_logging", False):
+        try:
+            log_consulta_result(
+                db,
+                pregunta=payload.pregunta,
+                response=response,
+            )
+        except SQLAlchemyError:
+            db.rollback()
+
+    return response
