@@ -737,6 +737,7 @@ function TramitesAdminList({ tramites, loadingTramites, tramitesError, editingId
 function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = '' }) {
   const [expandedLogId, setExpandedLogId] = useState(null)
   const [statusFilter, setStatusFilter] = useState('todas')
+  const [showAllLogs, setShowAllLogs] = useState(false)
   const stats = logs.reduce(
     (summary, log) => {
       if (log.mensaje_estado === 'Coincidencias semanticas encontradas') summary.positivas += 1
@@ -747,7 +748,8 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
     { positivas: 0, ambiguas: 0, sinCoincidencia: 0 },
   )
   const filteredLogs = logs.filter((log) => matchesLogFilter(log, statusFilter))
-  const recurringPatterns = buildRecurringPatterns(logs)
+  const visibleLogs = showAllLogs ? filteredLogs : filteredLogs.slice(0, 4)
+  const problematicPatterns = buildProblematicPatterns(logs)
   const filters = [
     { id: 'todas', label: 'Todas', count: logs.length },
     { id: 'positivas', label: 'Positivas', count: stats.positivas },
@@ -795,24 +797,24 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
 
       {!loading && !error && logs.length ? (
         <div className="space-y-5">
-          {recurringPatterns.length ? (
+          {problematicPatterns.length ? (
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Patrones recientes
+                    Patrones problematicos
                   </p>
                   <h4 className="mt-2 text-lg font-semibold text-slate-950">
-                    Preguntas que conviene observar
+                    Consultas que conviene revisar primero
                   </h4>
                 </div>
                 <p className="text-sm text-slate-500">
-                  Nos ayudan a detectar temas repetidos o ambiguedades reales.
+                  Priorizamos ambiguedades, no coincidencias y repeticiones con riesgo real.
                 </p>
               </div>
 
               <div className="mt-4 grid gap-3 xl:grid-cols-3">
-                {recurringPatterns.map((pattern) => (
+                {problematicPatterns.map((pattern) => (
                   <div key={pattern.key} className="rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-sm font-semibold leading-6 text-slate-900">{pattern.display}</p>
@@ -834,7 +836,11 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
               <button
                 key={filter.id}
                 type="button"
-                onClick={() => setStatusFilter(filter.id)}
+                onClick={() => {
+                  setStatusFilter(filter.id)
+                  setShowAllLogs(false)
+                  setExpandedLogId(null)
+                }}
                 className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
                   statusFilter === filter.id
                     ? 'border-slate-950 bg-slate-950 text-white'
@@ -855,7 +861,7 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            {filteredLogs.map((log) => {
+            {visibleLogs.map((log) => {
               const statusConfig = getConsultaLogStatusConfig(log.mensaje_estado)
               const isExpanded = expandedLogId === log.id
               return (
@@ -910,6 +916,30 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
               )
             })}
           </div>
+
+          {filteredLogs.length > 4 ? (
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Navegacion de consultas
+                  </p>
+                  <p className="mt-2 text-sm text-slate-700">
+                    {showAllLogs
+                      ? `Estas viendo las ${filteredLogs.length} consultas del filtro actual.`
+                      : `Estas viendo 4 de ${filteredLogs.length} consultas del filtro actual.`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAllLogs((current) => !current)}
+                  className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                >
+                  {showAllLogs ? 'Mostrar solo 4' : `Ver ${filteredLogs.length - 4} mas`}
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {!filteredLogs.length ? (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -1012,16 +1042,18 @@ function matchesLogFilter(log, filter) {
   return true
 }
 
-function buildRecurringPatterns(logs) {
+function buildProblematicPatterns(logs) {
   const counts = new Map()
 
   logs.forEach((log) => {
     const normalizedQuestion = normalizePatternQuestion(log.pregunta)
+    const severity = getPatternSeverity(log)
     const current = counts.get(normalizedQuestion)
 
     if (current) {
       current.count += 1
       current.lastStatus = shortStatusLabel(log.mensaje_estado)
+      current.severity += severity
       return
     }
 
@@ -1030,11 +1062,16 @@ function buildRecurringPatterns(logs) {
       display: log.pregunta,
       count: 1,
       lastStatus: shortStatusLabel(log.mensaje_estado),
+      severity,
     })
   })
 
   return Array.from(counts.values())
-    .sort((left, right) => right.count - left.count)
+    .filter((pattern) => pattern.severity > 1 || pattern.count > 1)
+    .sort((left, right) => {
+      if (right.severity !== left.severity) return right.severity - left.severity
+      return right.count - left.count
+    })
     .slice(0, 3)
 }
 
@@ -1044,6 +1081,13 @@ function normalizePatternQuestion(question) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim()
+}
+
+function getPatternSeverity(log) {
+  if (log.mensaje_estado === 'Consulta demasiado general') return 3
+  if (log.mensaje_estado === 'Sin coincidencias en la base actual') return 4
+  if (log.total_resultados > 1) return 2
+  return 0
 }
 
 function extractSummaryText(responseText) {
