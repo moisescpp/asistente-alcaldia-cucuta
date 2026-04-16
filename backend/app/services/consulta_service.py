@@ -271,20 +271,35 @@ def _build_empty_response(pregunta: str) -> ConsultaResponse:
     )
 
 
-def _build_clarification_response(pregunta: str) -> ConsultaResponse:
-    example_text = ", ".join(CLARIFICATION_SUGGESTIONS[:3])
+def _build_clarification_response(
+    pregunta: str,
+    candidate_tramites: list[Tramite] | None = None,
+) -> ConsultaResponse:
+    candidate_tramites = candidate_tramites or []
+    candidate_matches = [_build_match(tramite) for tramite in candidate_tramites[:3]]
+    candidate_suggestions = [f"Consulta por {tramite.nombre}" for tramite in candidate_tramites[:3]]
+    suggestions = candidate_suggestions or CLARIFICATION_SUGGESTIONS
+    example_text = ", ".join(suggestions[:3])
+    response_text = (
+        "La consulta es demasiado general para identificar un tramite con suficiente confianza. "
+        "Especifica mejor el tema, por ejemplo el impuesto, servicio o gestion que necesitas. "
+        f"Puedes intentar con algo como: {example_text}."
+    )
+
+    if candidate_matches:
+        response_text = (
+            "La consulta puede corresponder a varios tramites posibles dentro de rentas e impuestos. "
+            "Te recomiendo elegir una de las opciones sugeridas para responderte con mas precision."
+        )
+
     return ConsultaResponse(
         pregunta=pregunta,
-        respuesta=(
-            "La consulta es demasiado general para identificar un tramite con suficiente confianza. "
-            "Especifica mejor el tema, por ejemplo el impuesto, servicio o gestion que necesitas. "
-            f"Puedes intentar con algo como: {example_text}."
-        ),
+        respuesta=response_text,
         mensaje_estado="Consulta demasiado general",
-        total_resultados=0,
+        total_resultados=len(candidate_matches),
         tramite_principal=None,
-        tramites_relacionados=[],
-        sugerencias=CLARIFICATION_SUGGESTIONS,
+        tramites_relacionados=candidate_matches,
+        sugerencias=suggestions,
     )
 
 
@@ -372,6 +387,84 @@ def _candidate_support(pregunta: str, tramite: Tramite) -> tuple[int, int, bool,
         total_matches,
         phrase_match,
     )
+
+
+def _deduplicate_tramites(tramites: list[Tramite]) -> list[Tramite]:
+    unique_tramites: list[Tramite] = []
+    seen_ids: set[int] = set()
+
+    for tramite in tramites:
+        if tramite.id in seen_ids:
+            continue
+        seen_ids.add(tramite.id)
+        unique_tramites.append(tramite)
+
+    return unique_tramites
+
+
+def _find_clarification_candidates(
+    db: Session,
+    pregunta: str,
+    tramites: list[Tramite],
+) -> list[Tramite]:
+    candidate_tramites: list[Tramite] = []
+
+    try:
+        embedding = generate_embedding(pregunta)
+        distance_label = Tramite.embedding_vector.cosine_distance(embedding).label("distance")
+        query = (
+            select(Tramite, distance_label)
+            .where(
+                Tramite.activo.is_(True),
+                Tramite.embedding_vector.is_not(None),
+            )
+            .order_by(distance_label)
+            .limit(SEMANTIC_QUERY_LIMIT)
+        )
+        semantic_results = db.execute(query).all()
+        candidate_tramites.extend(
+            tramite
+            for tramite, distance in semantic_results
+            if distance is not None and distance <= min(0.9, SEMANTIC_DISTANCE_THRESHOLD + 0.12)
+        )
+    except Exception:
+        pass
+
+    textual_candidates: list[tuple[Tramite, int, int, bool]] = []
+    for tramite in tramites:
+        if not tramite.activo:
+            continue
+
+        total_matches, specific_matches, phrase_match = _text_match_metadata(
+            pregunta,
+            tramite,
+        )
+        identifier_specific_matches, identifier_phrase_match = _identifier_match_metadata(
+            pregunta,
+            tramite,
+        )
+
+        if total_matches > 0 or identifier_specific_matches > 0 or identifier_phrase_match:
+            textual_candidates.append(
+                (
+                    tramite,
+                    max(specific_matches, identifier_specific_matches),
+                    total_matches,
+                    phrase_match or identifier_phrase_match,
+                )
+            )
+
+    textual_candidates.sort(
+        key=lambda item: (
+            item[1],
+            item[2],
+            1 if item[3] else 0,
+        ),
+        reverse=True,
+    )
+    candidate_tramites.extend(tramite for tramite, _, _, _ in textual_candidates[:3])
+
+    return _deduplicate_tramites(candidate_tramites)[:3]
 
 
 def _select_semantic_candidates(
@@ -568,7 +661,8 @@ def process_consulta(
     tramites: list[Tramite],
 ) -> ConsultaResponse:
     if _is_overly_generic_query(pregunta):
-        return _build_clarification_response(pregunta)
+        clarification_candidates = _find_clarification_candidates(db, pregunta, tramites)
+        return _build_clarification_response(pregunta, clarification_candidates)
 
     has_semantic_data = any(
         tramite.activo and tramite.embedding_vector is not None for tramite in tramites

@@ -193,7 +193,8 @@ def test_consulta_rejects_overly_generic_tax_query(client) -> None:
     data = response.json()
     assert data["mensaje_estado"] == "Consulta demasiado general"
     assert data["tramite_principal"] is None
-    assert "Puedes intentar con algo como:" in data["respuesta"]
+    assert len(data["sugerencias"]) >= 1
+    assert len(data["tramites_relacionados"]) >= 1
 
 
 def test_consulta_rejects_overly_generic_payment_query(client) -> None:
@@ -220,6 +221,7 @@ def test_consulta_requests_more_specific_query_for_generic_public_term(client) -
     assert data["mensaje_estado"] == "Consulta demasiado general"
     assert data["tramite_principal"] is None
     assert len(data["sugerencias"]) >= 1
+    assert len(data["tramites_relacionados"]) >= 1
 
 
 def test_consulta_requests_more_specific_query_for_generic_light_term(client) -> None:
@@ -233,6 +235,7 @@ def test_consulta_requests_more_specific_query_for_generic_light_term(client) ->
     assert data["mensaje_estado"] == "Consulta demasiado general"
     assert data["tramite_principal"] is None
     assert len(data["sugerencias"]) >= 1
+    assert len(data["tramites_relacionados"]) >= 1
 
 
 def test_consulta_prioritizes_predial_for_requirements_question(client) -> None:

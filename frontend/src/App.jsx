@@ -619,7 +619,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
           {consulta.tramites_relacionados.length ? (
             <div>
               <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
-                Tramites relacionados
+                {consulta.tramite_principal ? 'Tramites relacionados' : 'Opciones cercanas para precisar'}
               </p>
               <div className="grid gap-4">
                 {consulta.tramites_relacionados.map((tramite) => (
@@ -631,6 +631,15 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
                       </div>
                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">ID {tramite.id}</span>
                     </div>
+                    {!consulta.tramite_principal ? (
+                      <button
+                        type="button"
+                        onClick={() => onUseSuggestion(`Consulta por ${tramite.nombre}`)}
+                        className="mt-4 inline-flex items-center rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-400/20"
+                      >
+                        Usar esta opcion
+                      </button>
+                    ) : null}
                   </article>
                 ))}
               </div>
@@ -749,6 +758,7 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
   )
   const filteredLogs = logs.filter((log) => matchesLogFilter(log, statusFilter))
   const visibleLogs = showAllLogs ? filteredLogs : filteredLogs.slice(0, 4)
+  const groupedVisibleLogs = groupLogsByDate(visibleLogs)
   const problematicPatterns = buildProblematicPatterns(logs)
   const filters = [
     { id: 'todas', label: 'Todas', count: logs.length },
@@ -860,61 +870,79 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
             <p>Despliega una tarjeta para ver la pregunta exacta del ciudadano.</p>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            {visibleLogs.map((log) => {
-              const statusConfig = getConsultaLogStatusConfig(log.mensaje_estado)
-              const isExpanded = expandedLogId === log.id
-              return (
-                <article key={log.id} className="rounded-3xl border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#f8fafc_55%,#f1f5f9_100%)] px-5 py-5">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="space-y-3">
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
-                        {log.mensaje_estado}
-                      </span>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          Tramite principal detectado
-                        </p>
-                        <h4 className="mt-2 text-lg font-semibold leading-7 text-slate-950">
-                          {log.tramite_principal_nombre || 'Sin tramite principal'}
-                        </h4>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-start gap-3 sm:items-end">
-                      <div className="text-right text-xs uppercase tracking-[0.18em] text-slate-500">
-                        <p>{formatLogTimestamp(log.created_at)}</p>
-                        <p className="mt-2">{humanizeResponseOrigin(log.origen_respuesta)}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                        className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
-                      >
-                        {isExpanded ? 'Ocultar detalle' : 'Ver pregunta'}
-                      </button>
-                    </div>
+          <div className="space-y-5">
+            {groupedVisibleLogs.map((group) => (
+              <section key={group.key} className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Fecha de consulta
+                    </p>
+                    <h5 className="mt-2 text-lg font-semibold text-slate-950">{group.label}</h5>
                   </div>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    {group.logs.length} consulta(s)
+                  </span>
+                </div>
 
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <LogPill label="Resultados" value={String(log.total_resultados)} />
-                    <LogPill label="Origen" value={humanizeResponseOrigin(log.origen_respuesta)} />
-                    <LogPill label="Estado" value={shortStatusLabel(log.mensaje_estado)} />
-                  </div>
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {group.logs.map((log) => {
+                    const statusConfig = getConsultaLogStatusConfig(log.mensaje_estado)
+                    const isExpanded = expandedLogId === log.id
+                    return (
+                      <article key={log.id} className="rounded-3xl border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#f8fafc_55%,#f1f5f9_100%)] px-5 py-5">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="space-y-3">
+                            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
+                              {log.mensaje_estado}
+                            </span>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                Tramite principal detectado
+                              </p>
+                              <h4 className="mt-2 text-lg font-semibold leading-7 text-slate-950">
+                                {log.tramite_principal_nombre || 'Sin tramite principal'}
+                              </h4>
+                            </div>
+                          </div>
 
-                  {isExpanded ? (
-                    <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                        Pregunta realizada por el ciudadano
-                      </p>
-                      <p className="mt-3 text-sm font-medium leading-7 text-slate-900">
-                        {log.pregunta}
-                      </p>
-                    </div>
-                  ) : null}
-                </article>
-              )
-            })}
+                          <div className="flex flex-col items-start gap-3 sm:items-end">
+                            <div className="text-right text-xs uppercase tracking-[0.18em] text-slate-500">
+                              <p>{formatLogTime(log.created_at)}</p>
+                              <p className="mt-2">{humanizeResponseOrigin(log.origen_respuesta)}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                              className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                            >
+                              {isExpanded ? 'Ocultar detalle' : 'Ver pregunta'}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          <LogPill label="Resultados" value={String(log.total_resultados)} />
+                          <LogPill label="Origen" value={humanizeResponseOrigin(log.origen_respuesta)} />
+                          <LogPill label="Estado" value={shortStatusLabel(log.mensaje_estado)} />
+                        </div>
+
+                        {isExpanded ? (
+                          <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+                            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                              Pregunta realizada por el ciudadano
+                            </p>
+                            <p className="mt-3 text-sm font-medium leading-7 text-slate-900">
+                              {log.pregunta}
+                            </p>
+                          </div>
+                        ) : null}
+                      </article>
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
 
           {filteredLogs.length > 4 ? (
@@ -999,7 +1027,7 @@ function Callout() {
   )
 }
 
-function formatLogTimestamp(value) {
+function formatLogDate(value) {
   const date = new Date(value)
 
   if (Number.isNaN(date.getTime())) {
@@ -1007,7 +1035,21 @@ function formatLogTimestamp(value) {
   }
 
   return new Intl.DateTimeFormat('es-CO', {
-    dateStyle: 'short',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
+}
+
+function formatLogTime(value) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Hora no disponible'
+  }
+
+  return new Intl.DateTimeFormat('es-CO', {
     timeStyle: 'short',
   }).format(date)
 }
@@ -1081,6 +1123,29 @@ function normalizePatternQuestion(question) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim()
+}
+
+function groupLogsByDate(logs) {
+  const groups = new Map()
+
+  logs.forEach((log) => {
+    const date = new Date(log.created_at)
+    const key = Number.isNaN(date.getTime()) ? 'fecha-no-disponible' : date.toISOString().slice(0, 10)
+    const currentGroup = groups.get(key)
+
+    if (currentGroup) {
+      currentGroup.logs.push(log)
+      return
+    }
+
+    groups.set(key, {
+      key,
+      label: formatLogDate(log.created_at),
+      logs: [log],
+    })
+  })
+
+  return Array.from(groups.values())
 }
 
 function getPatternSeverity(log) {
