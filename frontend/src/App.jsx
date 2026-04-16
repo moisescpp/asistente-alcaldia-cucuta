@@ -28,8 +28,10 @@ function App() {
   const [loadingTramites, setLoadingTramites] = useState(true)
   const [tramitesError, setTramitesError] = useState('')
   const [consultaLogs, setConsultaLogs] = useState([])
-  const [loadingConsultaLogs, setLoadingConsultaLogs] = useState(true)
+  const [loadingConsultaLogs, setLoadingConsultaLogs] = useState(false)
   const [consultaLogsError, setConsultaLogsError] = useState('')
+  const [hasLoadedConsultaLogs, setHasLoadedConsultaLogs] = useState(false)
+  const [consultaLogsStale, setConsultaLogsStale] = useState(false)
   const [question, setQuestion] = useState(DEFAULT_QUESTION)
   const [consulta, setConsulta] = useState(null)
   const [consultaError, setConsultaError] = useState('')
@@ -45,8 +47,13 @@ function App() {
 
   useEffect(() => {
     refreshTramites()
-    refreshConsultaLogs()
   }, [])
+
+  useEffect(() => {
+    if (view === 'admin' && (!hasLoadedConsultaLogs || consultaLogsStale)) {
+      refreshConsultaLogs()
+    }
+  }, [view, hasLoadedConsultaLogs, consultaLogsStale])
 
   async function refreshTramites() {
     setLoadingTramites(true)
@@ -69,6 +76,8 @@ function App() {
       const response = await fetch(`${API_URL}/admin/consultas`)
       if (!response.ok) throw new Error('No fue posible cargar la actividad reciente del asistente.')
       setConsultaLogs(await response.json())
+      setHasLoadedConsultaLogs(true)
+      setConsultaLogsStale(false)
     } catch (error) {
       setConsultaLogsError(
         error instanceof Error
@@ -99,7 +108,7 @@ function App() {
       if (!response.ok) throw new Error('No fue posible procesar la consulta.')
       const result = await response.json()
       setConsulta(result)
-      await refreshConsultaLogs()
+      setConsultaLogsStale(true)
     } catch (error) {
       setConsultaError(error instanceof Error ? error.message : 'Ocurrio un error al consultar el asistente.')
     } finally {
@@ -255,7 +264,7 @@ function App() {
           </div>
         </header>
 
-        <nav className="flex flex-wrap gap-3">
+        <nav className="flex flex-wrap gap-3" aria-label="Cambiar vista del sistema">
           <ViewButton active={view === 'ciudadania'} onClick={() => setView('ciudadania')}>
             Vista ciudadana
           </ViewButton>
@@ -264,147 +273,149 @@ function App() {
           </ViewButton>
         </nav>
 
-        {view === 'ciudadania' ? (
-          <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
-            <section className="space-y-6">
-              <div className="rounded-[2rem] border border-slate-200/70 bg-white/80 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-                <div className="mb-6 flex items-center justify-between gap-4">
+        <main id="contenido-principal" className="flex-1">
+          {view === 'ciudadania' ? (
+            <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
+              <section className="space-y-6">
+                <div className="rounded-[2rem] border border-slate-200/70 bg-white/80 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+                  <div className="mb-6 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Consulta del asistente</p>
+                      <h2 className="mt-2 text-2xl font-bold text-slate-950">Pregunta por un tramite</h2>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Endpoint actual</p>
+                      <p className="text-sm font-semibold text-slate-700">POST /api/consulta</p>
+                    </div>
+                  </div>
+
+                  <form className="space-y-4" onSubmit={handleSubmit}>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-700">Escribe tu consulta</span>
+                      <textarea
+                        className="min-h-32 w-full rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 text-base text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+                        value={question}
+                        onChange={(event) => setQuestion(event.target.value)}
+                        placeholder="Ejemplo: Quiero informacion sobre impuesto predial"
+                      />
+                    </label>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button type="submit" disabled={isSubmitting} className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
+                        {isSubmitting ? 'Consultando...' : 'Consultar asistente'}
+                      </button>
+                      <button type="button" onClick={() => setQuestion(DEFAULT_QUESTION)} className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto">
+                        Usar ejemplo
+                      </button>
+                    </div>
+                  </form>
+
+                  {consultaError ? <Message tone="error">{consultaError}</Message> : null}
+                </div>
+
+                <ConsultaResult consulta={consulta} isSubmitting={isSubmitting} onUseSuggestion={setQuestion} />
+              </section>
+
+              <aside className="space-y-6">
+                <TramitesPanel tramites={tramites} loadingTramites={loadingTramites} tramitesError={tramitesError} />
+                <Callout />
+              </aside>
+            </div>
+          ) : (
+            <div className="grid gap-8 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)]">
+              <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+                <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Consulta del asistente</p>
-                    <h2 className="mt-2 text-2xl font-bold text-slate-950">Pregunta por un tramite</h2>
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Panel administrativo</p>
+                    <h2 className="mt-2 text-3xl font-bold text-slate-950">Gestion de tramites estrella</h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                      Este formulario ya crea y actualiza tramites reales. En esta fase lo usamos para mantener coherencia entre la base administrativa y la experiencia de consulta ciudadana.
+                    </p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Endpoint actual</p>
-                    <p className="text-sm font-semibold text-slate-700">POST /api/consulta</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Endpoints usados</p>
+                    <p className="text-sm font-semibold text-slate-700">POST / PUT / DELETE</p>
                   </div>
                 </div>
 
-                <form className="space-y-4" onSubmit={handleSubmit}>
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-slate-700">Escribe tu consulta</span>
-                    <textarea
-                      className="min-h-32 w-full rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 text-base text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
-                      value={question}
-                      onChange={(event) => setQuestion(event.target.value)}
-                      placeholder="Ejemplo: Quiero informacion sobre impuesto predial"
-                    />
-                  </label>
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
+                    editingId
+                      ? 'border border-amber-200 bg-amber-50 text-amber-700'
+                      : 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}>
+                    {editingId ? 'Modo edicion' : 'Nuevo tramite'}
+                  </span>
+                  <span className="text-sm text-slate-500">
+                    Los campos con <span className="font-semibold text-rose-500">*</span> son obligatorios.
+                  </span>
+                </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button type="submit" disabled={isSubmitting} className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
-                      {isSubmitting ? 'Consultando...' : 'Consultar asistente'}
-                    </button>
-                    <button type="button" onClick={() => setQuestion(DEFAULT_QUESTION)} className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto">
-                      Usar ejemplo
-                    </button>
+                <form className="mt-8 grid gap-4 md:grid-cols-2" onSubmit={handleAdminSubmit}>
+                  <Field label="Nombre" required error={adminFieldErrors.nombre}>
+                    <input className={fieldClassName(adminFieldErrors.nombre)} name="nombre" value={formData.nombre} onChange={handleInputChange} />
+                  </Field>
+                  <Field label="Slug" required hint="Si no lo escribes manualmente, se genera a partir del nombre." error={adminFieldErrors.slug}>
+                    <input className={fieldClassName(adminFieldErrors.slug)} name="slug" value={formData.slug} onChange={handleInputChange} />
+                  </Field>
+                  <Field label="Dependencia" required error={adminFieldErrors.dependencia}>
+                    <input className={fieldClassName(adminFieldErrors.dependencia)} name="dependencia" value={formData.dependencia} onChange={handleInputChange} />
+                  </Field>
+                  <Field label="Fuente oficial" hint="Opcional. Usa una URL completa con http o https." error={adminFieldErrors.fuente_url}>
+                    <input className={fieldClassName(adminFieldErrors.fuente_url)} name="fuente_url" value={formData.fuente_url} onChange={handleInputChange} />
+                  </Field>
+                  <Field label="Costo"><input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} /></Field>
+                  <Field label="Horario"><input className={inputClassName} name="horario" value={formData.horario} onChange={handleInputChange} /></Field>
+                  <Field className="md:col-span-2" label="Descripcion"><textarea className={`${inputClassName} min-h-28`} name="descripcion" value={formData.descripcion} onChange={handleInputChange} /></Field>
+                  <Field className="md:col-span-2" label="Requisitos"><textarea className={`${inputClassName} min-h-28`} name="requisitos" value={formData.requisitos} onChange={handleInputChange} /></Field>
+                  <div className="md:col-span-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button type="submit" disabled={isSaving} className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
+                        {isSaving ? 'Guardando...' : editingId ? 'Actualizar tramite' : 'Crear tramite'}
+                      </button>
+                      <button type="button" onClick={handleResetForm} className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto">
+                        Limpiar formulario
+                      </button>
+                    </div>
+
+                    {adminMessage ? <Message tone="success">{adminMessage}</Message> : null}
+                    {adminError ? <Message tone="error">{adminError}</Message> : null}
                   </div>
                 </form>
+              </section>
 
-                {consultaError ? <Message tone="error">{consultaError}</Message> : null}
-              </div>
-
-              <ConsultaResult consulta={consulta} isSubmitting={isSubmitting} onUseSuggestion={setQuestion} />
-            </section>
-
-            <aside className="space-y-6">
-              <TramitesPanel tramites={tramites} loadingTramites={loadingTramites} tramitesError={tramitesError} />
-              <Callout />
-            </aside>
-          </div>
-        ) : (
-          <div className="grid gap-8 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)]">
-            <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Panel administrativo</p>
-                  <h2 className="mt-2 text-3xl font-bold text-slate-950">Gestion de tramites estrella</h2>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                    Este formulario ya crea y actualiza tramites reales. En esta fase lo usamos para mantener coherencia entre la base administrativa y la experiencia de consulta ciudadana.
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Endpoints usados</p>
-                  <p className="text-sm font-semibold text-slate-700">POST / PUT / DELETE</p>
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
-                  editingId
-                    ? 'border border-amber-200 bg-amber-50 text-amber-700'
-                    : 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                }`}>
-                  {editingId ? 'Modo edicion' : 'Nuevo tramite'}
-                </span>
-                <span className="text-sm text-slate-500">
-                  Los campos con <span className="font-semibold text-rose-500">*</span> son obligatorios.
-                </span>
-              </div>
-
-              <form className="mt-8 grid gap-4 md:grid-cols-2" onSubmit={handleAdminSubmit}>
-                <Field label="Nombre" required error={adminFieldErrors.nombre}>
-                  <input className={fieldClassName(adminFieldErrors.nombre)} name="nombre" value={formData.nombre} onChange={handleInputChange} />
-                </Field>
-                <Field label="Slug" required hint="Si no lo escribes manualmente, se genera a partir del nombre." error={adminFieldErrors.slug}>
-                  <input className={fieldClassName(adminFieldErrors.slug)} name="slug" value={formData.slug} onChange={handleInputChange} />
-                </Field>
-                <Field label="Dependencia" required error={adminFieldErrors.dependencia}>
-                  <input className={fieldClassName(adminFieldErrors.dependencia)} name="dependencia" value={formData.dependencia} onChange={handleInputChange} />
-                </Field>
-                <Field label="Fuente oficial" hint="Opcional. Usa una URL completa con http o https." error={adminFieldErrors.fuente_url}>
-                  <input className={fieldClassName(adminFieldErrors.fuente_url)} name="fuente_url" value={formData.fuente_url} onChange={handleInputChange} />
-                </Field>
-                <Field label="Costo"><input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} /></Field>
-                <Field label="Horario"><input className={inputClassName} name="horario" value={formData.horario} onChange={handleInputChange} /></Field>
-                <Field className="md:col-span-2" label="Descripcion"><textarea className={`${inputClassName} min-h-28`} name="descripcion" value={formData.descripcion} onChange={handleInputChange} /></Field>
-                <Field className="md:col-span-2" label="Requisitos"><textarea className={`${inputClassName} min-h-28`} name="requisitos" value={formData.requisitos} onChange={handleInputChange} /></Field>
-                <div className="md:col-span-2">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button type="submit" disabled={isSaving} className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
-                      {isSaving ? 'Guardando...' : editingId ? 'Actualizar tramite' : 'Crear tramite'}
-                    </button>
-                    <button type="button" onClick={handleResetForm} className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto">
-                      Limpiar formulario
-                    </button>
+              <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+                <div className="mb-6 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Inventario activo</p>
+                    <h3 className="mt-2 text-2xl font-bold text-slate-950">Tramites disponibles</h3>
                   </div>
-
-                  {adminMessage ? <Message tone="success">{adminMessage}</Message> : null}
-                  {adminError ? <Message tone="error">{adminError}</Message> : null}
+                  <button type="button" onClick={refreshTramites} className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
+                    Actualizar lista
+                  </button>
                 </div>
-              </form>
-            </section>
 
-            <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-              <div className="mb-6 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Inventario activo</p>
-                  <h3 className="mt-2 text-2xl font-bold text-slate-950">Tramites disponibles</h3>
-                </div>
-                <button type="button" onClick={refreshTramites} className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
-                  Actualizar lista
-                </button>
-              </div>
+                <TramitesAdminList
+                  tramites={tramites}
+                  loadingTramites={loadingTramites}
+                  tramitesError={tramitesError}
+                  editingId={editingId}
+                  deletingId={deletingId}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              </section>
 
-              <TramitesAdminList
-                tramites={tramites}
-                loadingTramites={loadingTramites}
-                tramitesError={tramitesError}
-                editingId={editingId}
-                deletingId={deletingId}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+              <ConsultaActivityPanel
+                logs={consultaLogs}
+                loading={loadingConsultaLogs || (!hasLoadedConsultaLogs && !consultaLogsError)}
+                error={consultaLogsError}
+                onRefresh={refreshConsultaLogs}
+                className="xl:col-span-2"
               />
-            </section>
-
-            <ConsultaActivityPanel
-              logs={consultaLogs}
-              loading={loadingConsultaLogs}
-              error={consultaLogsError}
-              onRefresh={refreshConsultaLogs}
-              className="xl:col-span-2"
-            />
-          </div>
-        )}
+            </div>
+          )}
+        </main>
       </div>
     </div>
   )
@@ -1219,14 +1230,29 @@ function Message({ children, tone }) {
 
 function MetricCard({ label, value, tone }) {
   const tones = {
-    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-    amber: 'border-amber-200 bg-amber-50 text-amber-800',
-    slate: 'border-slate-200 bg-slate-100 text-slate-800',
+    emerald: {
+      card: 'border-emerald-200 bg-emerald-50 text-emerald-950',
+      label: 'text-emerald-900',
+      value: 'text-emerald-950',
+    },
+    amber: {
+      card: 'border-amber-200 bg-amber-50 text-amber-950',
+      label: 'text-amber-900',
+      value: 'text-amber-950',
+    },
+    slate: {
+      card: 'border-slate-200 bg-slate-100 text-slate-950',
+      label: 'text-slate-800',
+      value: 'text-slate-950',
+    },
   }
+
+  const styles = tones[tone]
+
   return (
-    <div className={`rounded-3xl border px-4 py-4 ${tones[tone]}`}>
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-70">{label}</p>
-      <p className="mt-2 text-2xl font-black">{value}</p>
+    <div className={`rounded-3xl border px-4 py-4 ${styles.card}`}>
+      <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${styles.label}`}>{label}</p>
+      <p className={`mt-2 text-2xl font-black ${styles.value}`}>{value}</p>
     </div>
   )
 }
@@ -1236,6 +1262,7 @@ function ViewButton({ active, children, onClick }) {
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={`rounded-full px-5 py-3 text-sm font-semibold transition ${active ? 'bg-slate-950 text-white' : 'border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'}`}
     >
       {children}
