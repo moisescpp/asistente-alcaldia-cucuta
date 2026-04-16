@@ -736,6 +736,7 @@ function TramitesAdminList({ tramites, loadingTramites, tramitesError, editingId
 
 function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = '' }) {
   const [expandedLogId, setExpandedLogId] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('todas')
   const stats = logs.reduce(
     (summary, log) => {
       if (log.mensaje_estado === 'Coincidencias semanticas encontradas') summary.positivas += 1
@@ -745,6 +746,14 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
     },
     { positivas: 0, ambiguas: 0, sinCoincidencia: 0 },
   )
+  const filteredLogs = logs.filter((log) => matchesLogFilter(log, statusFilter))
+  const recurringPatterns = buildRecurringPatterns(logs)
+  const filters = [
+    { id: 'todas', label: 'Todas', count: logs.length },
+    { id: 'positivas', label: 'Positivas', count: stats.positivas },
+    { id: 'ambiguas', label: 'Ambiguas', count: stats.ambiguas },
+    { id: 'sin_coincidencia', label: 'Sin coincidencia', count: stats.sinCoincidencia },
+  ]
 
   return (
     <section className={`rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur ${className}`}>
@@ -786,13 +795,67 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
 
       {!loading && !error && logs.length ? (
         <div className="space-y-5">
+          {recurringPatterns.length ? (
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Patrones recientes
+                  </p>
+                  <h4 className="mt-2 text-lg font-semibold text-slate-950">
+                    Preguntas que conviene observar
+                  </h4>
+                </div>
+                <p className="text-sm text-slate-500">
+                  Nos ayudan a detectar temas repetidos o ambiguedades reales.
+                </p>
+              </div>
+
+              <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                {recurringPatterns.map((pattern) => (
+                  <div key={pattern.key} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-semibold leading-6 text-slate-900">{pattern.display}</p>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        {pattern.count}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-500">
+                      {pattern.lastStatus}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap gap-3">
+            {filters.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setStatusFilter(filter.id)}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  statusFilter === filter.id
+                    ? 'border-slate-950 bg-slate-950 text-white'
+                    : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                }`}
+              >
+                <span>{filter.label}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs ${statusFilter === filter.id ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                  {filter.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
-            <p>Mostrando {logs.length} consulta(s) recientes para seguimiento del sistema.</p>
+            <p>Mostrando {filteredLogs.length} consulta(s) para el filtro actual.</p>
             <p>Despliega una tarjeta para ver la pregunta exacta del ciudadano.</p>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            {logs.map((log) => {
+            {filteredLogs.map((log) => {
               const statusConfig = getConsultaLogStatusConfig(log.mensaje_estado)
               const isExpanded = expandedLogId === log.id
               return (
@@ -847,6 +910,15 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
               )
             })}
           </div>
+
+          {!filteredLogs.length ? (
+            <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+              <p className="text-base font-semibold text-slate-700">No hay consultas para este filtro.</p>
+              <p className="mt-3 text-sm leading-6 text-slate-500">
+                Prueba con otro estado para seguir revisando el comportamiento del asistente.
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>
@@ -930,6 +1002,48 @@ function shortStatusLabel(messageStatus) {
   }
 
   return mapping[messageStatus] ?? messageStatus
+}
+
+function matchesLogFilter(log, filter) {
+  if (filter === 'todas') return true
+  if (filter === 'positivas') return log.mensaje_estado === 'Coincidencias semanticas encontradas'
+  if (filter === 'ambiguas') return log.mensaje_estado === 'Consulta demasiado general'
+  if (filter === 'sin_coincidencia') return log.mensaje_estado === 'Sin coincidencias en la base actual'
+  return true
+}
+
+function buildRecurringPatterns(logs) {
+  const counts = new Map()
+
+  logs.forEach((log) => {
+    const normalizedQuestion = normalizePatternQuestion(log.pregunta)
+    const current = counts.get(normalizedQuestion)
+
+    if (current) {
+      current.count += 1
+      current.lastStatus = shortStatusLabel(log.mensaje_estado)
+      return
+    }
+
+    counts.set(normalizedQuestion, {
+      key: normalizedQuestion,
+      display: log.pregunta,
+      count: 1,
+      lastStatus: shortStatusLabel(log.mensaje_estado),
+    })
+  })
+
+  return Array.from(counts.values())
+    .sort((left, right) => right.count - left.count)
+    .slice(0, 3)
+}
+
+function normalizePatternQuestion(question) {
+  return question
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
 }
 
 function extractSummaryText(responseText) {
