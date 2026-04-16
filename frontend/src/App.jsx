@@ -736,6 +736,7 @@ function TramitesAdminList({ tramites, loadingTramites, tramitesError, editingId
 }
 
 function ConsultaActivityPanel({ logs, loading, error, onRefresh }) {
+  const [expandedLogId, setExpandedLogId] = useState(null)
   const stats = logs.reduce(
     (summary, log) => {
       if (log.mensaje_estado === 'Coincidencias semanticas encontradas') summary.positivas += 1
@@ -785,35 +786,68 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh }) {
       ) : null}
 
       {!loading && !error && logs.length ? (
-        <div className="grid gap-4">
-          {logs.map((log) => {
-            const statusConfig = getConsultaLogStatusConfig(log.mensaje_estado)
-            return (
-              <article key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="space-y-3">
-                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
-                      {log.mensaje_estado}
-                    </span>
-                    <p className="text-base font-semibold leading-7 text-slate-900">{log.pregunta}</p>
-                  </div>
-                  <div className="text-right text-xs uppercase tracking-[0.18em] text-slate-500">
-                    <p>{formatLogTimestamp(log.created_at)}</p>
-                    <p className="mt-2">{log.origen_respuesta}</p>
-                  </div>
-                </div>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
+            <p>Mostrando {logs.length} consulta(s) recientes para seguimiento del sistema.</p>
+            <p>Despliega una tarjeta para ver la pregunta exacta del ciudadano.</p>
+          </div>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                  <LogDetail
-                    label="Tramite principal"
-                    value={log.tramite_principal_nombre || 'Sin tramite principal'}
-                  />
-                  <LogDetail label="Resultados" value={String(log.total_resultados)} />
-                  <LogDetail label="Origen" value={humanizeResponseOrigin(log.origen_respuesta)} />
-                </div>
-              </article>
-            )
-          })}
+          <div className="max-h-[42rem] space-y-4 overflow-y-auto pr-1">
+            {logs.map((log) => {
+              const statusConfig = getConsultaLogStatusConfig(log.mensaje_estado)
+              const isExpanded = expandedLogId === log.id
+              return (
+                <article key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="space-y-3">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
+                        {log.mensaje_estado}
+                      </span>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Tramite principal detectado
+                        </p>
+                        <h4 className="mt-2 text-lg font-semibold leading-7 text-slate-950">
+                          {log.tramite_principal_nombre || 'Sin tramite principal'}
+                        </h4>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-start gap-3 sm:items-end">
+                      <div className="text-right text-xs uppercase tracking-[0.18em] text-slate-500">
+                        <p>{formatLogTimestamp(log.created_at)}</p>
+                        <p className="mt-2">{humanizeResponseOrigin(log.origen_respuesta)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                        className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                      >
+                        {isExpanded ? 'Ocultar detalle' : 'Ver pregunta'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <LogDetail label="Resultados" value={String(log.total_resultados)} />
+                    <LogDetail label="Origen" value={humanizeResponseOrigin(log.origen_respuesta)} />
+                    <LogDetail label="Estado" value={shortStatusLabel(log.mensaje_estado)} />
+                  </div>
+
+                  {isExpanded ? (
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                        Pregunta realizada por el ciudadano
+                      </p>
+                      <p className="mt-3 text-sm font-medium leading-7 text-slate-900">
+                        {log.pregunta}
+                      </p>
+                    </div>
+                  ) : null}
+                </article>
+              )
+            })}
+          </div>
         </div>
       ) : null}
     </section>
@@ -887,6 +921,16 @@ function humanizeResponseOrigin(origin) {
   }
 
   return mapping[origin] ?? origin
+}
+
+function shortStatusLabel(messageStatus) {
+  const mapping = {
+    'Coincidencias semanticas encontradas': 'Coincidencia valida',
+    'Consulta demasiado general': 'Falta precision',
+    'Sin coincidencias en la base actual': 'Sin coincidencia',
+  }
+
+  return mapping[messageStatus] ?? messageStatus
 }
 
 function extractSummaryText(responseText) {
