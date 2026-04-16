@@ -27,6 +27,9 @@ function App() {
   const [tramites, setTramites] = useState([])
   const [loadingTramites, setLoadingTramites] = useState(true)
   const [tramitesError, setTramitesError] = useState('')
+  const [consultaLogs, setConsultaLogs] = useState([])
+  const [loadingConsultaLogs, setLoadingConsultaLogs] = useState(true)
+  const [consultaLogsError, setConsultaLogsError] = useState('')
   const [question, setQuestion] = useState(DEFAULT_QUESTION)
   const [consulta, setConsulta] = useState(null)
   const [consultaError, setConsultaError] = useState('')
@@ -42,6 +45,7 @@ function App() {
 
   useEffect(() => {
     refreshTramites()
+    refreshConsultaLogs()
   }, [])
 
   async function refreshTramites() {
@@ -55,6 +59,24 @@ function App() {
       setTramitesError(error instanceof Error ? error.message : 'Ocurrio un error al consultar los tramites.')
     } finally {
       setLoadingTramites(false)
+    }
+  }
+
+  async function refreshConsultaLogs() {
+    setLoadingConsultaLogs(true)
+    setConsultaLogsError('')
+    try {
+      const response = await fetch(`${API_URL}/admin/consultas`)
+      if (!response.ok) throw new Error('No fue posible cargar la actividad reciente del asistente.')
+      setConsultaLogs(await response.json())
+    } catch (error) {
+      setConsultaLogsError(
+        error instanceof Error
+          ? error.message
+          : 'Ocurrio un error al consultar la actividad del asistente.',
+      )
+    } finally {
+      setLoadingConsultaLogs(false)
     }
   }
 
@@ -75,7 +97,9 @@ function App() {
         body: JSON.stringify({ pregunta }),
       })
       if (!response.ok) throw new Error('No fue posible procesar la consulta.')
-      setConsulta(await response.json())
+      const result = await response.json()
+      setConsulta(result)
+      await refreshConsultaLogs()
     } catch (error) {
       setConsultaError(error instanceof Error ? error.message : 'Ocurrio un error al consultar el asistente.')
     } finally {
@@ -350,25 +374,34 @@ function App() {
               </form>
             </section>
 
-            <aside className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-              <div className="mb-6 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Inventario activo</p>
-                  <h3 className="mt-2 text-2xl font-bold text-slate-950">Tramites disponibles</h3>
+            <aside className="space-y-6">
+              <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+                <div className="mb-6 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Inventario activo</p>
+                    <h3 className="mt-2 text-2xl font-bold text-slate-950">Tramites disponibles</h3>
+                  </div>
+                  <button type="button" onClick={refreshTramites} className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
+                    Actualizar lista
+                  </button>
                 </div>
-                <button type="button" onClick={refreshTramites} className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
-                  Actualizar lista
-                </button>
-              </div>
 
-              <TramitesAdminList
-                tramites={tramites}
-                loadingTramites={loadingTramites}
-                tramitesError={tramitesError}
-                editingId={editingId}
-                deletingId={deletingId}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                <TramitesAdminList
+                  tramites={tramites}
+                  loadingTramites={loadingTramites}
+                  tramitesError={tramitesError}
+                  editingId={editingId}
+                  deletingId={deletingId}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              </section>
+
+              <ConsultaActivityPanel
+                logs={consultaLogs}
+                loading={loadingConsultaLogs}
+                error={consultaLogsError}
+                onRefresh={refreshConsultaLogs}
               />
             </aside>
           </div>
@@ -702,6 +735,100 @@ function TramitesAdminList({ tramites, loadingTramites, tramitesError, editingId
   )
 }
 
+function ConsultaActivityPanel({ logs, loading, error, onRefresh }) {
+  const stats = logs.reduce(
+    (summary, log) => {
+      if (log.mensaje_estado === 'Coincidencias semanticas encontradas') summary.positivas += 1
+      else if (log.mensaje_estado === 'Consulta demasiado general') summary.ambiguas += 1
+      else summary.sinCoincidencia += 1
+      return summary
+    },
+    { positivas: 0, ambiguas: 0, sinCoincidencia: 0 },
+  )
+
+  return (
+    <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Actividad del asistente</p>
+          <h3 className="mt-2 text-2xl font-bold text-slate-950">Consultas recientes</h3>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+            Esta vista nos ayuda a observar preguntas reales, detectar ambiguedades y confirmar si el sistema esta respondiendo con el tramite correcto.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+        >
+          Actualizar actividad
+        </button>
+      </div>
+
+      {!loading && !error && logs.length ? (
+        <div className="mb-6 grid gap-3 sm:grid-cols-3">
+          <MetricCard label="Positivas" value={String(stats.positivas)} tone="emerald" />
+          <MetricCard label="Ambiguas" value={String(stats.ambiguas)} tone="amber" />
+          <MetricCard label="Sin coincidencia" value={String(stats.sinCoincidencia)} tone="slate" />
+        </div>
+      ) : null}
+
+      {loading ? <LoadingPanel title="Consultas recientes" /> : null}
+      {!loading && error ? <Message tone="error">{error}</Message> : null}
+      {!loading && !error && !logs.length ? (
+        <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+          <p className="text-base font-semibold text-slate-700">Aun no hay actividad registrada.</p>
+          <p className="mt-3 text-sm leading-6 text-slate-500">
+            Las consultas realizadas por los ciudadanos comenzaran a verse aqui para apoyar el seguimiento del sistema.
+          </p>
+        </div>
+      ) : null}
+
+      {!loading && !error && logs.length ? (
+        <div className="grid gap-4">
+          {logs.map((log) => {
+            const statusConfig = getConsultaLogStatusConfig(log.mensaje_estado)
+            return (
+              <article key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="space-y-3">
+                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
+                      {log.mensaje_estado}
+                    </span>
+                    <p className="text-base font-semibold leading-7 text-slate-900">{log.pregunta}</p>
+                  </div>
+                  <div className="text-right text-xs uppercase tracking-[0.18em] text-slate-500">
+                    <p>{formatLogTimestamp(log.created_at)}</p>
+                    <p className="mt-2">{log.origen_respuesta}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <LogDetail
+                    label="Tramite principal"
+                    value={log.tramite_principal_nombre || 'Sin tramite principal'}
+                  />
+                  <LogDetail label="Resultados" value={String(log.total_resultados)} />
+                  <LogDetail label="Origen" value={humanizeResponseOrigin(log.origen_respuesta)} />
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function LogDetail({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="mt-2 text-sm font-medium leading-6 text-slate-800">{value}</p>
+    </div>
+  )
+}
+
 function LoadingPanel({ title }) {
   return (
     <div className="rounded-[2rem] border border-slate-200/70 bg-white/80 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
@@ -737,6 +864,31 @@ function Callout() {
   )
 }
 
+function formatLogTimestamp(value) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Fecha no disponible'
+  }
+
+  return new Intl.DateTimeFormat('es-CO', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+function humanizeResponseOrigin(origin) {
+  const mapping = {
+    semantica: 'Recuperacion semantica',
+    textual: 'Respaldo textual',
+    clarificacion: 'Solicitud de precision',
+    sin_coincidencias: 'Sin coincidencia suficiente',
+    desconocido: 'Origen no identificado',
+  }
+
+  return mapping[origin] ?? origin
+}
+
 function extractSummaryText(responseText) {
   if (!responseText) {
     return 'Todavia no hay una respuesta disponible para esta consulta.'
@@ -770,6 +922,24 @@ function getConsultaStatusConfig(messageStatus) {
     panelClassName: 'border-emerald-400/20 bg-emerald-400/10',
     labelClassName: 'text-emerald-200',
     panelLabel: 'Orientacion del asistente',
+  }
+}
+
+function getConsultaLogStatusConfig(messageStatus) {
+  if (messageStatus === 'Coincidencias semanticas encontradas') {
+    return {
+      badgeClassName: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    }
+  }
+
+  if (messageStatus === 'Consulta demasiado general') {
+    return {
+      badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700',
+    }
+  }
+
+  return {
+    badgeClassName: 'border-slate-200 bg-slate-100 text-slate-700',
   }
 }
 
