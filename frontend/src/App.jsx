@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 const DEFAULT_QUESTION = 'Quiero informacion sobre impuesto predial'
+const QUICK_QUESTIONS = [
+  'Consulta por impuesto predial',
+  'Consulta por facilidades de pago',
+  'Consulta por devolucion de pagos en exceso',
+  'Consulta por industria y comercio',
+]
 const EMPTY_FORM = {
   nombre: '',
   slug: '',
@@ -23,6 +29,10 @@ const EMPTY_ADMIN_ERRORS = {
 }
 
 function App() {
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') return 'light'
+    return window.localStorage.getItem('app-theme') ?? 'light'
+  })
   const [view, setView] = useState('ciudadania')
   const [tramites, setTramites] = useState([])
   const [loadingTramites, setLoadingTramites] = useState(true)
@@ -44,10 +54,31 @@ function App() {
   const [deletingId, setDeletingId] = useState(null)
   const [adminFieldErrors, setAdminFieldErrors] = useState(EMPTY_ADMIN_ERRORS)
   const [slugTouched, setSlugTouched] = useState(false)
+  const [adminSearch, setAdminSearch] = useState('')
+  const [adminDependency, setAdminDependency] = useState('todas')
+
+  const isDarkTheme = theme === 'dark'
+  const dependencyOptions = ['todas', ...new Set(tramites.map((tramite) => tramite.dependencia).filter(Boolean))]
+  const normalizedAdminSearch = adminSearch.trim().toLowerCase()
+  const filteredTramites = tramites.filter((tramite) => {
+    const matchesSearch =
+      !normalizedAdminSearch ||
+      tramite.nombre.toLowerCase().includes(normalizedAdminSearch) ||
+      (tramite.descripcion ?? '').toLowerCase().includes(normalizedAdminSearch) ||
+      (tramite.dependencia ?? '').toLowerCase().includes(normalizedAdminSearch)
+    const matchesDependency = adminDependency === 'todas' || tramite.dependencia === adminDependency
+    return matchesSearch && matchesDependency
+  })
+  const hasActiveAdminFilters = Boolean(normalizedAdminSearch) || adminDependency !== 'todas'
 
   useEffect(() => {
     refreshTramites()
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('app-theme', theme)
+  }, [theme])
 
   useEffect(() => {
     if (view === 'admin' && (!hasLoadedConsultaLogs || consultaLogsStale)) {
@@ -238,7 +269,13 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#f8f4ea_0%,#eef5f3_45%,#dfe8ea_100%)] text-slate-900">
+    <div
+      className={`min-h-screen transition-colors ${
+        isDarkTheme
+          ? 'bg-[radial-gradient(circle_at_top,#0f172a_0%,#111827_45%,#020617_100%)] text-slate-100'
+          : 'bg-[radial-gradient(circle_at_top,#f8f4ea_0%,#eef5f3_45%,#dfe8ea_100%)] text-slate-900'
+      }`}
+    >
       <div className="mx-auto flex min-h-screen w-full max-w-[1680px] flex-col gap-8 px-4 py-8 lg:px-8 xl:px-10">
         <a
           href="#contenido-principal"
@@ -247,17 +284,67 @@ function App() {
           Saltar al contenido principal
         </a>
 
-        <header className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-[0_25px_80px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <header
+          className={`overflow-hidden rounded-[2rem] border p-6 shadow-[0_25px_80px_-45px_rgba(15,23,42,0.45)] backdrop-blur transition-colors ${
+            isDarkTheme ? 'border-slate-700/70 bg-slate-900/80' : 'border-white/70 bg-white/75'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setView('admin')}
+                aria-label="Abrir panel interno"
+                className={`inline-flex h-14 w-14 items-center justify-center rounded-2xl border transition ${
+                  isDarkTheme
+                    ? 'border-slate-700 bg-slate-950/80 hover:border-slate-500 hover:bg-slate-950'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <img src="/favicon.svg" alt="" className="h-8 w-8" aria-hidden="true" />
+              </button>
+              {view === 'admin' ? (
+                <button
+                  type="button"
+                  onClick={() => setView('ciudadania')}
+                  className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                    isDarkTheme
+                      ? 'border-slate-600 bg-slate-950/70 text-slate-100 hover:border-slate-400 hover:bg-slate-900'
+                      : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                  }`}
+                >
+                  Volver a consulta
+                </button>
+              ) : null}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+              className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                isDarkTheme
+                  ? 'border-amber-300/30 bg-amber-300/10 text-amber-100 hover:bg-amber-300/20'
+                  : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+              }`}
+            >
+              {isDarkTheme ? 'Modo claro' : 'Modo oscuro'}
+            </button>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl space-y-4">
-              <span className="inline-flex w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+              <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
+                isDarkTheme
+                  ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              }`}>
                 Iteracion 4 en optimizacion
               </span>
               <div className="space-y-3">
-                <h1 className="max-w-3xl text-4xl font-black tracking-tight text-slate-950 md:text-5xl">
+                <h1 className={`max-w-3xl text-4xl font-black tracking-tight md:text-5xl ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>
                   Asistente de tramites estrella para rentas e impuestos
                 </h1>
-                <p className="max-w-3xl text-base leading-7 text-slate-600 md:text-lg">
+                <p className={`max-w-3xl text-base leading-7 md:text-lg ${isDarkTheme ? 'text-slate-300' : 'text-slate-600'}`}>
                   El sistema ya cuenta con consulta semantica, respuestas RAG y panel administrativo; ahora estamos afinando claridad, precision y experiencia de uso.
                 </p>
               </div>
@@ -270,15 +357,6 @@ function App() {
             </div>
           </div>
         </header>
-
-        <nav className="flex flex-wrap gap-3" aria-label="Cambiar vista del sistema">
-          <ViewButton active={view === 'ciudadania'} onClick={() => setView('ciudadania')}>
-            Vista ciudadana
-          </ViewButton>
-          <ViewButton active={view === 'admin'} onClick={() => setView('admin')}>
-            Panel administrativo
-          </ViewButton>
-        </nav>
 
         <main id="contenido-principal" className="flex-1">
           {view === 'ciudadania' ? (
@@ -314,6 +392,24 @@ function App() {
                       <button type="button" onClick={() => setQuestion(DEFAULT_QUESTION)} className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto">
                         Usar ejemplo
                       </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        Preguntas rapidas
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        {QUICK_QUESTIONS.map((quickQuestion) => (
+                          <button
+                            key={quickQuestion}
+                            type="button"
+                            onClick={() => setQuestion(quickQuestion)}
+                            className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
+                          >
+                            {quickQuestion}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </form>
 
@@ -402,14 +498,63 @@ function App() {
                   </button>
                 </div>
 
+                <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-slate-700">Buscar tramite</span>
+                    <input
+                      className={inputClassName}
+                      value={adminSearch}
+                      onChange={(event) => setAdminSearch(event.target.value)}
+                      placeholder="Nombre, descripcion o dependencia"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-slate-700">Filtrar por dependencia</span>
+                    <select
+                      className={inputClassName}
+                      value={adminDependency}
+                      onChange={(event) => setAdminDependency(event.target.value)}
+                    >
+                      <option value="todas">Todas las dependencias</option>
+                      {dependencyOptions
+                        .filter((option) => option !== 'todas')
+                        .map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
+                  <p>
+                    Mostrando {filteredTramites.length} de {tramites.length} tramite(s) activos.
+                  </p>
+                  {hasActiveAdminFilters ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdminSearch('')
+                        setAdminDependency('todas')
+                      }}
+                      className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                    >
+                      Limpiar filtros
+                    </button>
+                  ) : null}
+                </div>
+
                 <TramitesAdminList
-                  tramites={tramites}
+                  tramites={filteredTramites}
                   loadingTramites={loadingTramites}
                   tramitesError={tramitesError}
                   editingId={editingId}
                   deletingId={deletingId}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  hasActiveFilters={hasActiveAdminFilters}
                 />
               </section>
 
@@ -671,6 +816,18 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
             Puedes empezar con una pregunta sobre impuesto predial, facilidades
             de pago o devolucion de pagos en exceso.
           </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            {QUICK_QUESTIONS.slice(0, 3).map((quickQuestion) => (
+              <button
+                key={quickQuestion}
+                type="button"
+                onClick={() => onUseSuggestion(quickQuestion)}
+                className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-emerald-300/40 hover:bg-emerald-400/20"
+              >
+                {quickQuestion}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -719,18 +876,28 @@ function TramitesPanel({ tramites, loadingTramites, tramitesError }) {
   )
 }
 
-function TramitesAdminList({ tramites, loadingTramites, tramitesError, editingId, deletingId, onEdit, onDelete }) {
+function TramitesAdminList({
+  tramites,
+  loadingTramites,
+  tramitesError,
+  editingId,
+  deletingId,
+  onEdit,
+  onDelete,
+  hasActiveFilters,
+}) {
   if (loadingTramites) return <LoadingPanel title="Tramites disponibles" />
   if (tramitesError) return <Message tone="error">{tramitesError}</Message>
   if (!tramites.length) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
         <p className="text-base font-semibold text-slate-700">
-          No hay tramites activos registrados.
+          {hasActiveFilters ? 'No hay tramites para los filtros actuales.' : 'No hay tramites activos registrados.'}
         </p>
         <p className="mt-3 text-sm leading-6 text-slate-500">
-          Usa el formulario de la izquierda para crear el primer tramite
-          estrella y comenzar a poblar la base administrativa.
+          {hasActiveFilters
+            ? 'Prueba otra combinacion de busqueda o dependencia para seguir revisando la base administrativa.'
+            : 'Usa el formulario de la izquierda para crear el primer tramite estrella y comenzar a poblar la base administrativa.'}
         </p>
       </div>
     )
@@ -1261,19 +1428,6 @@ function MetricCard({ label, value, tone }) {
       <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${styles.label}`}>{label}</p>
       <p className={`mt-2 text-2xl font-black ${styles.value}`}>{value}</p>
     </div>
-  )
-}
-
-function ViewButton({ active, children, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded-full px-5 py-3 text-sm font-semibold transition ${active ? 'bg-slate-950 text-white' : 'border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'}`}
-    >
-      {children}
-    </button>
   )
 }
 
