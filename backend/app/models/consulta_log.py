@@ -19,6 +19,9 @@ class ConsultaLog(Base):
         String(255),
         nullable=True,
     )
+    resumen_respuesta: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sugerencias_texto: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tramites_relacionados_texto: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

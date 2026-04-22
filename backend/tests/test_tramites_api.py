@@ -48,6 +48,33 @@ def test_update_tramite_returns_updated_payload(client, test_slug_prefix) -> Non
     assert data["horario"] == update_payload["horario"]
 
 
+def test_create_tramite_normalizes_dependency_spacing(client, test_slug_prefix) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-dep-normalize",
+        dependencia="  Secretaria   de Hacienda   -   Rentas e Impuestos  ",
+    )
+
+    response = client.post("/api/admin/tramites", json=payload)
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["dependencia"] == "Secretaria de Hacienda - Rentas e Impuestos"
+
+
+def test_update_tramite_normalizes_dependency_spacing(client, test_slug_prefix) -> None:
+    create_payload = build_payload(f"{test_slug_prefix}-dep-update")
+    created = client.post("/api/admin/tramites", json=create_payload).json()
+
+    response = client.put(
+        f"/api/admin/tramites/{created['id']}",
+        json={"dependencia": "  Secretaria   de Hacienda   -   Rentas e Impuestos  "},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["dependencia"] == "Secretaria de Hacienda - Rentas e Impuestos"
+
+
 def test_delete_tramite_marks_record_inactive_and_hides_from_public_list(
     client,
     test_slug_prefix,

@@ -29,6 +29,8 @@ class ValidationCase:
     expected_status: str
     expected_principal_contains: str | None = None
     expected_response_contains: str | None = None
+    required_catalog_contains: str | None = None
+    skip_if_catalog_contains: str | None = None
 
 
 VALIDATION_CASES = [
@@ -98,6 +100,7 @@ VALIDATION_CASES = [
         expected_status="positiva",
         expected_principal_contains="vehicular",
         expected_response_contains="Informacion pendiente en el sistema:",
+        required_catalog_contains="vehicular",
     ),
     ValidationCase(
         question="Necesito informacion del impuetso predial",
@@ -110,24 +113,28 @@ VALIDATION_CASES = [
         category="lenguaje ciudadano",
         expected_status="positiva",
         expected_principal_contains="vehicular",
+        required_catalog_contains="vehicular",
     ),
     ValidationCase(
         question="impuesto vehivular",
         category="ortografia",
         expected_status="positiva",
         expected_principal_contains="vehicular",
+        required_catalog_contains="vehicular",
     ),
     ValidationCase(
         question="moto",
         category="lenguaje ciudadano",
         expected_status="positiva",
         expected_principal_contains="vehicular",
+        required_catalog_contains="vehicular",
     ),
     ValidationCase(
         question="Necesito informacion de transito sobre impuesto vehicular",
         category="larga",
         expected_status="positiva",
         expected_principal_contains="vehicular",
+        required_catalog_contains="vehicular",
     ),
     ValidationCase(
         question="Impuesto aeroportuario",
@@ -138,11 +145,13 @@ VALIDATION_CASES = [
         question="¿Cuanto cuesta el duplicado de la licencia de transito?",
         category="negativa",
         expected_status="Sin coincidencias en la base actual",
+        skip_if_catalog_contains="licencia",
     ),
     ValidationCase(
         question="licencia conduccion",
         category="negativa",
         expected_status="Sin coincidencias en la base actual",
+        skip_if_catalog_contains="licencia",
     ),
     ValidationCase(
         question="permiso construccion",
@@ -209,7 +218,36 @@ def main() -> None:
         print("Bateria final de validacion RAG")
         print("=" * 50)
 
+        active_catalog = " ".join(tramite.nombre.lower() for tramite in tramites)
+        skipped_cases = 0
+
         for index, case in enumerate(VALIDATION_CASES, start=1):
+            if (
+                case.required_catalog_contains is not None
+                and case.required_catalog_contains.lower() not in active_catalog
+            ):
+                skipped_cases += 1
+                print(f"\nCaso {index} [{case.category}] - SKIP")
+                print(f"Consulta: {case.question}")
+                print(
+                    "Motivo: el tramite de referencia no esta activo en la base actual "
+                    f"('{case.required_catalog_contains}')."
+                )
+                continue
+
+            if (
+                case.skip_if_catalog_contains is not None
+                and case.skip_if_catalog_contains.lower() in active_catalog
+            ):
+                skipped_cases += 1
+                print(f"\nCaso {index} [{case.category}] - SKIP")
+                print(f"Consulta: {case.question}")
+                print(
+                    "Motivo: la base actual contiene un tramite activo relacionado con "
+                    f"'{case.skip_if_catalog_contains}', por lo que este caso ya no es negativo."
+                )
+                continue
+
             result = process_consulta(db, case.question, tramites)
             principal = (
                 result.tramite_principal.nombre
@@ -258,7 +296,8 @@ def main() -> None:
         print("\nResumen")
         print("-" * 50)
         print(f"Total de casos: {len(VALIDATION_CASES)}")
-        print(f"Casos superados: {len(VALIDATION_CASES) - len(failures)}")
+        print(f"Casos omitidos: {skipped_cases}")
+        print(f"Casos superados: {len(VALIDATION_CASES) - len(failures) - skipped_cases}")
         print(f"Casos fallidos: {len(failures)}")
 
         if failures:

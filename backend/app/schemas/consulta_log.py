@@ -13,4 +13,7 @@ class ConsultaLogRead(BaseModel):
     total_resultados: int
     tramite_principal_id: int | None = None
     tramite_principal_nombre: str | None = None
+    resumen_respuesta: str | None = None
+    sugerencias: list[str] = []
+    tramites_relacionados: list[str] = []
     created_at: datetime

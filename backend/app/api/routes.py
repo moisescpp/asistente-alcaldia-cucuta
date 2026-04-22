@@ -27,9 +27,17 @@ def _sync_tramite_embedding(db: Session, tramite: Tramite) -> None:
     try:
         update_tramite_embedding(db, tramite)
     except Exception:
+        db.rollback()
         # Si el embedding no puede actualizarse en este momento, el tramite sigue
         # disponible y la consulta puede apoyarse en el respaldo textual.
         pass
+
+
+def _reload_tramite_snapshot(db: Session, tramite_id: int) -> Tramite | None:
+    try:
+        return db.get(Tramite, tramite_id)
+    except SQLAlchemyError:
+        return None
 
 
 def _find_tramite_by_name_or_slug(
@@ -114,6 +122,7 @@ def create_tramite(payload: TramiteCreate, db: DbSession) -> TramiteRead:
     )
 
     if existing_tramite is not None:
+        tramite_id = existing_tramite.id
         if existing_tramite.activo:
             duplicated_field = (
                 "nombre" if existing_tramite.nombre == payload.nombre else "slug"
@@ -140,7 +149,9 @@ def create_tramite(payload: TramiteCreate, db: DbSession) -> TramiteRead:
 
         _sync_tramite_embedding(db, existing_tramite)
 
-        return TramiteRead.model_validate(existing_tramite)
+        return TramiteRead.model_validate(
+            _reload_tramite_snapshot(db, tramite_id) or existing_tramite
+        )
 
     tramite = Tramite(**payload.model_dump())
 
@@ -163,7 +174,9 @@ def create_tramite(payload: TramiteCreate, db: DbSession) -> TramiteRead:
 
     _sync_tramite_embedding(db, tramite)
 
-    return TramiteRead.model_validate(tramite)
+    return TramiteRead.model_validate(
+        _reload_tramite_snapshot(db, tramite.id) or tramite
+    )
 
 
 @router.put(
@@ -186,6 +199,8 @@ def update_tramite(
 
     if tramite is None:
         raise HTTPException(status_code=404, detail="Tramite no encontrado.")
+
+    tramite_id = tramite.id
 
     existing_tramite = _find_tramite_by_name_or_slug(
         db,
@@ -227,7 +242,9 @@ def update_tramite(
 
     _sync_tramite_embedding(db, tramite)
 
-    return TramiteRead.model_validate(tramite)
+    return TramiteRead.model_validate(
+        _reload_tramite_snapshot(db, tramite_id) or tramite
+    )
 
 
 @router.delete(

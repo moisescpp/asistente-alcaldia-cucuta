@@ -1,6 +1,12 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+
+def _clean_string(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return " ".join(value.strip().split())
 
 
 class TramiteBase(BaseModel):
@@ -13,6 +19,21 @@ class TramiteBase(BaseModel):
     dependencia: str
     fuente_url: str | None = None
     activo: bool = True
+
+    @field_validator(
+        "nombre",
+        "slug",
+        "descripcion",
+        "requisitos",
+        "costo",
+        "horario",
+        "dependencia",
+        "fuente_url",
+        mode="before",
+    )
+    @classmethod
+    def clean_text_fields(cls, value: str | None) -> str | None:
+        return _clean_string(value)
 
 
 class TramiteCreate(TramiteBase):
@@ -29,6 +50,21 @@ class TramiteUpdate(BaseModel):
     dependencia: str | None = None
     fuente_url: str | None = None
     activo: bool | None = None
+
+    @field_validator(
+        "nombre",
+        "slug",
+        "descripcion",
+        "requisitos",
+        "costo",
+        "horario",
+        "dependencia",
+        "fuente_url",
+        mode="before",
+    )
+    @classmethod
+    def clean_text_fields(cls, value: str | None) -> str | None:
+        return _clean_string(value)
 
 
 class TramiteRead(TramiteBase):

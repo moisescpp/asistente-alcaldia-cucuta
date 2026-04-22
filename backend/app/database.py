@@ -35,3 +35,21 @@ def ensure_database_schema() -> None:
                 "ADD COLUMN IF NOT EXISTS alias_ciudadanos TEXT"
             )
         )
+        connection.execute(
+            text(
+                "ALTER TABLE consulta_logs "
+                "ADD COLUMN IF NOT EXISTS resumen_respuesta TEXT"
+            )
+        )
+        connection.execute(
+            text(
+                "ALTER TABLE consulta_logs "
+                "ADD COLUMN IF NOT EXISTS sugerencias_texto TEXT"
+            )
+        )
+        connection.execute(
+            text(
+                "ALTER TABLE consulta_logs "
+                "ADD COLUMN IF NOT EXISTS tramites_relacionados_texto TEXT"
+            )
+        )

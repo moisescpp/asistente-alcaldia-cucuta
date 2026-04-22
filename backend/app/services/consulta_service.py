@@ -103,6 +103,22 @@ INTENT_QUERY_TOKENS = {
     "esta",
     "estos",
     "estas",
+    "permiso",
+    "papeles",
+    "documentos",
+    "alcaldia",
+    "con",
+    "una",
+    "uno",
+    "unos",
+    "unas",
+    "del",
+    "de",
+    "al",
+    "lo",
+    "voy",
+    "necesito",
+    "quiero",
 }
 
 
@@ -402,6 +418,42 @@ def _deduplicate_tramites(tramites: list[Tramite]) -> list[Tramite]:
     return unique_tramites
 
 
+def _find_tramite_by_id(tramites: list[Tramite], tramite_id: int | None) -> Tramite | None:
+    if tramite_id is None:
+        return None
+
+    for tramite in tramites:
+        if tramite.id == tramite_id:
+            return tramite
+
+    return None
+
+
+def _should_prefer_textual_response(
+    pregunta: str,
+    *,
+    semantic_response: ConsultaResponse,
+    textual_response: ConsultaResponse,
+    tramites: list[Tramite],
+) -> bool:
+    semantic_principal = _find_tramite_by_id(
+        tramites,
+        semantic_response.tramite_principal.id if semantic_response.tramite_principal else None,
+    )
+    textual_principal = _find_tramite_by_id(
+        tramites,
+        textual_response.tramite_principal.id if textual_response.tramite_principal else None,
+    )
+
+    if semantic_principal is None or textual_principal is None:
+        return False
+
+    semantic_support = _candidate_support(pregunta, semantic_principal)
+    textual_support = _candidate_support(pregunta, textual_principal)
+
+    return textual_support > semantic_support
+
+
 def _find_clarification_candidates(
     db: Session,
     pregunta: str,
@@ -671,10 +723,21 @@ def process_consulta(
     if has_semantic_data:
         try:
             semantic_response = process_consulta_semantica(db, pregunta)
+            textual_response = process_consulta_textual(pregunta, tramites)
+
+            if semantic_response.total_resultados > 0 and textual_response.total_resultados > 0:
+                if _should_prefer_textual_response(
+                    pregunta,
+                    semantic_response=semantic_response,
+                    textual_response=textual_response,
+                    tramites=tramites,
+                ):
+                    return textual_response
+                return semantic_response
+
             if semantic_response.total_resultados > 0:
                 return semantic_response
 
-            textual_response = process_consulta_textual(pregunta, tramites)
             if textual_response.total_resultados > 0:
                 return textual_response
 

@@ -1,3 +1,7 @@
+import unicodedata
+
+import pytest
+
 from app.database import SessionLocal
 from app.main import app
 from app.models import ConsultaLog, Tramite
@@ -19,14 +23,39 @@ def build_payload(slug: str, **overrides) -> dict:
     return payload
 
 
+def normalize_assert_text(value: str) -> str:
+    return (
+        unicodedata.normalize("NFKD", value)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .lower()
+    )
+
+
+def create_test_tramite(client, slug: str, **overrides) -> dict:
+    response = client.post("/api/admin/tramites", json=build_payload(slug, **overrides))
+    assert response.status_code == 201
+    return response.json()
+
+
+def has_active_catalog_term(term: str) -> bool:
+    db = SessionLocal()
+    try:
+        tramites = db.query(Tramite).filter(Tramite.activo.is_(True)).all()
+        needle = normalize_assert_text(term)
+        return any(needle in normalize_assert_text(tramite.nombre) for tramite in tramites)
+    finally:
+        db.close()
+
+
 def test_consulta_returns_main_match_and_related_results(client, test_slug_prefix) -> None:
-    payload = build_payload(
+    create_test_tramite(
+        client,
         f"{test_slug_prefix}-predial",
         nombre=f"Impuesto predial de prueba {test_slug_prefix}",
         descripcion="Consulta orientativa del impuesto predial de prueba.",
         requisitos="Documento de identidad y referencia catastral.",
     )
-    client.post("/api/admin/tramites", json=payload)
 
     response = client.post(
         "/api/consulta",
@@ -90,14 +119,14 @@ def test_consulta_falls_back_to_text_when_tramite_has_no_embedding(
     client,
     test_slug_prefix,
 ) -> None:
-    payload = build_payload(
+    creation_response = create_test_tramite(
+        client,
         f"{test_slug_prefix}-vehicular",
         nombre=f"Impuesto vehicular {test_slug_prefix}",
         descripcion="Consulta orientativa del impuesto vehicular.",
         dependencia="Secretaria de transito y movilidad",
     )
-    creation_response = client.post("/api/admin/tramites", json=payload)
-    tramite_id = creation_response.json()["id"]
+    tramite_id = creation_response["id"]
 
     db = SessionLocal()
     try:
@@ -132,7 +161,15 @@ def test_consulta_understands_citizen_synonym_for_house(client) -> None:
     assert "Tambien pueden interesarte:" not in data["respuesta"]
 
 
-def test_consulta_understands_citizen_synonym_for_car(client) -> None:
+def test_consulta_understands_citizen_synonym_for_car(client, test_slug_prefix) -> None:
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-vehicular-carro",
+        nombre=f"Impuesto vehicular {test_slug_prefix}",
+        descripcion="Consulta orientativa del impuesto vehicular.",
+        dependencia="Secretaria de transito y movilidad",
+    )
+
     response = client.post(
         "/api/consulta",
         json={"pregunta": "carro"},
@@ -143,8 +180,7 @@ def test_consulta_understands_citizen_synonym_for_car(client) -> None:
     assert data["tramite_principal"] is not None
     assert "vehicular" in data["tramite_principal"]["nombre"].lower()
     assert "Datos registrados:" in data["respuesta"]
-    assert "Informacion pendiente en el sistema:" in data["respuesta"]
-    assert "No hay informacion registrada en el sistema para este campo." not in data["respuesta"]
+    assert "Informacion pendiente en el sistema:" not in data["respuesta"]
 
 
 def test_consulta_prioritizes_supported_payment_candidate(client) -> None:
@@ -171,7 +207,15 @@ def test_consulta_understands_payment_help_alias(client) -> None:
     assert "facilidades de pago" in data["tramite_principal"]["nombre"].lower()
 
 
-def test_consulta_prioritizes_vehicular_over_incidental_transit_matches(client) -> None:
+def test_consulta_prioritizes_vehicular_over_incidental_transit_matches(client, test_slug_prefix) -> None:
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-vehicular-transito",
+        nombre=f"Impuesto vehicular {test_slug_prefix}",
+        descripcion="Consulta orientativa del impuesto vehicular para carros, motos y placa.",
+        dependencia="Secretaria de transito y movilidad",
+    )
+
     response = client.post(
         "/api/consulta",
         json={"pregunta": "Necesito informacion de transito sobre impuesto vehicular"},
@@ -251,6 +295,9 @@ def test_consulta_prioritizes_predial_for_requirements_question(client) -> None:
 
 
 def test_consulta_rejects_out_of_scope_transit_license_query(client) -> None:
+    if has_active_catalog_term("licencia"):
+        pytest.skip("La base actual ya contiene tramites activos de licencia.")
+
     response = client.post(
         "/api/consulta",
         json={"pregunta": "¿Cuanto cuesta el duplicado de la licencia de transito?"},
@@ -278,6 +325,146 @@ def test_consulta_returns_industria_y_comercio_tramite_when_registered(client) -
     assert "industria y comercio" in data["tramite_principal"]["nombre"].lower()
 
 
+def test_consulta_prioritizes_modificacion_for_change_language_in_industria_y_comercio(
+    client,
+    test_slug_prefix,
+) -> None:
+    base_name = f"Registro de Contribuyentes Industria y Comercio {test_slug_prefix}"
+    modification_name = f"Modificacion en el Registro de Contribuyentes Industria y Comercio {test_slug_prefix}"
+
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-registro-ic",
+        nombre=base_name,
+        descripcion="Tramite para registrar contribuyentes de industria y comercio.",
+    )
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-modificacion-ic",
+        nombre=modification_name,
+        descripcion="Tramite para actualizar o modificar el registro de contribuyentes de industria y comercio.",
+    )
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": f"Necesito hacer cambios en industria y comercio {test_slug_prefix}"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "modificacion" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_consulta_matches_espectaculos_publicos_for_concert_language(
+    client,
+    test_slug_prefix,
+) -> None:
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-espectaculos-publicos",
+        nombre=f"Impuesto sobre Espectaculos Publicos {test_slug_prefix}",
+        descripcion=(
+            "Tramite para consultar y pagar el impuesto municipal sobre "
+            "espectaculos publicos, conciertos, festivales y eventos masivos."
+        ),
+        requisitos="Documento del organizador y soporte del evento.",
+    )
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "Papeles para hacer un concierto en Cucuta"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    principal_name = normalize_assert_text(data["tramite_principal"]["nombre"])
+    assert "espect" in principal_name
+    assert "public" in principal_name
+
+
+def test_consulta_matches_espectaculos_publicos_for_mass_event_language(
+    client,
+    test_slug_prefix,
+) -> None:
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-espectaculos-masivos",
+        nombre=f"Impuesto sobre Espectaculos Publicos {test_slug_prefix}",
+        descripcion=(
+            "Tramite para liquidar o pagar el impuesto de espectaculos publicos "
+            "aplicable a conciertos y eventos masivos."
+        ),
+    )
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "impuesto para eventos masivos"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    principal_name = normalize_assert_text(data["tramite_principal"]["nombre"])
+    assert "espect" in principal_name
+    assert "public" in principal_name
+
+
+def test_consulta_matches_espectaculos_publicos_for_fiesta_language(
+    client,
+    test_slug_prefix,
+) -> None:
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-espectaculos-fiesta",
+        nombre=f"Impuesto sobre Espectaculos Publicos {test_slug_prefix}",
+        descripcion=(
+            "Tramite tributario para eventos publicos, fiestas y espectaculos "
+            "realizados dentro del municipio."
+        ),
+    )
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "Donde se paga lo de la fiesta que voy a hacer"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    principal_name = normalize_assert_text(data["tramite_principal"]["nombre"])
+    assert "espect" in principal_name
+    assert "public" in principal_name
+
+
+def test_consulta_matches_espectaculos_publicos_for_baile_con_orquesta_language(
+    client,
+    test_slug_prefix,
+) -> None:
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-espectaculos-orquesta",
+        nombre=f"Impuesto sobre Espectaculos Publicos {test_slug_prefix}",
+        descripcion=(
+            "Tramite tributario para espectaculos publicos, bailes, conciertos "
+            "y presentaciones musicales en el municipio."
+        ),
+    )
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "Permiso de la alcaldia para baile con orquesta"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    principal_name = normalize_assert_text(data["tramite_principal"]["nombre"])
+    assert "espect" in principal_name
+    assert "public" in principal_name
+
+
 def test_consulta_tolerates_typo_for_predial_query(client) -> None:
     response = client.post(
         "/api/consulta",
@@ -290,7 +477,15 @@ def test_consulta_tolerates_typo_for_predial_query(client) -> None:
     assert "predial" in data["tramite_principal"]["nombre"].lower()
 
 
-def test_consulta_tolerates_typo_for_vehicular_query(client) -> None:
+def test_consulta_tolerates_typo_for_vehicular_query(client, test_slug_prefix) -> None:
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-vehicular-typo",
+        nombre=f"Impuesto vehicular {test_slug_prefix}",
+        descripcion="Consulta orientativa del impuesto vehicular para carros y motos.",
+        dependencia="Secretaria de transito y movilidad",
+    )
+
     response = client.post(
         "/api/consulta",
         json={"pregunta": "impuesto vehivular"},
@@ -314,9 +509,17 @@ def test_consulta_tolerates_typo_for_paz_y_salvo_query(client) -> None:
     assert "paz y salvo" in data["tramite_principal"]["nombre"].lower()
 
 
-def test_consulta_persists_log_entry_when_logging_is_enabled(client) -> None:
+def test_consulta_persists_log_entry_when_logging_is_enabled(client, test_slug_prefix) -> None:
     app.state.disable_consulta_logging = False
     question = "test-log-carro"
+
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-vehicular-log",
+        nombre=f"Impuesto vehicular {test_slug_prefix}",
+        descripcion="Consulta orientativa del impuesto vehicular para carros y motos.",
+        dependencia="Secretaria de transito y movilidad",
+    )
 
     try:
         response = client.post(
@@ -334,6 +537,7 @@ def test_consulta_persists_log_entry_when_logging_is_enabled(client) -> None:
             assert log_entry.origen_respuesta == "semantica"
             assert log_entry.tramite_principal_nombre is not None
             assert "vehicular" in log_entry.tramite_principal_nombre.lower()
+            assert log_entry.resumen_respuesta
         finally:
             db.close()
     finally:
@@ -354,6 +558,10 @@ def test_admin_can_list_recent_consulta_logs(client) -> None:
 
         assert response.status_code == 200
         data = response.json()
-        assert any(item["pregunta"] == question for item in data)
+        matching_log = next((item for item in data if item["pregunta"] == question), None)
+        assert matching_log is not None
+        assert "resumen_respuesta" in matching_log
+        assert "sugerencias" in matching_log
+        assert "tramites_relacionados" in matching_log
     finally:
         app.state.disable_consulta_logging = True

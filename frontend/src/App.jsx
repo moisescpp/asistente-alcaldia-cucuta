@@ -58,15 +58,16 @@ function App() {
   const [adminDependency, setAdminDependency] = useState('todas')
 
   const isDarkTheme = theme === 'dark'
-  const dependencyOptions = ['todas', ...new Set(tramites.map((tramite) => tramite.dependencia).filter(Boolean))]
-  const normalizedAdminSearch = adminSearch.trim().toLowerCase()
+  const dependencyOptions = buildDependencyOptions(tramites)
+  const normalizedAdminSearch = normalizeLooseText(adminSearch)
   const filteredTramites = tramites.filter((tramite) => {
+    const dependencyLabel = getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)
+    const searchableText = normalizeLooseText(
+      [tramite.nombre, tramite.descripcion, dependencyLabel].filter(Boolean).join(' '),
+    )
     const matchesSearch =
-      !normalizedAdminSearch ||
-      tramite.nombre.toLowerCase().includes(normalizedAdminSearch) ||
-      (tramite.descripcion ?? '').toLowerCase().includes(normalizedAdminSearch) ||
-      (tramite.dependencia ?? '').toLowerCase().includes(normalizedAdminSearch)
-    const matchesDependency = adminDependency === 'todas' || tramite.dependencia === adminDependency
+      !normalizedAdminSearch || searchableText.includes(normalizedAdminSearch)
+    const matchesDependency = adminDependency === 'todas' || dependencyLabel === adminDependency
     return matchesSearch && matchesDependency
   })
   const hasActiveAdminFilters = Boolean(normalizedAdminSearch) || adminDependency !== 'todas'
@@ -205,6 +206,7 @@ function App() {
   async function handleAdminSubmit(event) {
     event.preventDefault()
     const payload = normalizePayload(formData)
+    payload.dependencia = normalizeDependencySelection(payload.dependencia, dependencyOptions)
     const nextFieldErrors = validateAdminForm(payload)
 
     if (hasAdminErrors(nextFieldErrors)) {
@@ -461,8 +463,24 @@ function App() {
                   <Field label="Slug" required hint="Si no lo escribes manualmente, se genera a partir del nombre." error={adminFieldErrors.slug}>
                     <input className={fieldClassName(adminFieldErrors.slug)} name="slug" value={formData.slug} onChange={handleInputChange} />
                   </Field>
-                  <Field label="Dependencia" required error={adminFieldErrors.dependencia}>
-                    <input className={fieldClassName(adminFieldErrors.dependencia)} name="dependencia" value={formData.dependencia} onChange={handleInputChange} />
+                  <Field
+                    label="Dependencia"
+                    required
+                    hint={
+                      dependencyOptions.length
+                        ? 'Puedes elegir una dependencia existente o escribir una nueva.'
+                        : 'Escribe la dependencia responsable del tramite.'
+                    }
+                    error={adminFieldErrors.dependencia}
+                  >
+                    <input
+                      list="dependency-options"
+                      className={fieldClassName(adminFieldErrors.dependencia)}
+                      name="dependencia"
+                      value={formData.dependencia}
+                      onChange={handleInputChange}
+                      placeholder="Selecciona o escribe una dependencia"
+                    />
                   </Field>
                   <Field label="Fuente oficial" hint="Opcional. Usa una URL completa con http o https." error={adminFieldErrors.fuente_url}>
                     <input className={fieldClassName(adminFieldErrors.fuente_url)} name="fuente_url" value={formData.fuente_url} onChange={handleInputChange} />
@@ -485,6 +503,14 @@ function App() {
                     {adminError ? <Message tone="error">{adminError}</Message> : null}
                   </div>
                 </form>
+
+                {dependencyOptions.length ? (
+                  <datalist id="dependency-options">
+                    {dependencyOptions.map((dependency) => (
+                      <option key={dependency} value={dependency} />
+                    ))}
+                  </datalist>
+                ) : null}
               </section>
 
               <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
@@ -517,13 +543,11 @@ function App() {
                       onChange={(event) => setAdminDependency(event.target.value)}
                     >
                       <option value="todas">Todas las dependencias</option>
-                      {dependencyOptions
-                        .filter((option) => option !== 'todas')
-                        .map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
+                      {dependencyOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
                     </select>
                   </label>
                 </div>
@@ -610,6 +634,53 @@ function hasAdminErrors(errors) {
   return Object.values(errors).some(Boolean)
 }
 
+function normalizeLooseText(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+function cleanDependencyLabel(value) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ')
+}
+
+function buildDependencyOptions(tramites) {
+  const dependencyMap = new Map()
+
+  tramites.forEach((tramite) => {
+    const label = cleanDependencyLabel(tramite.dependencia)
+    if (!label) return
+
+    const key = normalizeLooseText(label)
+    if (!dependencyMap.has(key)) {
+      dependencyMap.set(key, label)
+    }
+  })
+
+  return Array.from(dependencyMap.values()).sort((left, right) =>
+    left.localeCompare(right, 'es-CO', { sensitivity: 'base' }),
+  )
+}
+
+function normalizeDependencySelection(value, dependencyOptions) {
+  const cleanedValue = cleanDependencyLabel(value)
+  if (!cleanedValue) return ''
+
+  const normalizedValue = normalizeLooseText(cleanedValue)
+  const existingDependency = dependencyOptions.find(
+    (option) => normalizeLooseText(option) === normalizedValue,
+  )
+
+  return existingDependency ?? cleanedValue
+}
+
+function getCanonicalDependencyLabel(value, dependencyOptions) {
+  return normalizeDependencySelection(value, dependencyOptions)
+}
+
 function slugify(value) {
   return value
     .normalize('NFD')
@@ -638,6 +709,52 @@ function fieldClassName(hasError) {
   }`
 }
 
+function getLogDateKey(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function extractAvailableLogDates(logs) {
+  const dateMap = new Map()
+
+  logs.forEach((log) => {
+    const key = getLogDateKey(log.created_at)
+    if (!key) return
+
+    const current = dateMap.get(key)
+    if (current) {
+      current.count += 1
+      return
+    }
+
+    dateMap.set(key, {
+      key,
+      count: 1,
+    })
+  })
+
+  return Array.from(dateMap.values()).sort((left, right) => right.key.localeCompare(left.key))
+}
+
+function formatSelectedDateLabel(dateKey) {
+  if (!dateKey) return 'Fecha no disponible'
+
+  const date = new Date(`${dateKey}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return 'Fecha no disponible'
+
+  return new Intl.DateTimeFormat('es-CO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
+}
+
 function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
   const statusConfig = getConsultaStatusConfig(consulta?.mensaje_estado)
   const summaryText = consulta ? extractSummaryText(consulta.respuesta) : ''
@@ -660,53 +777,126 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
     : []
 
   return (
-    <div className="rounded-[2rem] border border-slate-200/70 bg-slate-950 p-6 text-white shadow-[0_30px_80px_-45px_rgba(15,23,42,0.7)]">
+    <section className="rounded-[2rem] border border-slate-200/70 bg-white/90 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">Respuesta actual</p>
-          <h3 className="mt-2 text-2xl font-bold">Resultado de la consulta</h3>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Respuesta actual</p>
+          <h3 className="mt-2 text-2xl font-bold text-slate-950">Resultado de la consulta</h3>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+            Organizamos la respuesta para que el ciudadano vea primero lo esencial y luego los datos de apoyo, sin bloques largos ni ruido visual.
+          </p>
         </div>
-        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">RAG conectado al backend</span>
+        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+          RAG conectado al backend
+        </span>
       </div>
 
       {isSubmitting ? (
         <div className="mt-6 space-y-4">
-          <div className="h-6 w-40 animate-pulse rounded-full bg-white/10" />
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-            <div className="h-4 w-32 animate-pulse rounded-full bg-white/10" />
-            <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-white/10" />
-            <div className="mt-3 h-4 w-5/6 animate-pulse rounded-full bg-white/10" />
+          <div className="h-6 w-40 animate-pulse rounded-full bg-slate-200" />
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <div className="h-4 w-32 animate-pulse rounded-full bg-slate-200" />
+            <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-slate-200" />
+            <div className="mt-3 h-4 w-5/6 animate-pulse rounded-full bg-slate-200" />
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-            <div className="h-4 w-36 animate-pulse rounded-full bg-white/10" />
-            <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-white/10" />
-            <div className="mt-3 h-4 w-4/5 animate-pulse rounded-full bg-white/10" />
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <div className="h-4 w-36 animate-pulse rounded-full bg-slate-200" />
+            <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-slate-200" />
+            <div className="mt-3 h-4 w-4/5 animate-pulse rounded-full bg-slate-200" />
           </div>
         </div>
       ) : consulta ? (
         <div className="mt-6 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
-              {consulta.mensaje_estado}
-            </span>
-            <span className="text-sm text-slate-300">
-              {consulta.total_resultados} coincidencia(s)
-            </span>
-          </div>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Pregunta enviada</p>
+              <p className="mt-3 text-base font-semibold leading-7 text-slate-950">{consulta.pregunta}</p>
+            </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Pregunta enviada</p>
-            <p className="mt-2 text-lg font-medium text-white">{consulta.pregunta}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-3xl border border-slate-200 bg-white p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Estado</p>
+                <span className={`mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
+                  {consulta.mensaje_estado}
+                </span>
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-white p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Coincidencias</p>
+                <p className="mt-3 text-3xl font-black text-slate-950">{consulta.total_resultados}</p>
+              </div>
+            </div>
           </div>
 
           <div className={`rounded-3xl border p-5 ${statusConfig.panelClassName}`}>
             <p className={`text-xs uppercase tracking-[0.2em] ${statusConfig.labelClassName}`}>{statusConfig.panelLabel}</p>
-            <p className="mt-3 text-base leading-7 text-white">{summaryText}</p>
+            <p className="mt-3 text-base leading-7 text-slate-800">{summaryText}</p>
           </div>
 
+          {consulta.tramite_principal ? (
+            <article className="rounded-3xl border border-slate-200 bg-white p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Tramite principal
+                  </p>
+                  <h4 className="mt-2 text-xl font-semibold text-slate-950">
+                    {consulta.tramite_principal.nombre}
+                  </h4>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {cleanDependencyLabel(consulta.tramite_principal.dependencia)}
+                  </p>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                  ID {consulta.tramite_principal.id}
+                </span>
+              </div>
+
+              <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {availableFields.length ? (
+                    availableFields.map((field) => (
+                      <DetailCard key={field.label} label={field.label} value={field.value} />
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 sm:col-span-2">
+                      <p className="text-sm leading-6 text-slate-600">
+                        Este tramite existe en la base, pero todavia no tiene detalles ampliados para mostrar en esta vista.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  {missingFields.length ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-amber-700">Informacion pendiente</p>
+                      <p className="mt-2 text-sm leading-6 text-amber-900">
+                        Aun no hay datos registrados para: {missingFields.join(', ')}.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {consulta.tramite_principal.fuente_url ? (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Validacion oficial</p>
+                      <a
+                        href={consulta.tramite_principal.fuente_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex text-sm font-semibold text-emerald-800 transition hover:text-emerald-700"
+                      >
+                        Ir a la fuente oficial
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </article>
+          ) : null}
+
           {consulta.sugerencias?.length ? (
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-300">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
                 Sugerencias para continuar
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
@@ -715,7 +905,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
                     key={sugerencia}
                     type="button"
                     onClick={() => onUseSuggestion(sugerencia)}
-                    className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-400/20"
+                    className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50"
                   >
                     {sugerencia}
                   </button>
@@ -724,81 +914,33 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
             </div>
           ) : null}
 
-          {consulta.tramite_principal ? (
-            <article className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-300">
-                    Tramite principal
-                  </p>
-                  <h4 className="mt-2 text-xl font-semibold text-white">
-                    {consulta.tramite_principal.nombre}
-                  </h4>
-                  <p className="mt-2 text-sm text-slate-300">
-                    {consulta.tramite_principal.dependencia}
-                  </p>
-                </div>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
-                  ID {consulta.tramite_principal.id}
-                </span>
-              </div>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                {availableFields.length ? (
-                  availableFields.map((field) => (
-                    <DetailCard key={field.label} label={field.label} value={field.value} />
-                  ))
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-4 md:col-span-2">
-                    <p className="text-sm leading-6 text-slate-300">
-                      Este tramite existe en la base, pero todavia no tiene detalles ampliados para mostrar en esta vista.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {missingFields.length ? (
-                <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-amber-200">Informacion pendiente</p>
-                  <p className="mt-2 text-sm leading-6 text-amber-50">
-                    Aun no hay datos registrados para: {missingFields.join(', ')}.
-                  </p>
-                </div>
-              ) : null}
-
-              {consulta.tramite_principal.fuente_url ? (
-                <a
-                  href={consulta.tramite_principal.fuente_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-5 inline-flex text-sm font-semibold text-emerald-300 transition hover:text-emerald-200"
-                >
-                  Ver fuente oficial
-                </a>
-              ) : null}
-            </article>
-          ) : null}
-
           {consulta.tramites_relacionados.length ? (
             <div>
-              <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
+              <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
                 {consulta.tramite_principal ? 'Tramites relacionados' : 'Opciones cercanas para precisar'}
               </p>
-              <div className="grid gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
                 {consulta.tramites_relacionados.map((tramite) => (
-                  <article key={tramite.id} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                  <article key={tramite.id} className="rounded-3xl border border-slate-200 bg-white p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h4 className="text-lg font-semibold text-white">{tramite.nombre}</h4>
-                        <p className="mt-2 text-sm text-slate-300">{tramite.dependencia}</p>
+                        <h4 className="text-lg font-semibold text-slate-950">{tramite.nombre}</h4>
+                        <p className="mt-2 text-sm text-slate-600">
+                          {cleanDependencyLabel(tramite.dependencia)}
+                        </p>
                       </div>
-                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">ID {tramite.id}</span>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                        ID {tramite.id}
+                      </span>
                     </div>
+                    {tramite.descripcion ? (
+                      <p className="mt-4 text-sm leading-6 text-slate-600">{tramite.descripcion}</p>
+                    ) : null}
                     {!consulta.tramite_principal ? (
                       <button
                         type="button"
                         onClick={() => onUseSuggestion(`Consulta por ${tramite.nombre}`)}
-                        className="mt-4 inline-flex items-center rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-400/20"
+                        className="mt-4 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
                       >
                         Usar esta opcion
                       </button>
@@ -810,9 +952,9 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
           ) : null}
         </div>
       ) : (
-        <div className="mt-6 rounded-3xl border border-dashed border-white/20 bg-white/5 p-8 text-center text-slate-300">
+        <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-600">
           La respuesta aparecera aqui cuando envies una consulta al asistente.
-          <p className="mt-3 text-sm leading-6 text-slate-400">
+          <p className="mt-3 text-sm leading-6 text-slate-500">
             Puedes empezar con una pregunta sobre impuesto predial, facilidades
             de pago o devolucion de pagos en exceso.
           </p>
@@ -822,7 +964,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
                 key={quickQuestion}
                 type="button"
                 onClick={() => onUseSuggestion(quickQuestion)}
-                className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-emerald-300/40 hover:bg-emerald-400/20"
+                className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50"
               >
                 {quickQuestion}
               </button>
@@ -830,20 +972,21 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
           </div>
         </div>
       )}
-    </div>
+    </section>
   )
 }
 
 function DetailCard({ label, value }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-      <p className="text-xs uppercase tracking-[0.18em] text-slate-300">{label}</p>
-      <p className="mt-2 text-sm leading-6 text-white">{value}</p>
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-800">{value}</p>
     </div>
   )
 }
 
 function TramitesPanel({ tramites, loadingTramites, tramitesError }) {
+  const dependencyOptions = buildDependencyOptions(tramites)
   if (loadingTramites) return <LoadingPanel title="Base de consulta disponible" />
   if (tramitesError) return <Message tone="error">{tramitesError}</Message>
   if (!tramites.length) {
@@ -864,7 +1007,9 @@ function TramitesPanel({ tramites, loadingTramites, tramitesError }) {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-semibold text-slate-900">{tramite.nombre}</h3>
-                <p className="mt-2 text-sm text-slate-600">{tramite.dependencia}</p>
+                <p className="mt-2 text-sm text-slate-600">
+                  {getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)}
+                </p>
               </div>
               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">ID {tramite.id}</span>
             </div>
@@ -886,6 +1031,7 @@ function TramitesAdminList({
   onDelete,
   hasActiveFilters,
 }) {
+  const dependencyOptions = buildDependencyOptions(tramites)
   if (loadingTramites) return <LoadingPanel title="Tramites disponibles" />
   if (tramitesError) return <Message tone="error">{tramitesError}</Message>
   if (!tramites.length) {
@@ -912,7 +1058,9 @@ function TramitesAdminList({
                 <h4 className="text-lg font-semibold text-slate-900">{tramite.nombre}</h4>
                 <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">ID {tramite.id}</span>
               </div>
-              <p className="text-sm text-slate-600">{tramite.dependencia}</p>
+              <p className="text-sm text-slate-600">
+                {getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)}
+              </p>
             </div>
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
               <button type="button" onClick={() => onEdit(tramite)} className="inline-flex flex-1 items-center justify-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-white sm:flex-none">Editar</button>
@@ -932,7 +1080,16 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
   const [expandedLogId, setExpandedLogId] = useState(null)
   const [statusFilter, setStatusFilter] = useState('todas')
   const [showAllLogs, setShowAllLogs] = useState(false)
-  const stats = logs.reduce(
+  const [selectedLogDate, setSelectedLogDate] = useState('')
+  const availableLogDates = extractAvailableLogDates(logs)
+  const effectiveSelectedLogDate = availableLogDates.some((option) => option.key === selectedLogDate)
+    ? selectedLogDate
+    : availableLogDates[0]?.key ?? ''
+
+  const dateScopedLogs = effectiveSelectedLogDate
+    ? logs.filter((log) => getLogDateKey(log.created_at) === effectiveSelectedLogDate)
+    : logs
+  const stats = dateScopedLogs.reduce(
     (summary, log) => {
       if (log.mensaje_estado === 'Coincidencias semanticas encontradas') summary.positivas += 1
       else if (log.mensaje_estado === 'Consulta demasiado general') summary.ambiguas += 1
@@ -941,12 +1098,12 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
     },
     { positivas: 0, ambiguas: 0, sinCoincidencia: 0 },
   )
-  const filteredLogs = logs.filter((log) => matchesLogFilter(log, statusFilter))
+  const filteredLogs = dateScopedLogs.filter((log) => matchesLogFilter(log, statusFilter))
   const visibleLogs = showAllLogs ? filteredLogs : filteredLogs.slice(0, 4)
   const groupedVisibleLogs = groupLogsByDate(visibleLogs)
-  const problematicPatterns = buildProblematicPatterns(logs)
+  const problematicPatterns = buildProblematicPatterns(dateScopedLogs)
   const filters = [
-    { id: 'todas', label: 'Todas', count: logs.length },
+    { id: 'todas', label: 'Todas', count: dateScopedLogs.length },
     { id: 'positivas', label: 'Positivas', count: stats.positivas },
     { id: 'ambiguas', label: 'Ambiguas', count: stats.ambiguas },
     { id: 'sin_coincidencia', label: 'Sin coincidencia', count: stats.sinCoincidencia },
@@ -962,14 +1119,64 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
             Esta vista nos ayuda a observar preguntas reales, detectar ambiguedades y confirmar si el sistema esta respondiendo con el tramite correcto.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onRefresh}
-          className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
-        >
-          Actualizar actividad
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+          >
+            Actualizar actividad
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedLogDate(availableLogDates[0]?.key ?? '')
+              setStatusFilter('todas')
+              setShowAllLogs(false)
+              setExpandedLogId(null)
+            }}
+            className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+          >
+            Ir al ultimo dia con actividad
+          </button>
+        </div>
       </div>
+
+      {!loading && !error && logs.length ? (
+        <div className="mb-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-slate-700">
+                Seleccionar fecha de consulta
+              </span>
+              <input
+                type="date"
+                className={inputClassName}
+                value={effectiveSelectedLogDate}
+                onChange={(event) => {
+                  setSelectedLogDate(event.target.value)
+                  setShowAllLogs(false)
+                  setExpandedLogId(null)
+                }}
+              />
+            </label>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Dia seleccionado
+              </p>
+              <h4 className="mt-2 text-lg font-semibold text-slate-950">
+                {effectiveSelectedLogDate ? formatSelectedDateLabel(effectiveSelectedLogDate) : 'Sin fecha seleccionada'}
+              </h4>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                {dateScopedLogs.length
+                  ? `Hay ${dateScopedLogs.length} consulta(s) registradas en esta fecha antes de aplicar el filtro por estado.`
+                  : 'No hubo consultas registradas en esta fecha. Puedes elegir otro dia para revisar actividad real.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {!loading && !error && logs.length ? (
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
@@ -1052,7 +1259,7 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
 
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
             <p>Mostrando {filteredLogs.length} consulta(s) para el filtro actual.</p>
-            <p>Despliega una tarjeta para ver la pregunta exacta del ciudadano.</p>
+            <p>Despliega una tarjeta para ver la pregunta, el resumen y las opciones sugeridas.</p>
           </div>
 
           <div className="space-y-5">
@@ -1113,13 +1320,62 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
                         </div>
 
                         {isExpanded ? (
-                          <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-                            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                              Pregunta realizada por el ciudadano
-                            </p>
-                            <p className="mt-3 text-sm font-medium leading-7 text-slate-900">
-                              {log.pregunta}
-                            </p>
+                          <div className="mt-5 space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                                Pregunta realizada por el ciudadano
+                              </p>
+                              <p className="mt-3 text-sm font-medium leading-7 text-slate-900">
+                                {log.pregunta}
+                              </p>
+                            </div>
+
+                            {log.resumen_respuesta ? (
+                              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                                  Resumen entregado por el asistente
+                                </p>
+                                <p className="mt-3 text-sm leading-7 text-slate-700">
+                                  {log.resumen_respuesta}
+                                </p>
+                              </div>
+                            ) : null}
+
+                            {log.tramites_relacionados?.length ? (
+                              <div>
+                                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                                  Tramites relacionados mostrados
+                                </p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {log.tramites_relacionados.map((tramiteRelacionado) => (
+                                    <span
+                                      key={`${log.id}-tramite-${tramiteRelacionado}`}
+                                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700"
+                                    >
+                                      {tramiteRelacionado}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {log.sugerencias?.length ? (
+                              <div>
+                                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                                  Sugerencias mostradas al ciudadano
+                                </p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {log.sugerencias.map((sugerencia) => (
+                                    <span
+                                      key={`${log.id}-sugerencia-${sugerencia}`}
+                                      className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"
+                                    >
+                                      {sugerencia}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
                           </div>
                         ) : null}
                       </article>
@@ -1156,9 +1412,15 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
 
           {!filteredLogs.length ? (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-              <p className="text-base font-semibold text-slate-700">No hay consultas para este filtro.</p>
+              <p className="text-base font-semibold text-slate-700">
+                {dateScopedLogs.length
+                  ? 'No hay consultas para este filtro.'
+                  : 'No hubo consultas en la fecha seleccionada.'}
+              </p>
               <p className="mt-3 text-sm leading-6 text-slate-500">
-                Prueba con otro estado para seguir revisando el comportamiento del asistente.
+                {dateScopedLogs.length
+                  ? 'Prueba con otro estado para seguir revisando el comportamiento del asistente.'
+                  : 'Cambia la fecha en el calendario para revisar otro dia con actividad.'}
               </p>
             </div>
           ) : null}
@@ -1314,8 +1576,7 @@ function groupLogsByDate(logs) {
   const groups = new Map()
 
   logs.forEach((log) => {
-    const date = new Date(log.created_at)
-    const key = Number.isNaN(date.getTime()) ? 'fecha-no-disponible' : date.toISOString().slice(0, 10)
+    const key = getLogDateKey(log.created_at) || 'fecha-no-disponible'
     const currentGroup = groups.get(key)
 
     if (currentGroup) {
@@ -1352,26 +1613,26 @@ function extractSummaryText(responseText) {
 function getConsultaStatusConfig(messageStatus) {
   if (messageStatus === 'Consulta demasiado general') {
     return {
-      badgeClassName: 'border-amber-300/30 bg-amber-300/10 text-amber-200',
-      panelClassName: 'border-amber-300/30 bg-amber-300/10',
-      labelClassName: 'text-amber-200',
+      badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700',
+      panelClassName: 'border-amber-200 bg-amber-50',
+      labelClassName: 'text-amber-700',
       panelLabel: 'Necesitamos mas precision',
     }
   }
 
   if (messageStatus === 'Sin coincidencias en la base actual') {
     return {
-      badgeClassName: 'border-rose-300/30 bg-rose-300/10 text-rose-200',
-      panelClassName: 'border-rose-300/30 bg-rose-300/10',
-      labelClassName: 'text-rose-200',
+      badgeClassName: 'border-rose-200 bg-rose-50 text-rose-700',
+      panelClassName: 'border-rose-200 bg-rose-50',
+      labelClassName: 'text-rose-700',
       panelLabel: 'Sin coincidencia suficiente',
     }
   }
 
   return {
-    badgeClassName: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
-    panelClassName: 'border-emerald-400/20 bg-emerald-400/10',
-    labelClassName: 'text-emerald-200',
+    badgeClassName: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    panelClassName: 'border-emerald-200 bg-emerald-50',
+    labelClassName: 'text-emerald-700',
     panelLabel: 'Orientacion del asistente',
   }
 }
