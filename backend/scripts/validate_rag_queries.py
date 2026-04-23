@@ -63,24 +63,28 @@ VALIDATION_CASES = [
         category="directa",
         expected_status="positiva",
         expected_principal_contains="facilidades de pago",
+        required_catalog_contains="facilidades",
     ),
     ValidationCase(
         question="Quiero informacion sobre acuerdos de pago",
         category="lenguaje ciudadano",
         expected_status="positiva",
         expected_principal_contains="facilidades de pago",
+        required_catalog_contains="facilidades",
     ),
     ValidationCase(
         question="pagar atrasado",
         category="lenguaje ciudadano",
         expected_status="positiva",
         expected_principal_contains="facilidades de pago",
+        required_catalog_contains="facilidades",
     ),
     ValidationCase(
         question="ayuda con pagos",
         category="lenguaje ciudadano",
         expected_status="positiva",
         expected_principal_contains="facilidades de pago",
+        required_catalog_contains="facilidades",
     ),
     ValidationCase(
         question="Necesito saber sobre devolucion de pagos en exceso",

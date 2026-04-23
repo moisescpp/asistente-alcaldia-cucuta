@@ -135,7 +135,10 @@ def test_create_tramite_reactivates_existing_inactive_record(client, test_slug_p
     recreated_payload = build_payload(
         slug,
         nombre=create_payload["nombre"],
-        descripcion="Descripcion reactivada",
+        descripcion=(
+            "Descripcion reactivada con contexto ciudadano suficiente para validar "
+            "la reactivacion administrativa del tramite tributario."
+        ),
     )
     recreate_response = client.post("/api/admin/tramites", json=recreated_payload)
 
@@ -143,7 +146,7 @@ def test_create_tramite_reactivates_existing_inactive_record(client, test_slug_p
     recreated = recreate_response.json()
     assert recreated["id"] == created["id"]
     assert recreated["activo"] is True
-    assert recreated["descripcion"] == "Descripcion reactivada"
+    assert recreated["descripcion"] == recreated_payload["descripcion"]
 
 
 def test_create_tramite_returns_409_for_active_duplicate_name(client, test_slug_prefix) -> None:
@@ -274,13 +277,19 @@ def test_updated_tramite_is_reflected_in_consulta_results(
     create_payload = build_payload(
         f"{test_slug_prefix}-consulta-update",
         nombre=f"Liquidacion temporal {test_slug_prefix}",
-        descripcion="Descripcion inicial para validar la actualizacion.",
+        descripcion=(
+            "Descripcion inicial con contexto tributario suficiente para validar "
+            "la actualizacion administrativa del tramite."
+        ),
     )
     created = client.post("/api/admin/tramites", json=create_payload).json()
 
     update_payload = {
         "nombre": f"Liquidacion definitiva {test_slug_prefix}",
-        "descripcion": "Descripcion actualizada para validar la consulta final.",
+        "descripcion": (
+            "Descripcion actualizada con detalle ciudadano suficiente para que la "
+            "consulta final recupere el tramite correcto."
+        ),
     }
     update_response = client.put(
         f"/api/admin/tramites/{created['id']}",
@@ -307,7 +316,10 @@ def test_deactivated_tramite_is_no_longer_available_for_consulta(
     payload = build_payload(
         f"{test_slug_prefix}-consulta-delete",
         nombre=f"Recibo tributario temporal {test_slug_prefix}",
-        descripcion="Tramite temporal para validar desactivacion en consulta.",
+        descripcion=(
+            "Gestion tributaria temporal con detalle suficiente para validar que la "
+            "desactivacion quite el tramite de la consulta ciudadana."
+        ),
     )
     created = client.post("/api/admin/tramites", json=payload).json()
 
