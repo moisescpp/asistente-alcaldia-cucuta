@@ -16,16 +16,16 @@ from app.services.rag_service import generate_rag_response
 
 DEFAULT_SUGGESTIONS = [
     "Consulta por impuesto predial",
-    "Consulta por facilidades de pago",
+    "Consulta por generacion de paz y salvo",
     "Consulta por devolucion o compensacion de pagos",
-    "Consulta por impuesto vehicular",
+    "Consulta por industria y comercio",
 ]
 
 CLARIFICATION_SUGGESTIONS = [
     "Consulta por impuesto predial",
-    "Consulta por impuesto vehicular",
-    "Consulta por facilidades de pago",
+    "Consulta por generacion de paz y salvo",
     "Consulta por devolucion de pagos",
+    "Consulta por industria y comercio",
 ]
 
 SEMANTIC_QUERY_LIMIT = 5

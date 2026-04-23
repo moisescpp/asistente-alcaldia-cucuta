@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 const DEFAULT_QUESTION = 'Quiero informacion sobre impuesto predial'
-const QUICK_QUESTIONS = [
+const FALLBACK_QUICK_QUESTIONS = [
   'Consulta por impuesto predial',
-  'Consulta por facilidades de pago',
+  'Consulta por generacion de paz y salvo',
   'Consulta por devolucion de pagos en exceso',
   'Consulta por industria y comercio',
 ]
@@ -25,6 +25,8 @@ const EMPTY_ADMIN_ERRORS = {
   nombre: '',
   slug: '',
   dependencia: '',
+  descripcion: '',
+  requisitos: '',
   fuente_url: '',
 }
 
@@ -71,6 +73,12 @@ function App() {
     return matchesSearch && matchesDependency
   })
   const hasActiveAdminFilters = Boolean(normalizedAdminSearch) || adminDependency !== 'todas'
+  const qualitySummary = summarizeTramiteQuality(tramites)
+  const quickQuestions = buildQuickQuestions(tramites)
+  const draftQualityReport = assessFrontendTramiteQuality({
+    ...formData,
+    dependencia: normalizeDependencySelection(formData.dependencia, dependencyOptions),
+  })
 
   useEffect(() => {
     refreshTramites()
@@ -303,12 +311,19 @@ function App() {
                     : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >
-                <img
-                  src="/logo-alcaldia.png"
-                  alt=""
-                  className="h-10 w-10 object-contain"
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`h-7 w-7 ${isDarkTheme ? 'text-slate-100' : 'text-slate-700'}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   aria-hidden="true"
-                />
+                >
+                  <path d="M18 20a6 6 0 0 0-12 0" />
+                  <circle cx="12" cy="8" r="4" />
+                </svg>
               </button>
               {view === 'admin' ? (
                 <button
@@ -417,7 +432,7 @@ function App() {
                         Preguntas rapidas
                       </p>
                       <div className="flex flex-wrap gap-3">
-                        {QUICK_QUESTIONS.map((quickQuestion) => (
+                        {quickQuestions.map((quickQuestion) => (
                           <button
                             key={quickQuestion}
                             type="button"
@@ -434,7 +449,12 @@ function App() {
                   {consultaError ? <Message tone="error">{consultaError}</Message> : null}
                 </div>
 
-                <ConsultaResult consulta={consulta} isSubmitting={isSubmitting} onUseSuggestion={setQuestion} />
+                <ConsultaResult
+                  consulta={consulta}
+                  isSubmitting={isSubmitting}
+                  onUseSuggestion={setQuestion}
+                  quickQuestions={quickQuestions}
+                />
               </section>
 
               <aside className="space-y-6">
@@ -503,8 +523,32 @@ function App() {
                   </Field>
                   <Field label="Costo"><input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} /></Field>
                   <Field label="Horario"><input className={inputClassName} name="horario" value={formData.horario} onChange={handleInputChange} /></Field>
-                  <Field className="md:col-span-2" label="Descripcion"><textarea className={`${inputClassName} min-h-28`} name="descripcion" value={formData.descripcion} onChange={handleInputChange} /></Field>
-                  <Field className="md:col-span-2" label="Requisitos"><textarea className={`${inputClassName} min-h-28`} name="requisitos" value={formData.requisitos} onChange={handleInputChange} /></Field>
+                  <Field className="md:col-span-2" label="Descripcion" error={adminFieldErrors.descripcion}><textarea className={fieldClassName(adminFieldErrors.descripcion) + ' min-h-28'} name="descripcion" value={formData.descripcion} onChange={handleInputChange} /></Field>
+                  <Field className="md:col-span-2" label="Requisitos" error={adminFieldErrors.requisitos}><textarea className={fieldClassName(adminFieldErrors.requisitos) + ' min-h-28'} name="requisitos" value={formData.requisitos} onChange={handleInputChange} /></Field>
+                  <div className="md:col-span-2 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Calidad semantica del borrador</p>
+                        <p className="mt-2 text-sm text-slate-700">
+                          Nivel actual: <span className={`font-semibold ${qualityToneClassName(draftQualityReport.level)}`}>{humanizeQualityLevel(draftQualityReport.level)}</span>
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                        Score {draftQualityReport.score}
+                      </span>
+                    </div>
+                    {draftQualityReport.alerts.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {draftQualityReport.alerts.slice(0, 4).map((alert) => (
+                          <span key={alert} className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                            {alert}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-emerald-700">El tramite ya tiene una base bastante buena para consultas ciudadanas.</p>
+                    )}
+                  </div>
                   <div className="md:col-span-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <button type="submit" disabled={isSaving} className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
@@ -572,6 +616,17 @@ function App() {
                   <p>
                     Mostrando {filteredTramites.length} de {tramites.length} tramite(s) activos.
                   </p>
+                  <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
+                    <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-rose-700">
+                      Criticos {qualitySummary.critical}
+                    </span>
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
+                      En riesgo {qualitySummary.warning}
+                    </span>
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
+                      Fuertes {qualitySummary.strong}
+                    </span>
+                  </div>
                   {hasActiveAdminFilters ? (
                     <button
                       type="button"
@@ -639,6 +694,15 @@ function validateAdminForm(payload) {
     errors.dependencia = 'Indica la dependencia responsable.'
   }
 
+  const qualityReport = assessFrontendTramiteQuality(payload)
+  if (qualityReport.blockingIssues.some((issue) => issue.includes('descripcion'))) {
+    errors.descripcion = 'Describe el tramite con mas contexto ciudadano y menos frases genericas.'
+  }
+
+  if (qualityReport.blockingIssues.some((issue) => issue.includes('requisitos'))) {
+    errors.requisitos = 'Detalla requisitos reales; evita dejar este campo demasiado corto.'
+  }
+
   if (payload.fuente_url && !isValidUrl(payload.fuente_url)) {
     errors.fuente_url = 'La fuente oficial debe ser una URL valida con http o https.'
   }
@@ -657,6 +721,174 @@ function normalizeLooseText(value) {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, ' ')
+}
+
+function frontendWordCount(value) {
+  return normalizeLooseText(value)
+    .split(' ')
+    .filter(Boolean).length
+}
+
+function assessFrontendTramiteQuality(tramite) {
+  const description = String(tramite.descripcion ?? '')
+  const requirements = String(tramite.requisitos ?? '')
+  const sourceUrl = String(tramite.fuente_url ?? '')
+  const dependency = String(tramite.dependencia ?? '')
+  const normalizedDescription = normalizeLooseText(description)
+  const descriptionWords = frontendWordCount(description)
+  const requirementWords = frontendWordCount(requirements)
+
+  let score = Number.isFinite(tramite.semantic_quality_score)
+    ? tramite.semantic_quality_score
+    : 100
+  const alerts = Array.isArray(tramite.semantic_quality_alerts)
+    ? [...tramite.semantic_quality_alerts]
+    : []
+  const blockingIssues = []
+
+  if (descriptionWords === 0) {
+    score -= 40
+    alerts.push('Falta una descripcion clara del tramite.')
+    blockingIssues.push('descripcion vacia')
+  } else if (descriptionWords < 12) {
+    score -= 24
+    alerts.push('La descripcion es demasiado corta para preguntas ciudadanas.')
+    blockingIssues.push('descripcion corta')
+  } else if (descriptionWords < 20) {
+    score -= 10
+    alerts.push('La descripcion puede ser mas especifica.')
+  }
+
+  if (
+    normalizedDescription.includes('consulta orientativa') ||
+    normalizedDescription.includes('tramite de prueba') ||
+    normalizedDescription.includes('sin descripcion') ||
+    normalizedDescription.includes('no hay descripcion') ||
+    normalizedDescription.includes('tramite para')
+  ) {
+    score -= 18
+    alerts.push('La descripcion sigue sonando generica.')
+    blockingIssues.push('descripcion generica')
+  }
+
+  if (requirementWords === 0) {
+    score -= 14
+    alerts.push('Faltan requisitos del tramite.')
+    blockingIssues.push('requisitos vacios')
+  } else if (requirementWords < 6) {
+    score -= 8
+    alerts.push('Los requisitos son muy cortos y pueden perder contexto.')
+    blockingIssues.push('requisitos cortos')
+  }
+
+  if (!sourceUrl.trim()) {
+    score -= 8
+    alerts.push('Falta la fuente oficial.')
+  }
+
+  if (!dependency.trim()) {
+    score -= 6
+    alerts.push('Falta la dependencia responsable.')
+  }
+
+  const finalScore = Math.max(Math.min(score, 100), 0)
+  const level =
+    finalScore >= 85
+      ? 'fuerte'
+      : finalScore >= 70
+        ? 'estable'
+        : finalScore >= 55
+          ? 'en_riesgo'
+          : 'critico'
+
+  return {
+    score: finalScore,
+    level,
+    alerts: [...new Set(alerts)].slice(0, 5),
+    blockingIssues: [...new Set(blockingIssues)],
+  }
+}
+
+function getTramiteQualitySnapshot(tramite) {
+  const hasBackendQuality =
+    Number.isFinite(tramite.semantic_quality_score) &&
+    typeof tramite.semantic_quality_level === 'string' &&
+    tramite.semantic_quality_level.length > 0
+
+  if (hasBackendQuality) {
+    return {
+      score: tramite.semantic_quality_score,
+      level: tramite.semantic_quality_level,
+      alerts: Array.isArray(tramite.semantic_quality_alerts)
+        ? [...tramite.semantic_quality_alerts]
+        : [],
+      blockingIssues: [],
+    }
+  }
+
+  return assessFrontendTramiteQuality(tramite)
+}
+
+function summarizeTramiteQuality(tramites) {
+  return tramites.reduce(
+    (summary, tramite) => {
+      const report = getTramiteQualitySnapshot(tramite)
+      if (report.level === 'critico') summary.critical += 1
+      else if (report.level === 'en_riesgo') summary.warning += 1
+      else summary.strong += 1
+      return summary
+    },
+    { critical: 0, warning: 0, strong: 0 },
+  )
+}
+
+function humanizeQualityLevel(level) {
+  const labels = {
+    fuerte: 'Fuerte',
+    estable: 'Estable',
+    en_riesgo: 'En riesgo',
+    critico: 'Critico',
+    sin_datos: 'Sin datos',
+  }
+  return labels[level] ?? level
+}
+
+function qualityToneClassName(level) {
+  if (level === 'fuerte') return 'text-emerald-700'
+  if (level === 'estable') return 'text-sky-700'
+  if (level === 'en_riesgo') return 'text-amber-700'
+  return 'text-rose-700'
+}
+
+function buildQuickQuestions(tramites) {
+  const prioritizedMatchers = [
+    'predial',
+    'paz y salvo',
+    'industria y comercio',
+    'espectaculos',
+    'devolucion',
+    'alumbrado',
+  ]
+  const availableLabels = new Map()
+
+  tramites.forEach((tramite) => {
+    const normalizedName = normalizeLooseText(tramite.nombre)
+    const label = `Consulta por ${tramite.nombre}`
+    if (!availableLabels.has(normalizedName)) {
+      availableLabels.set(normalizedName, label)
+    }
+  })
+
+  const prioritizedLabels = prioritizedMatchers.flatMap((matcher) =>
+    Array.from(availableLabels.entries())
+      .filter(([normalizedName]) => normalizedName.includes(matcher))
+      .map(([, label]) => label),
+  )
+
+  const mergedLabels = [...prioritizedLabels, ...availableLabels.values()]
+  const uniqueLabels = [...new Set(mergedLabels)].slice(0, 4)
+
+  return uniqueLabels.length ? uniqueLabels : FALLBACK_QUICK_QUESTIONS
 }
 
 function cleanDependencyLabel(value) {
@@ -771,7 +1003,7 @@ function formatSelectedDateLabel(dateKey) {
   }).format(date)
 }
 
-function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
+function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestions }) {
   const statusConfig = getConsultaStatusConfig(consulta?.mensaje_estado)
   const summaryText = consulta ? extractSummaryText(consulta.respuesta) : ''
   const isNoMatch = consulta?.mensaje_estado === 'Sin coincidencias en la base actual'
@@ -980,7 +1212,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
             Puedes empezar con una pregunta concreta sobre un impuesto, un tramite o una gestion tributaria.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
-            {QUICK_QUESTIONS.slice(0, 3).map((quickQuestion) => (
+            {quickQuestions.slice(0, 3).map((quickQuestion) => (
               <button
                 key={quickQuestion}
                 type="button"
@@ -1071,13 +1303,28 @@ function TramitesAdminList({
   }
   return (
     <div className="grid gap-4">
-      {tramites.map((tramite) => (
-        <article key={tramite.id} className={`rounded-3xl border px-5 py-5 ${editingId === tramite.id ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-slate-50'}`}>
+        {tramites.map((tramite) => (
+          <article key={tramite.id} className={`rounded-3xl border px-5 py-5 ${editingId === tramite.id ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-slate-50'}`}>
+            {(() => {
+            const qualityReport = getTramiteQualitySnapshot(tramite)
+              return (
+                <>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h4 className="text-lg font-semibold text-slate-900">{tramite.nombre}</h4>
                 <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">ID {tramite.id}</span>
+                <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
+                  qualityReport.level === 'fuerte'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : qualityReport.level === 'estable'
+                      ? 'border-sky-200 bg-sky-50 text-sky-700'
+                      : qualityReport.level === 'en_riesgo'
+                        ? 'border-amber-200 bg-amber-50 text-amber-700'
+                        : 'border-rose-200 bg-rose-50 text-rose-700'
+                }`}>
+                  {humanizeQualityLevel(qualityReport.level)} - {qualityReport.score}
+                </span>
               </div>
               <p className="text-sm text-slate-600">
                 {getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)}
@@ -1091,6 +1338,18 @@ function TramitesAdminList({
             </div>
           </div>
           <p className="mt-4 text-sm leading-6 text-slate-600">{tramite.descripcion || 'Sin descripcion disponible.'}</p>
+          {qualityReport.alerts.length ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {qualityReport.alerts.slice(0, 3).map((alert) => (
+                <span key={alert} className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">
+                  {alert}
+                </span>
+              ))}
+            </div>
+          ) : null}
+              </>
+            )
+          })()}
         </article>
       ))}
     </div>

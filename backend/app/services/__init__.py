@@ -10,6 +10,10 @@ from app.services.consulta_log_service import (
     list_recent_consulta_logs,
     log_consulta_result,
 )
+from app.services.tramite_quality_service import (
+    assess_tramite_quality,
+    validate_tramite_payload,
+)
 
 __all__ = [
     "build_tramite_embedding_text",
@@ -19,5 +23,7 @@ __all__ = [
     "list_recent_consulta_logs",
     "log_consulta_result",
     "process_consulta",
+    "assess_tramite_quality",
     "update_tramite_embedding",
+    "validate_tramite_payload",
 ]

@@ -71,5 +71,8 @@ class TramiteRead(TramiteBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    semantic_quality_score: int = 0
+    semantic_quality_level: str = "sin_datos"
+    semantic_quality_alerts: list[str] = []
 
     model_config = ConfigDict(from_attributes=True)

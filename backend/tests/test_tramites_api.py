@@ -7,8 +7,14 @@ def build_payload(slug: str, **overrides) -> dict:
     payload = {
         "nombre": f"Test tramite {slug}",
         "slug": slug,
-        "descripcion": "Tramite de prueba para validar endpoints.",
-        "requisitos": "Documento de identidad.",
+        "descripcion": (
+            "Gestion tributaria temporal para validar la calidad semantica del "
+            "asistente y la creacion administrativa con lenguaje ciudadano claro."
+        ),
+        "requisitos": (
+            "Documento de identidad vigente, formulario completo y soporte del "
+            "tramite solicitado."
+        ),
         "costo": "Sin costo",
         "horario": "Lunes a viernes",
         "dependencia": "Secretaria de Hacienda - Rentas e Impuestos",
@@ -29,6 +35,8 @@ def test_create_tramite_returns_201_and_persists(client, test_slug_prefix) -> No
     assert data["nombre"] == payload["nombre"]
     assert data["slug"] == payload["slug"]
     assert data["activo"] is True
+    assert data["semantic_quality_score"] >= 70
+    assert data["semantic_quality_level"] in {"estable", "fuerte"}
 
 
 def test_update_tramite_returns_updated_payload(client, test_slug_prefix) -> None:
@@ -46,6 +54,30 @@ def test_update_tramite_returns_updated_payload(client, test_slug_prefix) -> Non
     data = response.json()
     assert data["costo"] == update_payload["costo"]
     assert data["horario"] == update_payload["horario"]
+
+
+def test_create_tramite_rejects_generic_description(client, test_slug_prefix) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-generic-desc",
+        descripcion="Consulta orientativa del tramite.",
+    )
+
+    response = client.post("/api/admin/tramites", json=payload)
+
+    assert response.status_code == 422
+    assert "descripcion" in response.json()["detail"].lower()
+
+
+def test_create_tramite_rejects_short_requirements(client, test_slug_prefix) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-short-req",
+        requisitos="Documento.",
+    )
+
+    response = client.post("/api/admin/tramites", json=payload)
+
+    assert response.status_code == 422
+    assert "requisitos" in response.json()["detail"].lower()
 
 
 def test_create_tramite_normalizes_dependency_spacing(client, test_slug_prefix) -> None:

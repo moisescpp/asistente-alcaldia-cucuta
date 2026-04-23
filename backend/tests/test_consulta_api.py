@@ -12,8 +12,14 @@ def build_payload(slug: str, **overrides) -> dict:
     payload = {
         "nombre": f"Test consulta {slug}",
         "slug": slug,
-        "descripcion": "Tramite de prueba para consultas.",
-        "requisitos": "Documento de identidad y soporte.",
+        "descripcion": (
+            "Gestion tributaria temporal para consultas ciudadanas con contexto suficiente "
+            "sobre impuestos y gestiones tributarias."
+        ),
+        "requisitos": (
+            "Documento de identidad vigente, formulario diligenciado y soporte "
+            "del caso tributario."
+        ),
         "costo": "Sin costo",
         "horario": "Lunes a viernes",
         "dependencia": "Secretaria de Hacienda - Rentas e Impuestos",
@@ -54,8 +60,8 @@ def test_consulta_returns_main_match_and_related_results(client, test_slug_prefi
         client,
         f"{test_slug_prefix}-predial",
         nombre=f"Impuesto predial de prueba {test_slug_prefix}",
-        descripcion="Consulta orientativa del impuesto predial de prueba.",
-        requisitos="Documento de identidad y referencia catastral.",
+        descripcion="Consulta del impuesto predial municipal para casas, lotes y predios ubicados en la jurisdiccion local.",
+        requisitos="Documento de identidad vigente, referencia catastral y datos del predio a consultar.",
     )
 
     response = client.post(
@@ -178,7 +184,7 @@ def test_consulta_falls_back_to_text_when_tramite_has_no_embedding(
         client,
         f"{test_slug_prefix}-vehicular",
         nombre=f"Impuesto vehicular {test_slug_prefix}",
-        descripcion="Consulta orientativa del impuesto vehicular.",
+        descripcion="Gestion del impuesto vehicular para carros, motos y otros vehiculos registrados por el contribuyente.",
         dependencia="Secretaria de transito y movilidad",
     )
     tramite_id = creation_response["id"]
@@ -221,7 +227,7 @@ def test_consulta_understands_citizen_synonym_for_car(client, test_slug_prefix) 
         client,
         f"{test_slug_prefix}-vehicular-carro",
         nombre=f"Impuesto vehicular {test_slug_prefix}",
-        descripcion="Consulta orientativa del impuesto vehicular.",
+        descripcion="Gestion del impuesto vehicular para carros, motos y otros vehiculos registrados por el contribuyente.",
         dependencia="Secretaria de transito y movilidad",
     )
 
@@ -238,7 +244,24 @@ def test_consulta_understands_citizen_synonym_for_car(client, test_slug_prefix) 
     assert "Informacion pendiente en el sistema:" not in data["respuesta"]
 
 
-def test_consulta_prioritizes_supported_payment_candidate(client) -> None:
+def test_consulta_prioritizes_supported_payment_candidate(
+    client,
+    test_slug_prefix,
+) -> None:
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-facilidades-pago",
+        nombre=f"Facilidades de pago para obligaciones tributarias {test_slug_prefix}",
+        descripcion=(
+            "Gestion para solicitar acuerdos de pago, cuotas o alternativas para "
+            "ponerse al dia con deudas tributarias vencidas o pagos atrasados."
+        ),
+        requisitos=(
+            "Documento de identidad, solicitud formal y soporte de la deuda "
+            "tributaria que se desea financiar."
+        ),
+    )
+
     response = client.post(
         "/api/consulta",
         json={"pregunta": "pagar atrasado"},
@@ -250,7 +273,21 @@ def test_consulta_prioritizes_supported_payment_candidate(client) -> None:
     assert "facilidades de pago" in data["tramite_principal"]["nombre"].lower()
 
 
-def test_consulta_understands_payment_help_alias(client) -> None:
+def test_consulta_understands_payment_help_alias(client, test_slug_prefix) -> None:
+    create_test_tramite(
+        client,
+        f"{test_slug_prefix}-facilidades-ayuda",
+        nombre=f"Facilidades de pago para obligaciones tributarias {test_slug_prefix}",
+        descripcion=(
+            "Gestion para pedir ayuda con pagos, acuerdos de pago y cuotas de "
+            "impuestos pendientes ante la secretaria de hacienda."
+        ),
+        requisitos=(
+            "Documento de identidad, solicitud formal y evidencia de las "
+            "obligaciones tributarias pendientes."
+        ),
+    )
+
     response = client.post(
         "/api/consulta",
         json={"pregunta": "ayuda con pagos"},
@@ -267,7 +304,7 @@ def test_consulta_prioritizes_vehicular_over_incidental_transit_matches(client, 
         client,
         f"{test_slug_prefix}-vehicular-transito",
         nombre=f"Impuesto vehicular {test_slug_prefix}",
-        descripcion="Consulta orientativa del impuesto vehicular para carros, motos y placa.",
+        descripcion="Gestion del impuesto vehicular para carros, motos y placa dentro de la atencion tributaria municipal.",
         dependencia="Secretaria de transito y movilidad",
     )
 
@@ -391,13 +428,13 @@ def test_consulta_prioritizes_modificacion_for_change_language_in_industria_y_co
         client,
         f"{test_slug_prefix}-registro-ic",
         nombre=base_name,
-        descripcion="Tramite para registrar contribuyentes de industria y comercio.",
+        descripcion="Inscripcion de personas o empresas en el registro de contribuyentes de industria y comercio para iniciar obligaciones tributarias.",
     )
     create_test_tramite(
         client,
         f"{test_slug_prefix}-modificacion-ic",
         nombre=modification_name,
-        descripcion="Tramite para actualizar o modificar el registro de contribuyentes de industria y comercio.",
+        descripcion="Actualizacion de datos en el registro de contribuyentes de industria y comercio cuando cambia informacion del negocio o responsable.",
     )
 
     response = client.post(
@@ -420,7 +457,7 @@ def test_consulta_matches_espectaculos_publicos_for_concert_language(
         f"{test_slug_prefix}-espectaculos-publicos",
         nombre=f"Impuesto sobre Espectaculos Publicos {test_slug_prefix}",
         descripcion=(
-            "Tramite para consultar y pagar el impuesto municipal sobre "
+            "Gestion para consultar y pagar el impuesto municipal sobre "
             "espectaculos publicos, conciertos, festivales y eventos masivos."
         ),
         requisitos="Documento del organizador y soporte del evento.",
@@ -448,7 +485,7 @@ def test_consulta_matches_espectaculos_publicos_for_mass_event_language(
         f"{test_slug_prefix}-espectaculos-masivos",
         nombre=f"Impuesto sobre Espectaculos Publicos {test_slug_prefix}",
         descripcion=(
-            "Tramite para liquidar o pagar el impuesto de espectaculos publicos "
+            "Gestion para liquidar o pagar el impuesto de espectaculos publicos "
             "aplicable a conciertos y eventos masivos."
         ),
     )
@@ -537,7 +574,7 @@ def test_consulta_tolerates_typo_for_vehicular_query(client, test_slug_prefix) -
         client,
         f"{test_slug_prefix}-vehicular-typo",
         nombre=f"Impuesto vehicular {test_slug_prefix}",
-        descripcion="Consulta orientativa del impuesto vehicular para carros y motos.",
+        descripcion="Gestion del impuesto vehicular para carros y motos dentro del catalogo tributario del asistente.",
         dependencia="Secretaria de transito y movilidad",
     )
 
@@ -572,7 +609,7 @@ def test_consulta_persists_log_entry_when_logging_is_enabled(client, test_slug_p
         client,
         f"{test_slug_prefix}-vehicular-log",
         nombre=f"Impuesto vehicular {test_slug_prefix}",
-        descripcion="Consulta orientativa del impuesto vehicular para carros y motos.",
+        descripcion="Gestion del impuesto vehicular para carros y motos dentro del catalogo tributario del asistente.",
         dependencia="Secretaria de transito y movilidad",
     )
 

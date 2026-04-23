@@ -12,10 +12,12 @@ from app.schemas.consulta_log import ConsultaLogRead
 from app.schemas.consulta import ConsultaRequest, ConsultaResponse
 from app.schemas.tramite import TramiteCreate, TramiteRead, TramiteUpdate
 from app.services import (
+    assess_tramite_quality,
     list_recent_consulta_logs,
     log_consulta_result,
     process_consulta,
     update_tramite_embedding,
+    validate_tramite_payload,
 )
 
 
@@ -57,6 +59,19 @@ def _find_tramite_by_name_or_slug(
     return db.scalars(query).first()
 
 
+def _serialize_tramite(tramite: Tramite) -> TramiteRead:
+    quality = assess_tramite_quality(tramite)
+    payload = TramiteRead.model_validate(tramite).model_dump()
+    payload.update(
+        {
+            "semantic_quality_score": quality.score,
+            "semantic_quality_level": quality.level,
+            "semantic_quality_alerts": quality.alerts,
+        }
+    )
+    return TramiteRead.model_validate(payload)
+
+
 @router.get("/", tags=["meta"])
 def read_root() -> dict[str, str]:
     return {
@@ -85,7 +100,7 @@ def list_tramites(db: DbSession) -> list[TramiteRead]:
             detail="No fue posible consultar la base de datos.",
         ) from exc
 
-    return [TramiteRead.model_validate(tramite) for tramite in tramites]
+    return [_serialize_tramite(tramite) for tramite in tramites]
 
 
 @router.get(
@@ -105,7 +120,7 @@ def get_tramite_detail(tramite_id: int, db: DbSession) -> TramiteRead:
     if tramite is None or not tramite.activo:
         raise HTTPException(status_code=404, detail="Tramite no encontrado.")
 
-    return TramiteRead.model_validate(tramite)
+    return _serialize_tramite(tramite)
 
 
 @router.post(
@@ -115,6 +130,10 @@ def get_tramite_detail(tramite_id: int, db: DbSession) -> TramiteRead:
     tags=["admin-tramites"],
 )
 def create_tramite(payload: TramiteCreate, db: DbSession) -> TramiteRead:
+    blocking_issues = validate_tramite_payload(payload.model_dump())
+    if blocking_issues:
+        raise HTTPException(status_code=422, detail=" ".join(blocking_issues))
+
     existing_tramite = _find_tramite_by_name_or_slug(
         db,
         nombre=payload.nombre,
@@ -149,7 +168,7 @@ def create_tramite(payload: TramiteCreate, db: DbSession) -> TramiteRead:
 
         _sync_tramite_embedding(db, existing_tramite)
 
-        return TramiteRead.model_validate(
+        return _serialize_tramite(
             _reload_tramite_snapshot(db, tramite_id) or existing_tramite
         )
 
@@ -174,7 +193,7 @@ def create_tramite(payload: TramiteCreate, db: DbSession) -> TramiteRead:
 
     _sync_tramite_embedding(db, tramite)
 
-    return TramiteRead.model_validate(
+    return _serialize_tramite(
         _reload_tramite_snapshot(db, tramite.id) or tramite
     )
 
@@ -201,6 +220,20 @@ def update_tramite(
         raise HTTPException(status_code=404, detail="Tramite no encontrado.")
 
     tramite_id = tramite.id
+    draft_payload = {
+        "nombre": payload.nombre or tramite.nombre,
+        "slug": payload.slug or tramite.slug,
+        "descripcion": payload.descripcion if payload.descripcion is not None else tramite.descripcion,
+        "requisitos": payload.requisitos if payload.requisitos is not None else tramite.requisitos,
+        "costo": payload.costo if payload.costo is not None else tramite.costo,
+        "horario": payload.horario if payload.horario is not None else tramite.horario,
+        "dependencia": payload.dependencia if payload.dependencia is not None else tramite.dependencia,
+        "fuente_url": payload.fuente_url if payload.fuente_url is not None else tramite.fuente_url,
+        "embedding_vector": tramite.embedding_vector,
+    }
+    blocking_issues = validate_tramite_payload(draft_payload)
+    if blocking_issues:
+        raise HTTPException(status_code=422, detail=" ".join(blocking_issues))
 
     existing_tramite = _find_tramite_by_name_or_slug(
         db,
@@ -242,7 +275,7 @@ def update_tramite(
 
     _sync_tramite_embedding(db, tramite)
 
-    return TramiteRead.model_validate(
+    return _serialize_tramite(
         _reload_tramite_snapshot(db, tramite_id) or tramite
     )
 
@@ -277,7 +310,7 @@ def delete_tramite(tramite_id: int, db: DbSession) -> TramiteRead:
             detail="No fue posible desactivar el tramite.",
         ) from exc
 
-    return TramiteRead.model_validate(tramite)
+    return _serialize_tramite(tramite)
 
 
 @router.get(
