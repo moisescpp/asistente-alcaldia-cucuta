@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from difflib import SequenceMatcher
+import hashlib
 import re
 import unicodedata
 
@@ -176,6 +177,83 @@ def _build_match(tramite: Tramite) -> ConsultaMatch:
     )
 
 
+def _build_suggestion_label(tramite: Tramite) -> str:
+    return f"Consulta por {tramite.nombre}"
+
+
+def _stable_catalog_order_key(pregunta: str, tramite: Tramite) -> str:
+    reference = f"{_normalize_text(pregunta)}::{tramite.slug or tramite.nombre}"
+    return hashlib.sha256(reference.encode("utf-8")).hexdigest()
+
+
+def _build_no_match_suggestions(
+    pregunta: str,
+    tramites: list[Tramite],
+) -> list[str]:
+    active_tramites = [tramite for tramite in tramites if tramite.activo]
+    if not active_tramites:
+        return DEFAULT_SUGGESTIONS
+
+    ranked_candidates: list[tuple[Tramite, int, int, int]] = []
+
+    for tramite in active_tramites:
+        total_matches, specific_matches, phrase_match = _text_match_metadata(
+            pregunta,
+            tramite,
+        )
+        identifier_specific_matches, identifier_phrase_match = _identifier_match_metadata(
+            pregunta,
+            tramite,
+        )
+        ranked_candidates.append(
+            (
+                tramite,
+                max(specific_matches, identifier_specific_matches),
+                total_matches,
+                1 if phrase_match or identifier_phrase_match else 0,
+            )
+        )
+
+    ranked_candidates.sort(
+        key=lambda item: (
+            item[1],
+            item[2],
+            item[3],
+        ),
+        reverse=True,
+    )
+
+    suggestions: list[str] = []
+    seen: set[str] = set()
+
+    for tramite, specific_matches, total_matches, phrase_match in ranked_candidates:
+        if specific_matches == 0 and total_matches == 0 and phrase_match == 0:
+            continue
+        label = _build_suggestion_label(tramite)
+        if label in seen:
+            continue
+        suggestions.append(label)
+        seen.add(label)
+        if len(suggestions) == 4:
+            return suggestions
+
+    remaining_tramites = sorted(
+        active_tramites,
+        key=lambda tramite: _stable_catalog_order_key(pregunta, tramite),
+    )
+
+    for tramite in remaining_tramites:
+        label = _build_suggestion_label(tramite)
+        if label in seen:
+            continue
+        suggestions.append(label)
+        seen.add(label)
+        if len(suggestions) == 4:
+            break
+
+    return suggestions or DEFAULT_SUGGESTIONS
+
+
 def _build_success_response(
     *,
     pregunta: str,
@@ -270,8 +348,12 @@ def _build_success_response(
     )
 
 
-def _build_empty_response(pregunta: str) -> ConsultaResponse:
-    example_text = ", ".join(DEFAULT_SUGGESTIONS[:3])
+def _build_empty_response(
+    pregunta: str,
+    tramites: list[Tramite],
+) -> ConsultaResponse:
+    suggestions = _build_no_match_suggestions(pregunta, tramites)
+    example_text = ", ".join(suggestions[:3])
     return ConsultaResponse(
         pregunta=pregunta,
         respuesta=(
@@ -283,7 +365,7 @@ def _build_empty_response(pregunta: str) -> ConsultaResponse:
         total_resultados=0,
         tramite_principal=None,
         tramites_relacionados=[],
-        sugerencias=DEFAULT_SUGGESTIONS,
+        sugerencias=suggestions,
     )
 
 
@@ -663,7 +745,7 @@ def process_consulta_textual(
     )
 
     if not matched_tramites:
-        return _build_empty_response(pregunta)
+        return _build_empty_response(pregunta, tramites)
 
     return _build_success_response(
         pregunta=pregunta,
@@ -675,6 +757,7 @@ def process_consulta_textual(
 def process_consulta_semantica(
     db: Session,
     pregunta: str,
+    tramites: list[Tramite],
 ) -> ConsultaResponse:
     embedding = generate_embedding(pregunta)
 
@@ -692,13 +775,13 @@ def process_consulta_semantica(
     results = db.execute(query).all()
 
     if not results:
-        return _build_empty_response(pregunta)
+        return _build_empty_response(pregunta, tramites)
 
     filtered_results = _select_semantic_candidates(pregunta, results)
     filtered_tramites = [tramite for tramite, _ in filtered_results]
 
     if not filtered_tramites:
-        return _build_empty_response(pregunta)
+        return _build_empty_response(pregunta, tramites)
 
     return _build_success_response(
         pregunta=pregunta,
@@ -722,7 +805,7 @@ def process_consulta(
 
     if has_semantic_data:
         try:
-            semantic_response = process_consulta_semantica(db, pregunta)
+            semantic_response = process_consulta_semantica(db, pregunta, tramites)
             textual_response = process_consulta_textual(pregunta, tramites)
 
             if semantic_response.total_resultados > 0 and textual_response.total_resultados > 0:

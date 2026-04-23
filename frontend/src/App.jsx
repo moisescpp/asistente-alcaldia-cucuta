@@ -303,7 +303,12 @@ function App() {
                     : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >
-                <img src="/favicon.svg" alt="" className="h-8 w-8" aria-hidden="true" />
+                <img
+                  src="/logo-alcaldia.png"
+                  alt=""
+                  className="h-10 w-10 object-contain"
+                  aria-hidden="true"
+                />
               </button>
               {view === 'admin' ? (
                 <button
@@ -340,15 +345,26 @@ function App() {
                   ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100'
                   : 'border-emerald-200 bg-emerald-50 text-emerald-700'
               }`}>
-                Iteracion 4 en optimizacion
+                Iteracion 4 en fortalecimiento
               </span>
-              <div className="space-y-3">
-                <h1 className={`max-w-3xl text-4xl font-black tracking-tight md:text-5xl ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>
-                  Asistente de tramites estrella para rentas e impuestos
-                </h1>
-                <p className={`max-w-3xl text-base leading-7 md:text-lg ${isDarkTheme ? 'text-slate-300' : 'text-slate-600'}`}>
-                  El sistema ya cuenta con consulta semantica, respuestas RAG y panel administrativo; ahora estamos afinando claridad, precision y experiencia de uso.
-                </p>
+              <div className="flex items-start gap-4">
+                <div className={`hidden rounded-3xl border p-3 sm:block ${
+                  isDarkTheme ? 'border-slate-700 bg-slate-950/70' : 'border-slate-200 bg-white'
+                }`}>
+                  <img
+                    src="/logo-alcaldia.png"
+                    alt="Logo Alcaldia de Cucuta"
+                    className="h-14 w-14 object-contain"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <h1 className={`max-w-3xl text-4xl font-black tracking-tight md:text-5xl ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>
+                    Asistente de tramites para rentas e impuestos
+                  </h1>
+                  <p className={`max-w-3xl text-base leading-7 md:text-lg ${isDarkTheme ? 'text-slate-300' : 'text-slate-600'}`}>
+                    Estamos dejando el sistema mas claro para ciudadania y mas confiable para consultas reales sobre tramites tributarios de la Alcaldia de Cucuta.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -370,9 +386,9 @@ function App() {
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Consulta del asistente</p>
                       <h2 className="mt-2 text-2xl font-bold text-slate-950">Pregunta por un tramite</h2>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Endpoint actual</p>
-                      <p className="text-sm font-semibold text-slate-700">POST /api/consulta</p>
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-right">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Canal ciudadano</p>
+                      <p className="text-sm font-semibold text-emerald-900">Consulta guiada</p>
                     </div>
                   </div>
 
@@ -758,6 +774,7 @@ function formatSelectedDateLabel(dateKey) {
 function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
   const statusConfig = getConsultaStatusConfig(consulta?.mensaje_estado)
   const summaryText = consulta ? extractSummaryText(consulta.respuesta) : ''
+  const isNoMatch = consulta?.mensaje_estado === 'Sin coincidencias en la base actual'
   const availableFields = consulta?.tramite_principal
     ? [
         { label: 'Descripcion', value: consulta.tramite_principal.descripcion },
@@ -780,14 +797,14 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
     <section className="rounded-[2rem] border border-slate-200/70 bg-white/90 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Respuesta actual</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Respuesta del asistente</p>
           <h3 className="mt-2 text-2xl font-bold text-slate-950">Resultado de la consulta</h3>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Organizamos la respuesta para que el ciudadano vea primero lo esencial y luego los datos de apoyo, sin bloques largos ni ruido visual.
+            Priorizamos la orientacion clave y luego los datos de apoyo para que la lectura sea rapida, clara y util.
           </p>
         </div>
         <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-          RAG conectado al backend
+          Consulta asistida
         </span>
       </div>
 
@@ -807,7 +824,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
         </div>
       ) : consulta ? (
         <div className="mt-6 space-y-6">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Pregunta enviada</p>
               <p className="mt-3 text-base font-semibold leading-7 text-slate-950">{consulta.pregunta}</p>
@@ -897,7 +914,12 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
           {consulta.sugerencias?.length ? (
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                Sugerencias para continuar
+                {isNoMatch ? 'Rutas sugeridas para seguir buscando' : 'Sugerencias para continuar'}
+              </p>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                {isNoMatch
+                  ? 'No hubo una coincidencia suficientemente confiable, pero estas consultas cercanas pueden ayudarte a llegar al tramite correcto.'
+                  : 'Si quieres afinar la consulta o explorar otra opcion cercana, puedes usar una de estas preguntas.'}
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 {consulta.sugerencias.map((sugerencia) => (
@@ -955,8 +977,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
         <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-600">
           La respuesta aparecera aqui cuando envies una consulta al asistente.
           <p className="mt-3 text-sm leading-6 text-slate-500">
-            Puedes empezar con una pregunta sobre impuesto predial, facilidades
-            de pago o devolucion de pagos en exceso.
+            Puedes empezar con una pregunta concreta sobre un impuesto, un tramite o una gestion tributaria.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             {QUICK_QUESTIONS.slice(0, 3).map((quickQuestion) => (

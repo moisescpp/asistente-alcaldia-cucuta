@@ -5,6 +5,7 @@ import pytest
 from app.database import SessionLocal
 from app.main import app
 from app.models import ConsultaLog, Tramite
+from app.services.consulta_service import _build_no_match_suggestions
 
 
 def build_payload(slug: str, **overrides) -> dict:
@@ -100,6 +101,60 @@ def test_consulta_returns_no_match_message_and_suggestions(client) -> None:
     assert data["tramite_principal"] is None
     assert data["tramites_relacionados"] == []
     assert len(data["sugerencias"]) >= 1
+
+
+def test_no_match_suggestions_prioritize_similar_catalog_topics() -> None:
+    tramites = [
+        Tramite(
+            id=1,
+            nombre="Impuesto sobre Espectaculos Publicos",
+            slug="espectaculos-publicos",
+            descripcion="Pago para conciertos, eventos masivos, baile con orquesta y espectaculos publicos.",
+            dependencia="Secretaria de Hacienda - Rentas e Impuestos",
+            activo=True,
+        ),
+        Tramite(
+            id=2,
+            nombre="Impuesto predial",
+            slug="predial",
+            descripcion="Consulta del impuesto predial unificado.",
+            dependencia="Secretaria de Hacienda - Rentas e Impuestos",
+            activo=True,
+        ),
+        Tramite(
+            id=3,
+            nombre="Facilidades de pago",
+            slug="facilidades-pago",
+            descripcion="Acuerdos de pago para obligaciones tributarias.",
+            dependencia="Secretaria de Hacienda - Rentas e Impuestos",
+            activo=True,
+        ),
+    ]
+
+    suggestions = _build_no_match_suggestions(
+        "permiso cultural para concierto universitario",
+        tramites,
+    )
+
+    assert suggestions
+    assert suggestions[0] == "Consulta por Impuesto sobre Espectaculos Publicos"
+
+
+def test_no_match_suggestions_return_distinct_catalog_options() -> None:
+    tramites = [
+        Tramite(id=1, nombre="Impuesto predial", slug="predial", descripcion="Predial", activo=True),
+        Tramite(id=2, nombre="Facilidades de pago", slug="facilidades", descripcion="Pagos", activo=True),
+        Tramite(id=3, nombre="Impuesto vehicular", slug="vehicular", descripcion="Vehiculos", activo=True),
+        Tramite(id=4, nombre="Devolucion de pagos", slug="devolucion", descripcion="Devolucion", activo=True),
+    ]
+
+    suggestions = _build_no_match_suggestions(
+        "xilofono intergalactico kriptonita",
+        tramites,
+    )
+
+    assert len(suggestions) == 4
+    assert len(set(suggestions)) == 4
 
 
 def test_consulta_rejects_semantically_close_but_incorrect_topic(client) -> None:
