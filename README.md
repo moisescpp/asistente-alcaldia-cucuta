@@ -91,9 +91,25 @@ Estas mejoras existen en el proyecto, pero **no se consideran el centro de la it
 
 ### Backend
 
+Entorno valido actual:
+
+- el backend usa **solo** `backend/.venv`;
+- ese entorno fue recreado y validado el **23 de abril de 2026**;
+- en esta maquina quedo construido con el Python operativo que hoy resuelve a **3.14.3**.
+
+Si `python` en tu terminal apunta a un launcher de Windows y no a un interprete usable, puedes recrear el entorno con la ruta que hoy si funciona:
+
+```powershell
+cd C:\asistente-alcaldia-cucuta\backend
+& 'C:\Users\perez\AppData\Local\Python\bin\python.exe' -m venv .venv
+```
+
+Luego instala dependencias y ejecuta la API:
+
 ```powershell
 cd C:\asistente-alcaldia-cucuta\backend
 .venv\Scripts\activate
+pip install -r requirements.txt
 python -m uvicorn app.main:app --reload
 ```
 
@@ -113,6 +129,12 @@ cd C:\asistente-alcaldia-cucuta\backend
 .venv\Scripts\activate
 pytest -q
 ```
+
+Estado de validacion del entorno vigente:
+
+- `53 passed, 1 skipped` en `pytest -q`
+- `scripts\backfill_embeddings.py` ejecutado correctamente
+- `scripts\validate_rag_queries.py` superado con `0` fallos
 
 ### Bateria funcional RAG
 
