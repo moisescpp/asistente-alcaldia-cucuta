@@ -74,6 +74,7 @@ function App() {
   })
   const hasActiveAdminFilters = Boolean(normalizedAdminSearch) || adminDependency !== 'todas'
   const qualitySummary = summarizeTramiteQuality(tramites)
+  const weakestTramites = selectWeakestTramites(tramites)
   const quickQuestions = buildQuickQuestions(tramites)
   const draftQualityReport = assessFrontendTramiteQuality({
     ...formData,
@@ -641,6 +642,61 @@ function App() {
                   ) : null}
                 </div>
 
+                {weakestTramites.length ? (
+                  <div className="mb-6 rounded-3xl border border-amber-200 bg-[linear-gradient(180deg,#fff8eb_0%,#fffdf8_100%)] p-5 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+                          Tramites que requieren atencion
+                        </p>
+                        <h4 className="mt-2 text-lg font-semibold text-slate-950">
+                          Prioridad para fortalecer el catalogo
+                        </h4>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                          Estos tramites tienen la señal semántica más débil en este momento. Si mejoramos su descripción, requisitos o fuente oficial, el asistente responderá con más precisión.
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                        {weakestTramites.length} foco(s)
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                      {weakestTramites.map(({ tramite, report }) => (
+                        <article key={`weak-${tramite.id}`} className="rounded-3xl border border-amber-200 bg-white px-4 py-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                              report.level === 'critico'
+                                ? 'border-rose-200 bg-rose-50 text-rose-700'
+                                : 'border-amber-200 bg-amber-50 text-amber-700'
+                            }`}>
+                              {humanizeQualityLevel(report.level)} · {report.score}
+                            </span>
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                              ID {tramite.id}
+                            </span>
+                          </div>
+                          <h5 className="mt-3 text-sm font-semibold leading-6 text-slate-950">
+                            {tramite.nombre}
+                          </h5>
+                          <p className="mt-2 text-xs leading-5 text-slate-500">
+                            {cleanDependencyLabel(tramite.dependencia)}
+                          </p>
+                          {report.alerts.length ? (
+                            <ul className="mt-3 space-y-2">
+                              {report.alerts.slice(0, 2).map((alert) => (
+                                <li key={`${tramite.id}-${alert}`} className="text-sm leading-6 text-slate-600">
+                                  {alert}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <TramitesAdminList
                   tramites={filteredTramites}
                   loadingTramites={loadingTramites}
@@ -842,6 +898,22 @@ function summarizeTramiteQuality(tramites) {
   )
 }
 
+function selectWeakestTramites(tramites) {
+  return [...tramites]
+    .map((tramite) => ({
+      tramite,
+      report: getTramiteQualitySnapshot(tramite),
+    }))
+    .filter(({ report }) => report.level === 'critico' || report.level === 'en_riesgo')
+    .sort((left, right) => {
+      if (left.report.score !== right.report.score) return left.report.score - right.report.score
+      return left.tramite.nombre.localeCompare(right.tramite.nombre, 'es-CO', {
+        sensitivity: 'base',
+      })
+    })
+    .slice(0, 3)
+}
+
 function humanizeQualityLevel(level) {
   const labels = {
     fuerte: 'Fuerte',
@@ -1006,36 +1078,54 @@ function formatSelectedDateLabel(dateKey) {
 function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestions }) {
   const statusConfig = getConsultaStatusConfig(consulta?.mensaje_estado)
   const summaryText = consulta ? extractSummaryText(consulta.respuesta) : ''
+  const orientationText = compactOrientationText(summaryText)
   const isNoMatch = consulta?.mensaje_estado === 'Sin coincidencias en la base actual'
-  const availableFields = consulta?.tramite_principal
+  const isTooGeneral = consulta?.mensaje_estado === 'Consulta demasiado general'
+  const allMatches = consulta
     ? [
-        { label: 'Descripcion', value: consulta.tramite_principal.descripcion },
-        { label: 'Requisitos', value: consulta.tramite_principal.requisitos },
-        { label: 'Costo', value: consulta.tramite_principal.costo },
-        { label: 'Horario', value: consulta.tramite_principal.horario },
-      ].filter((item) => item.value)
+        ...(consulta.tramite_principal ? [consulta.tramite_principal] : []),
+        ...(consulta.tramites_relacionados ?? []),
+      ]
     : []
-  const missingFields = consulta?.tramite_principal
+  const [selectedMatchId, setSelectedMatchId] = useState(null)
+  const defaultMatchId =
+    consulta?.tramite_principal?.id ?? consulta?.tramites_relacionados?.[0]?.id ?? null
+  const activeMatchId = allMatches.some((tramite) => tramite.id === selectedMatchId)
+    ? selectedMatchId
+    : defaultMatchId
+
+  const activeMatch =
+    allMatches.find((tramite) => tramite.id === activeMatchId) ??
+    consulta?.tramite_principal ??
+    consulta?.tramites_relacionados?.[0] ??
+    null
+  const secondaryMatches = activeMatch
+    ? allMatches.filter((tramite) => tramite.id !== activeMatch.id)
+    : allMatches
+  const isViewingAlternative =
+    Boolean(activeMatch && consulta?.tramite_principal) &&
+    activeMatch.id !== consulta.tramite_principal.id
+  const missingFields = activeMatch
     ? [
-        !consulta.tramite_principal.descripcion ? 'Descripcion' : null,
-        !consulta.tramite_principal.requisitos ? 'Requisitos' : null,
-        !consulta.tramite_principal.costo ? 'Costo' : null,
-        !consulta.tramite_principal.horario ? 'Horario' : null,
-        !consulta.tramite_principal.fuente_url ? 'Fuente oficial' : null,
+        !activeMatch.descripcion ? 'Descripcion' : null,
+        !activeMatch.requisitos ? 'Requisitos' : null,
+        !activeMatch.costo ? 'Costo' : null,
+        !activeMatch.horario ? 'Horario' : null,
+        !activeMatch.fuente_url ? 'Fuente oficial' : null,
       ].filter(Boolean)
     : []
 
   return (
-    <section className="rounded-[2rem] border border-slate-200/70 bg-white/90 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+    <section className="rounded-[2rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Respuesta del asistente</p>
           <h3 className="mt-2 text-2xl font-bold text-slate-950">Resultado de la consulta</h3>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Priorizamos la orientacion clave y luego los datos de apoyo para que la lectura sea rapida, clara y util.
+            Primero ves la guia esencial y luego los datos de apoyo del tramite.
           </p>
         </div>
-        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700 shadow-sm">
           Consulta asistida
         </span>
       </div>
@@ -1056,102 +1146,242 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
         </div>
       ) : consulta ? (
         <div className="mt-6 space-y-6">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Pregunta enviada</p>
-              <p className="mt-3 text-base font-semibold leading-7 text-slate-950">{consulta.pregunta}</p>
-            </div>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(15rem,0.75fr)_minmax(8.5rem,0.4fr)]">
+            <ResultMetricCard label="Pregunta" className="bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_100%)]">
+              <p className="text-base font-semibold leading-7 text-slate-950">{consulta.pregunta}</p>
+            </ResultMetricCard>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Estado</p>
-                <span className={`mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
-                  {consulta.mensaje_estado}
-                </span>
-              </div>
-              <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Coincidencias</p>
-                <p className="mt-3 text-3xl font-black text-slate-950">{consulta.total_resultados}</p>
-              </div>
+            <ResultMetricCard label="Estado" className="bg-white">
+              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
+                {consulta.mensaje_estado}
+              </span>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                {consulta.mensaje_estado === 'Coincidencias semanticas encontradas'
+                  ? 'El asistente encontro una ruta suficientemente confiable.'
+                  : consulta.mensaje_estado === 'Consulta demasiado general'
+                    ? 'Necesita una pista mas concreta para responder mejor.'
+                    : 'Te muestra caminos cercanos para continuar sin perder el hilo.'}
+              </p>
+            </ResultMetricCard>
+
+            <ResultMetricCard label="Resultados" className="bg-white">
+              <p className="text-4xl font-black tracking-tight text-slate-950">{consulta.total_resultados}</p>
+              <p className="mt-1 text-sm text-slate-500">
+                {consulta.total_resultados === 1 ? 'resultado util' : 'resultados detectados'}
+              </p>
+            </ResultMetricCard>
+          </div>
+
+          <div className={`relative overflow-hidden rounded-3xl border p-5 ${statusConfig.panelClassName}`}>
+            <div className="pointer-events-none absolute inset-y-4 left-4 w-1 rounded-full bg-white/80" />
+            <div className="pl-4">
+              <p className={`text-xs uppercase tracking-[0.2em] ${statusConfig.labelClassName}`}>Orientacion inmediata</p>
+              <p className="mt-2 text-[15px] leading-7 text-slate-800">{orientationText}</p>
             </div>
           </div>
 
-          <div className={`rounded-3xl border p-5 ${statusConfig.panelClassName}`}>
-            <p className={`text-xs uppercase tracking-[0.2em] ${statusConfig.labelClassName}`}>{statusConfig.panelLabel}</p>
-            <p className="mt-3 text-base leading-7 text-slate-800">{summaryText}</p>
-          </div>
-
-          {consulta.tramite_principal ? (
-            <article className="rounded-3xl border border-slate-200 bg-white p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+          {activeMatch ? (
+            <article className="rounded-[1.9rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-5 shadow-[0_12px_45px_-35px_rgba(15,23,42,0.35)]">
+              <div className="flex flex-wrap items-start justify-between gap-4 rounded-[1.6rem] border border-slate-100 bg-[linear-gradient(135deg,#f8fafc_0%,#f1f5f9_100%)] px-5 py-5">
+                <div className="max-w-3xl">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                    Tramite principal
+                    {isViewingAlternative ? 'Coincidencia seleccionada' : 'Tramite principal'}
                   </p>
-                  <h4 className="mt-2 text-xl font-semibold text-slate-950">
-                    {consulta.tramite_principal.nombre}
+                  <h4 className="mt-2 text-2xl font-bold leading-tight text-slate-950">
+                    {activeMatch.nombre}
                   </h4>
-                  <p className="mt-2 text-sm text-slate-600">
-                    {cleanDependencyLabel(consulta.tramite_principal.dependencia)}
+                  <p className="mt-3 inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-600 shadow-sm">
+                    {cleanDependencyLabel(activeMatch.dependencia)}
                   </p>
+                  {isViewingAlternative ? (
+                    <p className="mt-3 text-sm leading-6 text-slate-500">
+                      Estas viendo otra coincidencia relacionada con la misma consulta. Puedes volver a la principal desde la lista superior.
+                    </p>
+                  ) : null}
                 </div>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-500">
-                  ID {consulta.tramite_principal.id}
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-500 shadow-sm">
+                  ID {activeMatch.id}
                 </span>
               </div>
 
-              <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {availableFields.length ? (
-                    availableFields.map((field) => (
-                      <DetailCard key={field.label} label={field.label} value={field.value} />
-                    ))
-                  ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 sm:col-span-2">
+              <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.78fr)]">
+                <div className="space-y-4">
+                  {activeMatch.descripcion ? (
+                    <DetailCard
+                      label="Descripcion del tramite"
+                      value={activeMatch.descripcion}
+                      tone="slate"
+                    />
+                  ) : null}
+
+                  {activeMatch.requisitos ? (
+                    <DetailCard
+                      label="Requisitos clave"
+                      value={activeMatch.requisitos}
+                      tone="sky"
+                      asList
+                    />
+                  ) : null}
+
+                  {!activeMatch.descripcion && !activeMatch.requisitos ? (
+                    <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5">
                       <p className="text-sm leading-6 text-slate-600">
-                        Este tramite existe en la base, pero todavia no tiene detalles ampliados para mostrar en esta vista.
+                        Este tramite existe en la base, pero todavia no tiene detalle suficiente para mostrar una ficha mas completa.
                       </p>
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
-                <div className="space-y-4">
+                <aside className="space-y-4">
+                  {activeMatch.fuente_url ? (
+                    <div className="rounded-3xl border border-emerald-200 bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fffb_100%)] p-5 shadow-sm">
+                      <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Validacion oficial</p>
+                      <p className="mt-2 text-sm leading-6 text-emerald-900">
+                        Revisa la fuente institucional para confirmar el tramite o continuar la gestion.
+                      </p>
+                      <a
+                        href={activeMatch.fuente_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-4 inline-flex items-center rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50"
+                      >
+                        Ir a la fuente oficial
+                      </a>
+                    </div>
+                  ) : null}
+
+                  {activeMatch.costo || activeMatch.horario ? (
+                    <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 shadow-sm">
+                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Datos de apoyo</p>
+                      <div className="mt-3 space-y-3">
+                        {activeMatch.costo ? (
+                          <CompactInfoRow
+                            label="Costo"
+                            value={activeMatch.costo}
+                            accent="amber"
+                          />
+                        ) : null}
+                        {activeMatch.horario ? (
+                          <CompactInfoRow
+                            label="Horario"
+                            value={activeMatch.horario}
+                            accent="slate"
+                          />
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
                   {missingFields.length ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
                       <p className="text-xs uppercase tracking-[0.18em] text-amber-700">Informacion pendiente</p>
                       <p className="mt-2 text-sm leading-6 text-amber-900">
                         Aun no hay datos registrados para: {missingFields.join(', ')}.
                       </p>
                     </div>
                   ) : null}
-
-                  {consulta.tramite_principal.fuente_url ? (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Validacion oficial</p>
-                      <a
-                        href={consulta.tramite_principal.fuente_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-2 inline-flex text-sm font-semibold text-emerald-800 transition hover:text-emerald-700"
-                      >
-                        Ir a la fuente oficial
-                      </a>
-                    </div>
-                  ) : null}
-                </div>
+                </aside>
               </div>
             </article>
           ) : null}
 
+          {!activeMatch && consulta ? (
+            <StateActionPanel
+              mode={isTooGeneral ? 'ambigua' : isNoMatch ? 'sin_coincidencia' : 'informativa'}
+            />
+          ) : null}
+
+          {secondaryMatches.length ? (
+            <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                    Otras coincidencias disponibles
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    Aqui ves opciones cercanas en version resumida. Si quieres revisar otra, usa el boton y reemplazamos la ficha visible.
+                  </p>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {secondaryMatches.length} opcion{secondaryMatches.length > 1 ? 'es' : ''}
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {secondaryMatches.map((match, index) => {
+                  const isPrimary =
+                    consulta.tramite_principal && match.id === consulta.tramite_principal.id
+
+                  return (
+                    <div
+                      key={match.id}
+                      className="rounded-3xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-left transition"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                                isPrimary
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-slate-200 text-slate-700'
+                              }`}
+                            >
+                              {isPrimary ? 'Principal' : `Opcion ${index + 1}`}
+                            </span>
+                          </div>
+
+                          <h5 className="mt-3 text-sm font-semibold leading-6 text-slate-950">
+                            {match.nombre}
+                          </h5>
+                          <p className="mt-1 text-xs leading-5 text-slate-500">
+                            {cleanDependencyLabel(match.dependencia)}
+                          </p>
+                          {match.descripcion ? (
+                            <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
+                              {match.descripcion}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="flex flex-none items-center">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedMatchId(match.id)}
+                            className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                          >
+                            Ver mas informacion
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+
           {consulta.sugerencias?.length ? (
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <div className={`rounded-3xl border p-5 ${
+              isTooGeneral
+                ? 'border-amber-200 bg-amber-50/70'
+                : isNoMatch
+                  ? 'border-sky-200 bg-sky-50/70'
+                  : 'border-slate-200 bg-slate-50'
+            }`}>
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                {isNoMatch ? 'Rutas sugeridas para seguir buscando' : 'Sugerencias para continuar'}
+                {isTooGeneral
+                  ? 'Sugerencias para precisar la consulta'
+                  : isNoMatch
+                    ? 'Rutas sugeridas para seguir buscando'
+                    : 'Sugerencias para continuar'}
               </p>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                {isNoMatch
-                  ? 'No hubo una coincidencia suficientemente confiable, pero estas consultas cercanas pueden ayudarte a llegar al tramite correcto.'
-                  : 'Si quieres afinar la consulta o explorar otra opcion cercana, puedes usar una de estas preguntas.'}
+                {isTooGeneral
+                  ? 'Tu pregunta necesita una pista más concreta. Estas opciones te ayudan a aterrizar la intención y llegar más rápido al trámite correcto.'
+                  : isNoMatch
+                    ? 'No hubo una coincidencia suficientemente confiable, pero estas consultas cercanas pueden ayudarte a llegar al tramite correcto.'
+                    : 'Si quieres afinar la consulta o revisar otra ruta cercana, puedes usar una de estas preguntas.'}
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 {consulta.sugerencias.map((sugerencia) => (
@@ -1168,14 +1398,14 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
             </div>
           ) : null}
 
-          {consulta.tramites_relacionados.length ? (
+          {consulta.tramites_relacionados.length && !consulta.tramite_principal ? (
             <div>
               <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                {consulta.tramite_principal ? 'Tramites relacionados' : 'Opciones cercanas para precisar'}
+                {isTooGeneral ? 'Opciones cercanas para precisar' : 'Coincidencias cercanas detectadas'}
               </p>
               <div className="grid gap-4 md:grid-cols-2">
                 {consulta.tramites_relacionados.map((tramite) => (
-                  <article key={tramite.id} className="rounded-3xl border border-slate-200 bg-white p-5">
+                  <article key={tramite.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_10px_35px_-30px_rgba(15,23,42,0.35)]">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h4 className="text-lg font-semibold text-slate-950">{tramite.nombre}</h4>
@@ -1229,13 +1459,175 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
   )
 }
 
-function DetailCard({ label, value }) {
+function DetailCardBase({ label, value, tone = 'slate', asList = false }) {
+  const tones = {
+    slate: 'border-slate-200 bg-white',
+    sky: 'border-sky-200 bg-sky-50/55',
+  }
+
+  const segments = formatDetailSegments(value, asList)
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+    <div className={`rounded-3xl border p-5 shadow-sm ${tones[tone] ?? tones.slate}`}>
       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-800">{value}</p>
+      {segments.length > 1 ? (
+        <ul className="mt-4 space-y-3">
+          {segments.map((segment) => (
+            <li key={`${label}-${segment.slice(0, 24)}`} className="flex items-start gap-3 text-sm leading-6 text-slate-800">
+              <span className="mt-2 h-2 w-2 flex-none rounded-full bg-emerald-500" />
+              <span>{segment}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm leading-7 text-slate-800">{segments[0] ?? value}</p>
+      )}
     </div>
   )
+}
+
+function DetailCard({ label, value, tone, asList }) {
+  return <DetailCardBase label={label} value={value} tone={tone} asList={asList} />
+}
+
+function ResultMetricCard({ label, children, className = '' }) {
+  return (
+    <div className={`flex h-full flex-col justify-between rounded-3xl border border-slate-200 p-4 shadow-sm ${className}`}>
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <div className="mt-2">{children}</div>
+    </div>
+  )
+}
+
+function CompactInfoRow({ label, value, accent = 'slate' }) {
+  const accents = {
+    amber: 'bg-amber-100/80 text-amber-900',
+    slate: 'bg-slate-200/80 text-slate-700',
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
+          <p className="mt-1 text-sm font-medium leading-6 text-slate-800">{value}</p>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${accents[accent] ?? accents.slate}`}>
+          {label}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function StateActionPanel({ mode }) {
+  const content = {
+    ambigua: {
+      badge: 'Consulta demasiado general',
+      badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700',
+      title: 'Necesitamos una pista más específica',
+      description:
+        'Todavía no conviene mostrar una ficha completa porque la consulta puede apuntar a varios trámites distintos.',
+      tips: [
+        'Menciona el impuesto o trámite concreto que necesitas.',
+        'Agrega una pista como predial, paz y salvo, industria y comercio o devolución.',
+        'Usa una de las sugerencias rápidas para aterrizar la intención.',
+      ],
+    },
+    sin_coincidencia: {
+      badge: 'Sin coincidencia suficiente',
+      badgeClassName: 'border-sky-200 bg-sky-50 text-sky-700',
+      title: 'No encontramos un trámite confiable todavía',
+      description:
+        'Preferimos no inventar una respuesta. Abajo te dejamos rutas cercanas para que llegues al trámite correcto con menos ensayo y error.',
+      tips: [
+        'Prueba una consulta más concreta o enfocada en el impuesto.',
+        'Usa las sugerencias disponibles para acercarte al catálogo actual.',
+        'Si el trámite es nuevo, conviene revisar si su descripción quedó demasiado corta.',
+      ],
+    },
+    informativa: {
+      badge: 'Consulta en revisión',
+      badgeClassName: 'border-slate-200 bg-slate-50 text-slate-700',
+      title: 'Estamos guiando la siguiente acción',
+      description:
+        'Todavía no hay una ficha principal visible, pero abajo tienes opciones cercanas para continuar la consulta.',
+      tips: [],
+    },
+  }
+
+  const current = content[mode] ?? content.informativa
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-sm">
+      <div>
+        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${current.badgeClassName}`}>
+          {current.badge}
+        </span>
+        <h4 className="mt-3 text-xl font-semibold text-slate-950">{current.title}</h4>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{current.description}</p>
+      </div>
+
+      {current.tips.length ? (
+        <ul className="mt-4 grid gap-3 md:grid-cols-3">
+          {current.tips.map((tip) => (
+            <li key={tip} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-700">
+              {tip}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
+function formatDetailSegments(value, asList = false) {
+  const text = String(value ?? '').replace(/\r/g, '').trim()
+  if (!text) return []
+
+  if (!asList) {
+    const paragraphs = text
+      .split('\n')
+      .map((segment) => segment.trim())
+      .filter(Boolean)
+
+    return paragraphs.length ? paragraphs : [text]
+  }
+
+  const normalized = text
+    .replace(/\n+/g, '\n')
+    .replace(/\s+[•·]\s+/g, '\n')
+    .replace(/\s+-\s+/g, '\n')
+
+  const segments = normalized
+    .split('\n')
+    .map((segment) => segment.replace(/^\d+[).:-]?\s*/, '').trim())
+    .filter(Boolean)
+
+  return segments.length ? segments : [text]
+}
+
+function compactOrientationText(value) {
+  const normalized = String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!normalized) {
+    return 'Todavia no hay una orientacion disponible para esta consulta.'
+  }
+
+  const sentences = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+
+  const compact = sentences.slice(0, 2).join(' ')
+
+  if (compact.length <= 220) {
+    return compact
+  }
+
+  return `${compact.slice(0, 217).trimEnd()}...`
 }
 
 function TramitesPanel({ tramites, loadingTramites, tramitesError }) {

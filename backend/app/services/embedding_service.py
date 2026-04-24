@@ -146,6 +146,11 @@ def _tokenize_normalized_text(value: str | None) -> set[str]:
     return {token for token in re.split(r"[^a-z0-9]+", normalized) if token}
 
 
+def _ordered_tokens(value: str | None) -> list[str]:
+    normalized = _normalize(value)
+    return [token for token in re.split(r"[^a-z0-9]+", normalized) if token]
+
+
 def _clean_phrase(value: str | None) -> str:
     if not value:
         return ""
@@ -172,6 +177,45 @@ def _extract_phrase_candidates(tramite: Tramite) -> list[str]:
         seen.setdefault(candidate, None)
 
     return list(seen.keys())[:4]
+
+
+def _extract_context_chunks(value: str | None, *, max_items: int = 4) -> list[str]:
+    if not value:
+        return []
+
+    raw_fragments = re.split(r"[\n,;:.]+", value)
+    chunks: list[str] = []
+
+    for fragment in raw_fragments:
+        cleaned = _clean_phrase(fragment)
+        if not cleaned:
+            continue
+
+        tokens = [token for token in cleaned.split() if token not in TOPIC_STOPWORDS]
+        if len(tokens) < 2:
+            continue
+
+        chunks.append(" ".join(tokens[:4]))
+        if len(chunks) == max_items:
+            break
+
+    return chunks
+
+
+def _extract_significant_bigrams(value: str | None, *, max_items: int = 4) -> list[str]:
+    tokens = [
+        token
+        for token in _ordered_tokens(value)
+        if token not in TOPIC_STOPWORDS
+    ]
+    bigrams: list[str] = []
+
+    for index in range(len(tokens) - 1):
+        bigrams.append(f"{tokens[index]} {tokens[index + 1]}")
+        if len(bigrams) == max_items:
+            break
+
+    return bigrams
 
 
 def _strip_intent_prefix(phrase: str) -> str:
@@ -215,13 +259,11 @@ def _extract_topic_phrases(tramite: Tramite) -> list[str]:
         if simplified_candidate and len(simplified_candidate.split()) >= 2:
             topic_candidates.append(simplified_candidate)
 
-    description_tokens = [
-        token
-        for token in _tokenize_normalized_text(tramite.descripcion)
-        if token not in TOPIC_STOPWORDS
-    ]
-    if len(description_tokens) >= 2:
-        topic_candidates.append(" ".join(description_tokens[:4]))
+    topic_candidates.extend(_extract_significant_bigrams(tramite.descripcion, max_items=4))
+    topic_candidates.extend(_extract_significant_bigrams(tramite.requisitos, max_items=4))
+    topic_candidates.extend(_extract_context_chunks(tramite.descripcion, max_items=3))
+    topic_candidates.extend(_extract_context_chunks(tramite.requisitos, max_items=4))
+    topic_candidates.extend(_extract_context_chunks(tramite.dependencia, max_items=2))
 
     seen: dict[str, None] = {}
     for candidate in topic_candidates:
@@ -229,7 +271,7 @@ def _extract_topic_phrases(tramite: Tramite) -> list[str]:
         if cleaned_candidate and len(cleaned_candidate.split()) >= 2:
             seen.setdefault(cleaned_candidate, None)
 
-    return list(seen.keys())[:6]
+    return list(seen.keys())[:10]
 
 
 def _build_intent_topic_aliases(expansions: list[str], topic_phrases: list[str]) -> list[str]:
@@ -266,6 +308,8 @@ def _filter_generated_aliases(tramite: Tramite, aliases: list[str]) -> list[str]
                 tramite.nombre or "",
                 tramite.slug or "",
                 tramite.descripcion or "",
+                tramite.requisitos or "",
+                tramite.dependencia or "",
             ]
         )
     )
@@ -301,6 +345,8 @@ def _infer_intent_aliases(tramite: Tramite) -> list[str]:
                 tramite.nombre or "",
                 tramite.slug or "",
                 tramite.descripcion or "",
+                tramite.requisitos or "",
+                tramite.dependencia or "",
             ]
         )
     )

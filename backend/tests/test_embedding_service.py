@@ -103,3 +103,21 @@ def test_generated_alias_filter_discards_generic_or_noisy_entries() -> None:
     assert "consulta sobre impuesto sobre espectaculos publicos" not in aliases
     assert "1969 publicos articulo 223" not in aliases
     assert "impuesto sobre espectaculos publicos" in aliases
+
+
+def test_embedding_text_uses_requirement_and_dependency_context_for_new_tramite() -> None:
+    tramite = build_tramite(
+        "Actualizacion de Informacion SISBEN",
+        "actualizacion-informacion-sisben",
+    )
+    tramite.descripcion = "Actualizacion de datos en la ficha del SISBEN para corregir informacion del hogar."
+    tramite.requisitos = "Cedula, documento del hogar, soporte de cambio de direccion y ficha SISBEN."
+    tramite.dependencia = "Secretaria de Hacienda - Rentas e Impuestos"
+
+    text = build_tramite_embedding_text(tramite)
+    normalized_text = text.lower()
+
+    assert "ficha sisben" in normalized_text
+    assert "cambio de direccion" in normalized_text
+    assert "hacienda" in normalized_text
+    assert "rentas" in normalized_text

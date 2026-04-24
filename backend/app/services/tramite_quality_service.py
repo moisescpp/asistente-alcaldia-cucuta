@@ -63,6 +63,7 @@ def _has_tax_context(payload: dict[str, Any]) -> bool:
                 str(payload.get("nombre") or ""),
                 str(payload.get("descripcion") or ""),
                 str(payload.get("dependencia") or ""),
+                str(payload.get("requisitos") or ""),
             ]
         )
     )
@@ -160,7 +161,7 @@ def assess_tramite_quality(payload_or_tramite: Any) -> TramiteQualityReport:
 
     if alias_count < 3:
         score -= 10
-        alerts.append("El tramite tiene pocas señales semanticas para lenguaje ciudadano.")
+        alerts.append("El tramite tiene pocas senales semanticas para lenguaje ciudadano.")
     elif alias_count < 6:
         score -= 4
         alerts.append("El tramite podria beneficiarse de mas contexto ciudadano.")
