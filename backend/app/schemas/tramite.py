@@ -74,5 +74,7 @@ class TramiteRead(TramiteBase):
     semantic_quality_score: int = 0
     semantic_quality_level: str = "sin_datos"
     semantic_quality_alerts: list[str] = []
+    semantic_scope_status: str = "sin_datos"
+    semantic_recommended_action: str = ""
 
     model_config = ConfigDict(from_attributes=True)

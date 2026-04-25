@@ -40,6 +40,8 @@ class TramiteQualityReport:
     level: str
     alerts: list[str]
     blocking_issues: list[str]
+    scope_status: str
+    recommended_action: str
 
 
 def _normalize_text(value: str | None) -> str:
@@ -110,6 +112,7 @@ def assess_tramite_quality(payload_or_tramite: Any) -> TramiteQualityReport:
     description_words = _word_count(description)
     requirement_words = _word_count(requirements)
     alias_count = _extract_alias_count(payload_or_tramite)
+    has_tax_context = _has_tax_context(payload)
 
     if description_words == 0:
         score -= 40
@@ -151,7 +154,7 @@ def assess_tramite_quality(payload_or_tramite: Any) -> TramiteQualityReport:
         score -= 6
         alerts.append("Falta la dependencia responsable.")
 
-    if dependency and not _has_tax_context(payload):
+    if dependency and not has_tax_context:
         score -= 10
         alerts.append("Este tramite no muestra contexto claro de rentas e impuestos.")
 
@@ -176,6 +179,31 @@ def assess_tramite_quality(payload_or_tramite: Any) -> TramiteQualityReport:
     else:
         level = "critico"
 
+    if dependency and not has_tax_context:
+        scope_status = "fuera_de_foco"
+        recommended_action = (
+            "Revisa si este tramite debe seguir activo en Hacienda o si conviene "
+            "moverlo a otro catalogo institucional."
+        )
+    elif not dependency:
+        scope_status = "sin_contexto"
+        recommended_action = (
+            "Completa la dependencia y el contexto tributario para que el panel "
+            "pueda clasificar mejor este tramite."
+        )
+    elif level in {"critico", "en_riesgo"}:
+        scope_status = "tributario"
+        recommended_action = (
+            "Fortalece descripcion, requisitos y fuente oficial para que el "
+            "asistente responda con mas precision."
+        )
+    else:
+        scope_status = "tributario"
+        recommended_action = (
+            "La base semantica va bien; solo conviene vigilar cambios futuros del "
+            "catalogo y mantener el contenido actualizado."
+        )
+
     deduped_alerts = list(dict.fromkeys(alerts))
     deduped_blocking = list(dict.fromkeys(blocking_issues))
     return TramiteQualityReport(
@@ -183,6 +211,8 @@ def assess_tramite_quality(payload_or_tramite: Any) -> TramiteQualityReport:
         level=level,
         alerts=deduped_alerts,
         blocking_issues=deduped_blocking,
+        scope_status=scope_status,
+        recommended_action=recommended_action,
     )
 
 

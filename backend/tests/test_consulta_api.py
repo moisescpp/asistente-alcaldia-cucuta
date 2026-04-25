@@ -39,8 +39,12 @@ def normalize_assert_text(value: str) -> str:
     )
 
 
-def create_test_tramite(client, slug: str, **overrides) -> dict:
-    response = client.post("/api/admin/tramites", json=build_payload(slug, **overrides))
+def create_test_tramite(client, admin_headers: dict[str, str], slug: str, **overrides) -> dict:
+    response = client.post(
+        "/api/admin/tramites",
+        json=build_payload(slug, **overrides),
+        headers=admin_headers,
+    )
     assert response.status_code == 201
     return response.json()
 
@@ -55,9 +59,10 @@ def has_active_catalog_term(term: str) -> bool:
         db.close()
 
 
-def test_consulta_returns_main_match_and_related_results(client, test_slug_prefix) -> None:
+def test_consulta_returns_main_match_and_related_results(client, admin_headers, test_slug_prefix) -> None:
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-predial",
         nombre=f"Impuesto predial de prueba {test_slug_prefix}",
         descripcion="Consulta del impuesto predial municipal para casas, lotes y predios ubicados en la jurisdiccion local.",
@@ -178,10 +183,12 @@ def test_consulta_rejects_semantically_close_but_incorrect_topic(client) -> None
 
 def test_consulta_falls_back_to_text_when_tramite_has_no_embedding(
     client,
+    admin_headers,
     test_slug_prefix,
 ) -> None:
     creation_response = create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-vehicular",
         nombre=f"Impuesto vehicular {test_slug_prefix}",
         descripcion="Gestion del impuesto vehicular para carros, motos y otros vehiculos registrados por el contribuyente.",
@@ -222,9 +229,10 @@ def test_consulta_understands_citizen_synonym_for_house(client) -> None:
     assert "Tambien pueden interesarte:" not in data["respuesta"]
 
 
-def test_consulta_understands_citizen_synonym_for_car(client, test_slug_prefix) -> None:
+def test_consulta_understands_citizen_synonym_for_car(client, admin_headers, test_slug_prefix) -> None:
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-vehicular-carro",
         nombre=f"Impuesto vehicular {test_slug_prefix}",
         descripcion="Gestion del impuesto vehicular para carros, motos y otros vehiculos registrados por el contribuyente.",
@@ -246,10 +254,12 @@ def test_consulta_understands_citizen_synonym_for_car(client, test_slug_prefix) 
 
 def test_consulta_prioritizes_supported_payment_candidate(
     client,
+    admin_headers,
     test_slug_prefix,
 ) -> None:
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-facilidades-pago",
         nombre=f"Facilidades de pago para obligaciones tributarias {test_slug_prefix}",
         descripcion=(
@@ -273,9 +283,10 @@ def test_consulta_prioritizes_supported_payment_candidate(
     assert "facilidades de pago" in data["tramite_principal"]["nombre"].lower()
 
 
-def test_consulta_understands_payment_help_alias(client, test_slug_prefix) -> None:
+def test_consulta_understands_payment_help_alias(client, admin_headers, test_slug_prefix) -> None:
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-facilidades-ayuda",
         nombre=f"Facilidades de pago para obligaciones tributarias {test_slug_prefix}",
         descripcion=(
@@ -299,9 +310,10 @@ def test_consulta_understands_payment_help_alias(client, test_slug_prefix) -> No
     assert "facilidades de pago" in data["tramite_principal"]["nombre"].lower()
 
 
-def test_consulta_prioritizes_vehicular_over_incidental_transit_matches(client, test_slug_prefix) -> None:
+def test_consulta_prioritizes_vehicular_over_incidental_transit_matches(client, admin_headers, test_slug_prefix) -> None:
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-vehicular-transito",
         nombre=f"Impuesto vehicular {test_slug_prefix}",
         descripcion="Gestion del impuesto vehicular para carros, motos y placa dentro de la atencion tributaria municipal.",
@@ -419,6 +431,7 @@ def test_consulta_returns_industria_y_comercio_tramite_when_registered(client) -
 
 def test_consulta_prioritizes_modificacion_for_change_language_in_industria_y_comercio(
     client,
+    admin_headers,
     test_slug_prefix,
 ) -> None:
     base_name = f"Registro de Contribuyentes Industria y Comercio {test_slug_prefix}"
@@ -426,12 +439,14 @@ def test_consulta_prioritizes_modificacion_for_change_language_in_industria_y_co
 
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-registro-ic",
         nombre=base_name,
         descripcion="Inscripcion de personas o empresas en el registro de contribuyentes de industria y comercio para iniciar obligaciones tributarias.",
     )
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-modificacion-ic",
         nombre=modification_name,
         descripcion="Actualizacion de datos en el registro de contribuyentes de industria y comercio cuando cambia informacion del negocio o responsable.",
@@ -450,10 +465,12 @@ def test_consulta_prioritizes_modificacion_for_change_language_in_industria_y_co
 
 def test_consulta_matches_espectaculos_publicos_for_concert_language(
     client,
+    admin_headers,
     test_slug_prefix,
 ) -> None:
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-espectaculos-publicos",
         nombre=f"Impuesto sobre Espectaculos Publicos {test_slug_prefix}",
         descripcion=(
@@ -478,10 +495,12 @@ def test_consulta_matches_espectaculos_publicos_for_concert_language(
 
 def test_consulta_matches_espectaculos_publicos_for_mass_event_language(
     client,
+    admin_headers,
     test_slug_prefix,
 ) -> None:
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-espectaculos-masivos",
         nombre=f"Impuesto sobre Espectaculos Publicos {test_slug_prefix}",
         descripcion=(
@@ -505,10 +524,12 @@ def test_consulta_matches_espectaculos_publicos_for_mass_event_language(
 
 def test_consulta_matches_espectaculos_publicos_for_fiesta_language(
     client,
+    admin_headers,
     test_slug_prefix,
 ) -> None:
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-espectaculos-fiesta",
         nombre=f"Impuesto sobre Espectaculos Publicos {test_slug_prefix}",
         descripcion=(
@@ -532,10 +553,12 @@ def test_consulta_matches_espectaculos_publicos_for_fiesta_language(
 
 def test_consulta_matches_espectaculos_publicos_for_baile_con_orquesta_language(
     client,
+    admin_headers,
     test_slug_prefix,
 ) -> None:
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-espectaculos-orquesta",
         nombre=f"Impuesto sobre Espectaculos Publicos {test_slug_prefix}",
         descripcion=(
@@ -569,9 +592,10 @@ def test_consulta_tolerates_typo_for_predial_query(client) -> None:
     assert "predial" in data["tramite_principal"]["nombre"].lower()
 
 
-def test_consulta_tolerates_typo_for_vehicular_query(client, test_slug_prefix) -> None:
+def test_consulta_tolerates_typo_for_vehicular_query(client, admin_headers, test_slug_prefix) -> None:
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-vehicular-typo",
         nombre=f"Impuesto vehicular {test_slug_prefix}",
         descripcion="Gestion del impuesto vehicular para carros y motos dentro del catalogo tributario del asistente.",
@@ -601,12 +625,13 @@ def test_consulta_tolerates_typo_for_paz_y_salvo_query(client) -> None:
     assert "paz y salvo" in data["tramite_principal"]["nombre"].lower()
 
 
-def test_consulta_persists_log_entry_when_logging_is_enabled(client, test_slug_prefix) -> None:
+def test_consulta_persists_log_entry_when_logging_is_enabled(client, admin_headers, test_slug_prefix) -> None:
     app.state.disable_consulta_logging = False
     question = "test-log-carro"
 
     create_test_tramite(
         client,
+        admin_headers,
         f"{test_slug_prefix}-vehicular-log",
         nombre=f"Impuesto vehicular {test_slug_prefix}",
         descripcion="Gestion del impuesto vehicular para carros y motos dentro del catalogo tributario del asistente.",
@@ -636,7 +661,7 @@ def test_consulta_persists_log_entry_when_logging_is_enabled(client, test_slug_p
         app.state.disable_consulta_logging = True
 
 
-def test_admin_can_list_recent_consulta_logs(client) -> None:
+def test_admin_can_list_recent_consulta_logs(client, admin_headers) -> None:
     app.state.disable_consulta_logging = False
     question = "test-log-impuestos"
 
@@ -646,7 +671,7 @@ def test_admin_can_list_recent_consulta_logs(client) -> None:
             json={"pregunta": question},
         )
 
-        response = client.get("/api/admin/consultas")
+        response = client.get("/api/admin/consultas", headers=admin_headers)
 
         assert response.status_code == 200
         data = response.json()

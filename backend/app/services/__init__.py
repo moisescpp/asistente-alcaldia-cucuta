@@ -1,3 +1,9 @@
+from app.services.admin_auth_service import (
+    create_admin_session_token,
+    decode_admin_session_token,
+    require_admin_session,
+    verify_admin_pin,
+)
 from app.services.embedding_service import (
     build_tramite_embedding_text,
     generate_embedding,
@@ -16,6 +22,8 @@ from app.services.tramite_quality_service import (
 )
 
 __all__ = [
+    "create_admin_session_token",
+    "decode_admin_session_token",
     "build_tramite_embedding_text",
     "generate_embedding",
     "get_tramite_semantic_aliases",
@@ -23,7 +31,9 @@ __all__ = [
     "list_recent_consulta_logs",
     "log_consulta_result",
     "process_consulta",
+    "require_admin_session",
     "assess_tramite_quality",
     "update_tramite_embedding",
     "validate_tramite_payload",
+    "verify_admin_pin",
 ]

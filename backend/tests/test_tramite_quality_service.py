@@ -40,7 +40,9 @@ def test_quality_report_recognizes_hacienda_context_from_dependency_and_requirem
     report = assess_tramite_quality(build_payload())
 
     assert report.score >= 80
+    assert report.scope_status == "tributario"
     assert not any("rentas e impuestos" in alert for alert in report.alerts)
+    assert "base semantica" in report.recommended_action.lower()
 
 
 def test_quality_report_flags_out_of_scope_catalog_entries() -> None:
@@ -61,3 +63,5 @@ def test_quality_report_flags_out_of_scope_catalog_entries() -> None:
     )
 
     assert any("rentas e impuestos" in alert for alert in report.alerts)
+    assert report.scope_status == "fuera_de_foco"
+    assert "catalogo institucional" in report.recommended_action.lower()

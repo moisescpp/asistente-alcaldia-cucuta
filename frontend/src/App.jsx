@@ -58,6 +58,18 @@ function App() {
   const [slugTouched, setSlugTouched] = useState(false)
   const [adminSearch, setAdminSearch] = useState('')
   const [adminDependency, setAdminDependency] = useState('todas')
+  const [adminToken, setAdminToken] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return window.sessionStorage.getItem('admin-access-token') ?? ''
+  })
+  const [adminPin, setAdminPin] = useState('')
+  const [adminAuthError, setAdminAuthError] = useState('')
+  const [adminAuthBusy, setAdminAuthBusy] = useState(false)
+  const [adminAuthenticated, setAdminAuthenticated] = useState(false)
+  const [adminSessionChecked, setAdminSessionChecked] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return !(window.sessionStorage.getItem('admin-access-token') ?? '')
+  })
 
   const isDarkTheme = theme === 'dark'
   const dependencyOptions = buildDependencyOptions(tramites)
@@ -91,10 +103,116 @@ function App() {
   }, [theme])
 
   useEffect(() => {
-    if (view === 'admin' && (!hasLoadedConsultaLogs || consultaLogsStale)) {
-      refreshConsultaLogs()
+    if (
+      view !== 'admin' ||
+      !adminAuthenticated ||
+      (hasLoadedConsultaLogs && !consultaLogsStale)
+    ) {
+      return
     }
-  }, [view, hasLoadedConsultaLogs, consultaLogsStale])
+
+    let isCancelled = false
+
+    async function loadAdminLogs() {
+      setLoadingConsultaLogs(true)
+      setConsultaLogsError('')
+      try {
+        const response = await fetch(`${API_URL}/admin/consultas`, {
+          headers: { Authorization: `Bearer ${adminToken}` },
+        })
+
+        if (response.status === 401) {
+          clearAdminSession('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
+          throw new Error('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
+        }
+
+        if (!response.ok) {
+          throw new Error('No fue posible cargar la actividad reciente del asistente.')
+        }
+
+        const data = await response.json()
+        if (isCancelled) return
+        setConsultaLogs(data)
+        setHasLoadedConsultaLogs(true)
+        setConsultaLogsStale(false)
+      } catch (error) {
+        if (isCancelled) return
+        setConsultaLogsError(
+          error instanceof Error
+            ? error.message
+            : 'Ocurrio un error al consultar la actividad del asistente.',
+        )
+      } finally {
+        if (!isCancelled) {
+          setLoadingConsultaLogs(false)
+        }
+      }
+    }
+
+    loadAdminLogs()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [view, adminAuthenticated, hasLoadedConsultaLogs, consultaLogsStale, adminToken])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (adminToken) {
+      window.sessionStorage.setItem('admin-access-token', adminToken)
+      return
+    }
+    window.sessionStorage.removeItem('admin-access-token')
+  }, [adminToken])
+
+  useEffect(() => {
+    if (!adminToken) {
+      setAdminAuthenticated(false)
+      setAdminSessionChecked(true)
+      return
+    }
+
+    let isCancelled = false
+
+    async function checkAdminSession() {
+      setAdminSessionChecked(false)
+      try {
+        const response = await fetch(`${API_URL}/admin/session`, {
+          headers: { Authorization: `Bearer ${adminToken}` },
+        })
+
+        if (response.status === 401) {
+          if (!isCancelled) {
+            clearAdminSession('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
+          }
+          return
+        }
+
+        if (!response.ok) {
+          throw new Error('No fue posible validar la sesion administrativa.')
+        }
+
+        if (!isCancelled) {
+          setAdminAuthenticated(true)
+          setAdminAuthError('')
+        }
+      } catch {
+        if (!isCancelled) {
+          clearAdminSession('No fue posible validar el acceso privado del panel admin.')
+        }
+      } finally {
+        if (!isCancelled) {
+          setAdminSessionChecked(true)
+        }
+      }
+    }
+
+    checkAdminSession()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [adminToken])
 
   async function refreshTramites() {
     setLoadingTramites(true)
@@ -110,11 +228,101 @@ function App() {
     }
   }
 
-  async function refreshConsultaLogs() {
+  function openAdminView() {
+    setView('admin')
+    setAdminAuthError('')
+  }
+
+  function clearAdminSession(message = '') {
+    setAdminToken('')
+    setAdminAuthenticated(false)
+    setAdminSessionChecked(true)
+    setAdminPin('')
+    setConsultaLogs([])
+    setHasLoadedConsultaLogs(false)
+    setConsultaLogsStale(false)
+    if (message) {
+      setAdminAuthError(message)
+    }
+  }
+
+  async function fetchAdmin(endpoint, options = {}, tokenOverride = adminToken) {
+    if (!tokenOverride) {
+      throw new Error('Debes ingresar el PIN administrativo para continuar.')
+    }
+
+    const headers = {
+      ...(options.headers ?? {}),
+      Authorization: `Bearer ${tokenOverride}`,
+    }
+
+    const response = await fetch(endpoint, {
+      ...options,
+      headers,
+    })
+
+    if (response.status === 401) {
+      clearAdminSession('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
+      throw new Error('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
+    }
+
+    return response
+  }
+
+  async function handleAdminUnlock(event) {
+    event.preventDefault()
+    const cleanedPin = adminPin.trim()
+    if (!cleanedPin) {
+      setAdminAuthError('Ingresa el PIN administrativo para abrir este apartado privado.')
+      return
+    }
+
+    setAdminAuthBusy(true)
+    setAdminAuthError('')
+    try {
+      const response = await fetch(`${API_URL}/admin/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ pin: cleanedPin }),
+      })
+
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(data?.detail || 'No fue posible abrir la sesion administrativa.')
+      }
+
+      setAdminToken(data.access_token)
+      setAdminAuthenticated(true)
+      setAdminSessionChecked(true)
+      setAdminPin('')
+      setAdminMessage('Acceso privado habilitado para el panel administrativo.')
+      setAdminError('')
+      await refreshConsultaLogs(data.access_token)
+    } catch (error) {
+      setAdminAuthError(
+        error instanceof Error ? error.message : 'No fue posible abrir la sesion administrativa.',
+      )
+    } finally {
+      setAdminAuthBusy(false)
+    }
+  }
+
+  function handleAdminLogout() {
+    clearAdminSession('')
+    setAdminMessage('Sesion administrativa cerrada.')
+    setAdminError('')
+  }
+
+  async function refreshConsultaLogs(tokenOverride = adminToken) {
+    if (!tokenOverride) {
+      setLoadingConsultaLogs(false)
+      return
+    }
+
     setLoadingConsultaLogs(true)
     setConsultaLogsError('')
     try {
-      const response = await fetch(`${API_URL}/admin/consultas`)
+      const response = await fetchAdmin(`${API_URL}/admin/consultas`, {}, tokenOverride)
       if (!response.ok) throw new Error('No fue posible cargar la actividad reciente del asistente.')
       setConsultaLogs(await response.json())
       setHasLoadedConsultaLogs(true)
@@ -232,7 +440,7 @@ function App() {
     const method = editingId ? 'PUT' : 'POST'
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetchAdmin(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
         body: JSON.stringify(payload),
@@ -267,7 +475,7 @@ function App() {
     setAdminError('')
     setAdminMessage('')
     try {
-      const response = await fetch(`${API_URL}/admin/tramites/${tramite.id}`, { method: 'DELETE' })
+      const response = await fetchAdmin(`${API_URL}/admin/tramites/${tramite.id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('No fue posible desactivar el tramite.')
       await refreshTramites()
       if (editingId === tramite.id) handleResetForm()
@@ -304,7 +512,7 @@ function App() {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setView('admin')}
+                onClick={openAdminView}
                 aria-label="Abrir panel interno"
                 className={`inline-flex h-14 w-14 items-center justify-center rounded-2xl border transition ${
                   isDarkTheme
@@ -463,6 +671,16 @@ function App() {
                 <Callout />
               </aside>
             </div>
+          ) : !adminSessionChecked ? (
+            <LoadingPanel title="Validando acceso privado" />
+          ) : !adminAuthenticated ? (
+            <AdminAccessPanel
+              pin={adminPin}
+              onPinChange={setAdminPin}
+              onSubmit={handleAdminUnlock}
+              isBusy={adminAuthBusy}
+              error={adminAuthError}
+            />
           ) : (
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)]">
               <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
@@ -474,9 +692,18 @@ function App() {
                       Este formulario ya crea y actualiza tramites reales. En esta fase lo usamos para mantener coherencia entre la base administrativa y la experiencia de consulta ciudadana.
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Endpoints usados</p>
-                    <p className="text-sm font-semibold text-slate-700">POST / PUT / DELETE</p>
+                  <div className="flex flex-col items-end gap-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Sesion privada</p>
+                      <p className="text-sm font-semibold text-slate-700">Panel desbloqueado</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAdminLogout}
+                      className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                    >
+                      Cerrar acceso privado
+                    </button>
                   </div>
                 </div>
 
@@ -549,6 +776,9 @@ function App() {
                     ) : (
                       <p className="mt-3 text-sm text-emerald-700">El tramite ya tiene una base bastante buena para consultas ciudadanas.</p>
                     )}
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      Accion sugerida: <span className="font-medium text-slate-800">{draftQualityReport.recommendedAction}</span>
+                    </p>
                   </div>
                   <div className="md:col-span-2">
                     <div className="flex flex-wrap items-center gap-3">
@@ -624,6 +854,9 @@ function App() {
                     <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
                       En riesgo {qualitySummary.warning}
                     </span>
+                    <span className="rounded-full border border-rose-200 bg-white px-3 py-1 text-rose-700">
+                      Fuera de foco {qualitySummary.outOfScope}
+                    </span>
                     <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
                       Fuertes {qualitySummary.strong}
                     </span>
@@ -653,7 +886,7 @@ function App() {
                           Prioridad para fortalecer el catalogo
                         </h4>
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                          Estos tramites tienen la señal semántica más débil en este momento. Si mejoramos su descripción, requisitos o fuente oficial, el asistente responderá con más precisión.
+                          Aqui juntamos los tramites mas fragiles o fuera de foco. Si mejoramos descripcion, requisitos o fuente oficial, el asistente respondera con mas precision y menos desvio.
                         </p>
                       </div>
                       <span className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
@@ -666,9 +899,11 @@ function App() {
                         <article key={`weak-${tramite.id}`} className="rounded-3xl border border-amber-200 bg-white px-4 py-4">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
-                              report.level === 'critico'
+                              report.scopeStatus === 'fuera_de_foco'
                                 ? 'border-rose-200 bg-rose-50 text-rose-700'
-                                : 'border-amber-200 bg-amber-50 text-amber-700'
+                                : report.level === 'critico'
+                                  ? 'border-rose-200 bg-rose-50 text-rose-700'
+                                  : 'border-amber-200 bg-amber-50 text-amber-700'
                             }`}>
                               {humanizeQualityLevel(report.level)} · {report.score}
                             </span>
@@ -682,6 +917,11 @@ function App() {
                           <p className="mt-2 text-xs leading-5 text-slate-500">
                             {cleanDependencyLabel(tramite.dependencia)}
                           </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${scopeBadgeClassName(report.scopeStatus)}`}>
+                              {humanizeScopeStatus(report.scopeStatus)}
+                            </span>
+                          </div>
                           {report.alerts.length ? (
                             <ul className="mt-3 space-y-2">
                               {report.alerts.slice(0, 2).map((alert) => (
@@ -691,6 +931,9 @@ function App() {
                               ))}
                             </ul>
                           ) : null}
+                          <p className="mt-3 text-sm leading-6 text-slate-700">
+                            {report.recommendedAction}
+                          </p>
                         </article>
                       ))}
                     </div>
@@ -862,6 +1105,11 @@ function assessFrontendTramiteQuality(tramite) {
     level,
     alerts: [...new Set(alerts)].slice(0, 5),
     blockingIssues: [...new Set(blockingIssues)],
+    scopeStatus: dependency.trim() ? 'tributario' : 'sin_contexto',
+    recommendedAction:
+      dependency.trim()
+        ? 'Refuerza descripcion, requisitos y fuente oficial si quieres mejorar la interpretacion ciudadana.'
+        : 'Completa la dependencia y el contexto tributario para clasificar mejor este tramite.',
   }
 }
 
@@ -879,6 +1127,8 @@ function getTramiteQualitySnapshot(tramite) {
         ? [...tramite.semantic_quality_alerts]
         : [],
       blockingIssues: [],
+      scopeStatus: tramite.semantic_scope_status ?? inferScopeStatusFromAlerts(tramite.semantic_quality_alerts),
+      recommendedAction: tramite.semantic_recommended_action ?? '',
     }
   }
 
@@ -892,9 +1142,10 @@ function summarizeTramiteQuality(tramites) {
       if (report.level === 'critico') summary.critical += 1
       else if (report.level === 'en_riesgo') summary.warning += 1
       else summary.strong += 1
+      if (report.scopeStatus === 'fuera_de_foco') summary.outOfScope += 1
       return summary
     },
-    { critical: 0, warning: 0, strong: 0 },
+    { critical: 0, warning: 0, strong: 0, outOfScope: 0 },
   )
 }
 
@@ -904,8 +1155,16 @@ function selectWeakestTramites(tramites) {
       tramite,
       report: getTramiteQualitySnapshot(tramite),
     }))
-    .filter(({ report }) => report.level === 'critico' || report.level === 'en_riesgo')
+    .filter(
+      ({ report }) =>
+        report.level === 'critico' ||
+        report.level === 'en_riesgo' ||
+        report.scopeStatus === 'fuera_de_foco',
+    )
     .sort((left, right) => {
+      if (left.report.scopeStatus !== right.report.scopeStatus) {
+        return left.report.scopeStatus === 'fuera_de_foco' ? -1 : 1
+      }
       if (left.report.score !== right.report.score) return left.report.score - right.report.score
       return left.tramite.nombre.localeCompare(right.tramite.nombre, 'es-CO', {
         sensitivity: 'base',
@@ -930,6 +1189,29 @@ function qualityToneClassName(level) {
   if (level === 'estable') return 'text-sky-700'
   if (level === 'en_riesgo') return 'text-amber-700'
   return 'text-rose-700'
+}
+
+function inferScopeStatusFromAlerts(alerts) {
+  if (!Array.isArray(alerts)) return 'sin_datos'
+  return alerts.some((alert) => String(alert).includes('rentas e impuestos'))
+    ? 'fuera_de_foco'
+    : 'tributario'
+}
+
+function humanizeScopeStatus(scopeStatus) {
+  const labels = {
+    tributario: 'En foco tributario',
+    fuera_de_foco: 'Fuera de foco',
+    sin_contexto: 'Falta contexto',
+    sin_datos: 'Sin clasificar',
+  }
+  return labels[scopeStatus] ?? scopeStatus
+}
+
+function scopeBadgeClassName(scopeStatus) {
+  if (scopeStatus === 'fuera_de_foco') return 'border-rose-200 bg-rose-50 text-rose-700'
+  if (scopeStatus === 'sin_contexto') return 'border-amber-200 bg-amber-50 text-amber-700'
+  return 'border-emerald-200 bg-emerald-50 text-emerald-700'
 }
 
 function buildQuickQuestions(tramites) {
@@ -1205,22 +1487,26 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
               </div>
 
               <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.78fr)]">
-                <div className="space-y-4">
+                <div className="grid gap-4">
                   {activeMatch.descripcion ? (
-                    <DetailCard
-                      label="Descripcion del tramite"
-                      value={activeMatch.descripcion}
-                      tone="slate"
-                    />
+                    <div className="order-2 lg:order-1">
+                      <DetailCard
+                        label="Descripcion del tramite"
+                        value={activeMatch.descripcion}
+                        tone="slate"
+                      />
+                    </div>
                   ) : null}
 
                   {activeMatch.requisitos ? (
-                    <DetailCard
-                      label="Requisitos clave"
-                      value={activeMatch.requisitos}
-                      tone="sky"
-                      asList
-                    />
+                    <div className="order-1 lg:order-2">
+                      <DetailCard
+                        label="Requisitos clave"
+                        value={activeMatch.requisitos}
+                        tone="sky"
+                        asList
+                      />
+                    </div>
                   ) : null}
 
                   {!activeMatch.descripcion && !activeMatch.requisitos ? (
@@ -1376,7 +1662,10 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                     ? 'Rutas sugeridas para seguir buscando'
                     : 'Sugerencias para continuar'}
               </p>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
+              <p className="mt-3 text-sm font-medium text-slate-700">
+                Elige una ruta y la usamos de inmediato.
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
                 {isTooGeneral
                   ? 'Tu pregunta necesita una pista más concreta. Estas opciones te ayudan a aterrizar la intención y llegar más rápido al trámite correcto.'
                   : isNoMatch
@@ -1525,33 +1814,33 @@ function StateActionPanel({ mode }) {
     ambigua: {
       badge: 'Consulta demasiado general',
       badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700',
-      title: 'Necesitamos una pista más específica',
+      title: 'Necesitamos una pista mas especifica',
       description:
-        'Todavía no conviene mostrar una ficha completa porque la consulta puede apuntar a varios trámites distintos.',
+        'Todavia no conviene mostrar una ficha completa porque la consulta puede apuntar a varios tramites distintos.',
       tips: [
-        'Menciona el impuesto o trámite concreto que necesitas.',
-        'Agrega una pista como predial, paz y salvo, industria y comercio o devolución.',
-        'Usa una de las sugerencias rápidas para aterrizar la intención.',
+        'Menciona el impuesto o tramite concreto que necesitas.',
+        'Agrega una pista como predial, paz y salvo, industria y comercio o devolucion.',
+        'Usa una de las sugerencias rapidas para aterrizar la intencion.',
       ],
     },
     sin_coincidencia: {
       badge: 'Sin coincidencia suficiente',
       badgeClassName: 'border-sky-200 bg-sky-50 text-sky-700',
-      title: 'No encontramos un trámite confiable todavía',
+      title: 'No encontramos un tramite confiable todavia',
       description:
-        'Preferimos no inventar una respuesta. Abajo te dejamos rutas cercanas para que llegues al trámite correcto con menos ensayo y error.',
+        'Preferimos no inventar una respuesta. Abajo te dejamos rutas cercanas para que llegues al tramite correcto con menos ensayo y error.',
       tips: [
-        'Prueba una consulta más concreta o enfocada en el impuesto.',
-        'Usa las sugerencias disponibles para acercarte al catálogo actual.',
-        'Si el trámite es nuevo, conviene revisar si su descripción quedó demasiado corta.',
+        'Prueba una consulta mas concreta o enfocada en el impuesto.',
+        'Usa las sugerencias disponibles para acercarte al catalogo actual.',
+        'Si el tramite es nuevo, conviene revisar si su descripcion quedo demasiado corta.',
       ],
     },
     informativa: {
-      badge: 'Consulta en revisión',
+      badge: 'Consulta en revision',
       badgeClassName: 'border-slate-200 bg-slate-50 text-slate-700',
-      title: 'Estamos guiando la siguiente acción',
+      title: 'Estamos guiando la siguiente accion',
       description:
-        'Todavía no hay una ficha principal visible, pero abajo tienes opciones cercanas para continuar la consulta.',
+        'Todavia no hay una ficha principal visible, pero abajo tienes opciones cercanas para continuar la consulta.',
       tips: [],
     },
   }
@@ -1570,9 +1859,12 @@ function StateActionPanel({ mode }) {
 
       {current.tips.length ? (
         <ul className="mt-4 grid gap-3 md:grid-cols-3">
-          {current.tips.map((tip) => (
+          {current.tips.map((tip, index) => (
             <li key={tip} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-700">
-              {tip}
+              <span className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-500">
+                {index + 1}
+              </span>
+              <p>{tip}</p>
             </li>
           ))}
         </ul>
@@ -1717,6 +2009,9 @@ function TramitesAdminList({
                 }`}>
                   {humanizeQualityLevel(qualityReport.level)} - {qualityReport.score}
                 </span>
+                <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${scopeBadgeClassName(qualityReport.scopeStatus)}`}>
+                  {humanizeScopeStatus(qualityReport.scopeStatus)}
+                </span>
               </div>
               <p className="text-sm text-slate-600">
                 {getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)}
@@ -1739,6 +2034,9 @@ function TramitesAdminList({
               ))}
             </div>
           ) : null}
+          <p className="mt-4 text-sm leading-6 text-slate-600">
+            Accion sugerida: <span className="font-medium text-slate-800">{qualityReport.recommendedAction}</span>
+          </p>
               </>
             )
           })()}
@@ -1973,7 +2271,9 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
                           <div className="flex flex-col items-start gap-3 sm:items-end">
                             <div className="text-right text-xs uppercase tracking-[0.18em] text-slate-500">
                               <p>{formatLogTime(log.created_at)}</p>
-                              <p className="mt-2">{humanizeResponseOrigin(log.origen_respuesta)}</p>
+                              <p className={`mt-2 inline-flex rounded-full border px-3 py-1 ${originBadgeClassName(log.origen_respuesta)}`}>
+                                {humanizeResponseOrigin(log.origen_respuesta)}
+                              </p>
                             </div>
                             <button
                               type="button"
@@ -1987,7 +2287,12 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
 
                         <div className="mt-5 flex flex-wrap gap-3">
                           <LogPill label="Resultados" value={String(log.total_resultados)} />
-                          <LogPill label="Origen" value={humanizeResponseOrigin(log.origen_respuesta)} />
+                          <LogPill
+                            label="Origen"
+                            value={humanizeResponseOrigin(log.origen_respuesta)}
+                            toneClassName={originPillClassName(log.origen_respuesta)}
+                            hint={describeResponseOrigin(log.origen_respuesta)}
+                          />
                           <LogPill label="Estado" value={shortStatusLabel(log.mensaje_estado)} />
                         </div>
 
@@ -2102,12 +2407,65 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
   )
 }
 
-function LogPill({ label, value }) {
+function LogPill({ label, value, hint = '', toneClassName = '' }) {
   return (
-    <div className="min-w-[11rem] rounded-2xl border border-slate-200 bg-white px-4 py-3">
+    <div className={`min-w-[11rem] rounded-2xl border border-slate-200 bg-white px-4 py-3 ${toneClassName}`}>
       <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</p>
       <p className="mt-2 text-sm font-medium leading-6 text-slate-800">{value}</p>
+      {hint ? <p className="mt-1 text-xs leading-5 text-slate-500">{hint}</p> : null}
     </div>
+  )
+}
+
+function AdminAccessPanel({ pin, onPinChange, onSubmit, isBusy, error }) {
+  return (
+    <section className="mx-auto max-w-3xl rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Acceso administrativo privado</p>
+          <h2 className="mt-2 text-3xl font-bold text-slate-950">Desbloquea el panel interno</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+            Este apartado ya no es solo visual: para crear, editar, desactivar tramites o revisar actividad interna necesitamos una sesion privada valida.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-right">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Proteccion activa</p>
+          <p className="text-sm font-semibold text-emerald-900">PIN + sesion temporal</p>
+        </div>
+      </div>
+
+      <form className="mt-8 space-y-4" onSubmit={onSubmit}>
+        <Field
+          label="PIN administrativo"
+          required
+          hint="Usamos una sesion privada temporal para que el acceso interno no quede expuesto."
+          error={error}
+        >
+          <input
+            type="password"
+            inputMode="numeric"
+            autoComplete="current-password"
+            className={fieldClassName(error)}
+            value={pin}
+            onChange={(event) => onPinChange(event.target.value)}
+            placeholder="Ingresa el PIN del panel admin"
+          />
+        </Field>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="submit"
+            disabled={isBusy}
+            className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
+          >
+            {isBusy ? 'Validando acceso...' : 'Abrir panel privado'}
+          </button>
+          <span className="text-sm text-slate-500">
+            Solo despues de validar el PIN se habilitan los endpoints administrativos.
+          </span>
+        </div>
+      </form>
+    </section>
   )
 }
 
@@ -2183,6 +2541,34 @@ function humanizeResponseOrigin(origin) {
   }
 
   return mapping[origin] ?? origin
+}
+
+function describeResponseOrigin(origin) {
+  const mapping = {
+    semantica: 'Entendio la intencion por contexto y similitud semantica.',
+    textual: 'Gano una coincidencia mas literal del catalogo.',
+    clarificacion: 'La consulta era amplia y el sistema prefirio pedir precision.',
+    sin_coincidencias: 'No encontro una ruta lo bastante confiable para responder.',
+    desconocido: 'Conviene revisar este caso porque no quedo clasificado.',
+  }
+
+  return mapping[origin] ?? 'Origen sin descripcion disponible.'
+}
+
+function originPillClassName(origin) {
+  if (origin === 'semantica') return 'border-emerald-200 bg-emerald-50/70'
+  if (origin === 'textual') return 'border-sky-200 bg-sky-50/70'
+  if (origin === 'clarificacion') return 'border-amber-200 bg-amber-50/70'
+  if (origin === 'sin_coincidencias') return 'border-slate-200 bg-slate-50'
+  return 'border-rose-200 bg-rose-50/70'
+}
+
+function originBadgeClassName(origin) {
+  if (origin === 'semantica') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  if (origin === 'textual') return 'border-sky-200 bg-sky-50 text-sky-700'
+  if (origin === 'clarificacion') return 'border-amber-200 bg-amber-50 text-amber-700'
+  if (origin === 'sin_coincidencias') return 'border-slate-200 bg-slate-100 text-slate-700'
+  return 'border-rose-200 bg-rose-50 text-rose-700'
 }
 
 function shortStatusLabel(messageStatus) {

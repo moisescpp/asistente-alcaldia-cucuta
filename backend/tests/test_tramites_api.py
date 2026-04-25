@@ -25,10 +25,33 @@ def build_payload(slug: str, **overrides) -> dict:
     return payload
 
 
-def test_create_tramite_returns_201_and_persists(client, test_slug_prefix) -> None:
-    payload = build_payload(f"{test_slug_prefix}-create")
+def test_admin_session_rejects_invalid_pin(client) -> None:
+    response = client.post("/api/admin/session", json={"pin": "000000"})
+
+    assert response.status_code == 401
+    assert "pin administrativo" in response.json()["detail"].lower()
+
+
+def test_admin_session_status_confirms_active_private_access(client, admin_headers) -> None:
+    response = client.get("/api/admin/session", headers=admin_headers)
+
+    assert response.status_code == 200
+    assert response.json() == {"authenticated": True}
+
+
+def test_admin_endpoints_require_authenticated_session(client, test_slug_prefix) -> None:
+    payload = build_payload(f"{test_slug_prefix}-locked")
 
     response = client.post("/api/admin/tramites", json=payload)
+
+    assert response.status_code == 401
+    assert "autenticarte" in response.json()["detail"].lower()
+
+
+def test_create_tramite_returns_201_and_persists(client, admin_headers, test_slug_prefix) -> None:
+    payload = build_payload(f"{test_slug_prefix}-create")
+
+    response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
 
     assert response.status_code == 201
     data = response.json()
@@ -37,69 +60,73 @@ def test_create_tramite_returns_201_and_persists(client, test_slug_prefix) -> No
     assert data["activo"] is True
     assert data["semantic_quality_score"] >= 70
     assert data["semantic_quality_level"] in {"estable", "fuerte"}
+    assert data["semantic_scope_status"] == "tributario"
+    assert data["semantic_recommended_action"]
 
 
-def test_update_tramite_returns_updated_payload(client, test_slug_prefix) -> None:
+def test_update_tramite_returns_updated_payload(client, admin_headers, test_slug_prefix) -> None:
     create_payload = build_payload(f"{test_slug_prefix}-update")
-    created = client.post("/api/admin/tramites", json=create_payload).json()
+    created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()
 
     update_payload = {
         "costo": "Costo sujeto a liquidacion vigente",
         "horario": "Jornada continua",
     }
 
-    response = client.put(f"/api/admin/tramites/{created['id']}", json=update_payload)
+    response = client.put(f"/api/admin/tramites/{created['id']}", json=update_payload, headers=admin_headers)
 
     assert response.status_code == 200
     data = response.json()
     assert data["costo"] == update_payload["costo"]
     assert data["horario"] == update_payload["horario"]
+    assert data["semantic_scope_status"] == "tributario"
 
 
-def test_create_tramite_rejects_generic_description(client, test_slug_prefix) -> None:
+def test_create_tramite_rejects_generic_description(client, admin_headers, test_slug_prefix) -> None:
     payload = build_payload(
         f"{test_slug_prefix}-generic-desc",
         descripcion="Consulta orientativa del tramite.",
     )
 
-    response = client.post("/api/admin/tramites", json=payload)
+    response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
 
     assert response.status_code == 422
     assert "descripcion" in response.json()["detail"].lower()
 
 
-def test_create_tramite_rejects_short_requirements(client, test_slug_prefix) -> None:
+def test_create_tramite_rejects_short_requirements(client, admin_headers, test_slug_prefix) -> None:
     payload = build_payload(
         f"{test_slug_prefix}-short-req",
         requisitos="Documento.",
     )
 
-    response = client.post("/api/admin/tramites", json=payload)
+    response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
 
     assert response.status_code == 422
     assert "requisitos" in response.json()["detail"].lower()
 
 
-def test_create_tramite_normalizes_dependency_spacing(client, test_slug_prefix) -> None:
+def test_create_tramite_normalizes_dependency_spacing(client, admin_headers, test_slug_prefix) -> None:
     payload = build_payload(
         f"{test_slug_prefix}-dep-normalize",
         dependencia="  Secretaria   de Hacienda   -   Rentas e Impuestos  ",
     )
 
-    response = client.post("/api/admin/tramites", json=payload)
+    response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
 
     assert response.status_code == 201
     data = response.json()
     assert data["dependencia"] == "Secretaria de Hacienda - Rentas e Impuestos"
 
 
-def test_update_tramite_normalizes_dependency_spacing(client, test_slug_prefix) -> None:
+def test_update_tramite_normalizes_dependency_spacing(client, admin_headers, test_slug_prefix) -> None:
     create_payload = build_payload(f"{test_slug_prefix}-dep-update")
-    created = client.post("/api/admin/tramites", json=create_payload).json()
+    created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()
 
     response = client.put(
         f"/api/admin/tramites/{created['id']}",
         json={"dependencia": "  Secretaria   de Hacienda   -   Rentas e Impuestos  "},
+        headers=admin_headers,
     )
 
     assert response.status_code == 200
@@ -109,12 +136,13 @@ def test_update_tramite_normalizes_dependency_spacing(client, test_slug_prefix) 
 
 def test_delete_tramite_marks_record_inactive_and_hides_from_public_list(
     client,
+    admin_headers,
     test_slug_prefix,
 ) -> None:
     create_payload = build_payload(f"{test_slug_prefix}-delete")
-    created = client.post("/api/admin/tramites", json=create_payload).json()
+    created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()
 
-    delete_response = client.delete(f"/api/admin/tramites/{created['id']}")
+    delete_response = client.delete(f"/api/admin/tramites/{created['id']}", headers=admin_headers)
 
     assert delete_response.status_code == 200
     assert delete_response.json()["activo"] is False
@@ -124,12 +152,12 @@ def test_delete_tramite_marks_record_inactive_and_hides_from_public_list(
     assert created["id"] not in listed_ids
 
 
-def test_create_tramite_reactivates_existing_inactive_record(client, test_slug_prefix) -> None:
+def test_create_tramite_reactivates_existing_inactive_record(client, admin_headers, test_slug_prefix) -> None:
     slug = f"{test_slug_prefix}-reactivate"
     create_payload = build_payload(slug, nombre=f"Test tramite reactivate {slug}")
-    created = client.post("/api/admin/tramites", json=create_payload).json()
+    created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()
 
-    delete_response = client.delete(f"/api/admin/tramites/{created['id']}")
+    delete_response = client.delete(f"/api/admin/tramites/{created['id']}", headers=admin_headers)
     assert delete_response.status_code == 200
 
     recreated_payload = build_payload(
@@ -140,7 +168,7 @@ def test_create_tramite_reactivates_existing_inactive_record(client, test_slug_p
             "la reactivacion administrativa del tramite tributario."
         ),
     )
-    recreate_response = client.post("/api/admin/tramites", json=recreated_payload)
+    recreate_response = client.post("/api/admin/tramites", json=recreated_payload, headers=admin_headers)
 
     assert recreate_response.status_code == 201
     recreated = recreate_response.json()
@@ -149,40 +177,41 @@ def test_create_tramite_reactivates_existing_inactive_record(client, test_slug_p
     assert recreated["descripcion"] == recreated_payload["descripcion"]
 
 
-def test_create_tramite_returns_409_for_active_duplicate_name(client, test_slug_prefix) -> None:
+def test_create_tramite_returns_409_for_active_duplicate_name(client, admin_headers, test_slug_prefix) -> None:
     payload = build_payload(f"{test_slug_prefix}-dup", nombre=f"Test tramite duplicate {test_slug_prefix}")
-    first_response = client.post("/api/admin/tramites", json=payload)
+    first_response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
     assert first_response.status_code == 201
 
     duplicate_payload = build_payload(f"{test_slug_prefix}-dup-2", nombre=payload["nombre"])
-    duplicate_response = client.post("/api/admin/tramites", json=duplicate_payload)
+    duplicate_response = client.post("/api/admin/tramites", json=duplicate_payload, headers=admin_headers)
 
     assert duplicate_response.status_code == 409
     assert "nombre" in duplicate_response.json()["detail"]
 
 
-def test_update_tramite_returns_409_for_duplicate_slug(client, test_slug_prefix) -> None:
+def test_update_tramite_returns_409_for_duplicate_slug(client, admin_headers, test_slug_prefix) -> None:
     first_payload = build_payload(f"{test_slug_prefix}-slug-a")
     second_payload = build_payload(f"{test_slug_prefix}-slug-b")
 
-    first = client.post("/api/admin/tramites", json=first_payload).json()
-    second = client.post("/api/admin/tramites", json=second_payload).json()
+    first = client.post("/api/admin/tramites", json=first_payload, headers=admin_headers).json()
+    second = client.post("/api/admin/tramites", json=second_payload, headers=admin_headers).json()
 
     response = client.put(
         f"/api/admin/tramites/{second['id']}",
         json={"slug": first["slug"]},
+        headers=admin_headers,
     )
 
     assert response.status_code == 409
     assert "slug" in response.json()["detail"]
 
 
-def test_reactivated_tramite_is_persisted_as_active_in_database(client, test_slug_prefix) -> None:
+def test_reactivated_tramite_is_persisted_as_active_in_database(client, admin_headers, test_slug_prefix) -> None:
     slug = f"{test_slug_prefix}-db-reactivate"
     payload = build_payload(slug, nombre=f"Test tramite db {slug}")
-    created = client.post("/api/admin/tramites", json=payload).json()
-    client.delete(f"/api/admin/tramites/{created['id']}")
-    client.post("/api/admin/tramites", json=payload)
+    created = client.post("/api/admin/tramites", json=payload, headers=admin_headers).json()
+    client.delete(f"/api/admin/tramites/{created['id']}", headers=admin_headers)
+    client.post("/api/admin/tramites", json=payload, headers=admin_headers)
 
     db = SessionLocal()
     try:
@@ -196,6 +225,7 @@ def test_reactivated_tramite_is_persisted_as_active_in_database(client, test_slu
 
 def test_create_tramite_attempts_embedding_sync(
     client,
+    admin_headers,
     test_slug_prefix,
     monkeypatch,
 ) -> None:
@@ -212,7 +242,7 @@ def test_create_tramite_attempts_embedding_sync(
         fake_update_tramite_embedding,
     )
 
-    response = client.post("/api/admin/tramites", json=payload)
+    response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
 
     assert response.status_code == 201
     assert sync_calls == [payload["slug"]]
@@ -220,6 +250,7 @@ def test_create_tramite_attempts_embedding_sync(
 
 def test_create_tramite_still_succeeds_if_embedding_sync_fails(
     client,
+    admin_headers,
     test_slug_prefix,
     monkeypatch,
 ) -> None:
@@ -234,7 +265,7 @@ def test_create_tramite_still_succeeds_if_embedding_sync_fails(
         fake_update_tramite_embedding,
     )
 
-    response = client.post("/api/admin/tramites", json=payload)
+    response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
 
     assert response.status_code == 201
     data = response.json()
@@ -243,6 +274,7 @@ def test_create_tramite_still_succeeds_if_embedding_sync_fails(
 
 def test_created_tramite_is_immediately_available_for_consulta(
     client,
+    admin_headers,
     test_slug_prefix,
 ) -> None:
     payload = build_payload(
@@ -254,7 +286,7 @@ def test_created_tramite_is_immediately_available_for_consulta(
         ),
     )
 
-    created_response = client.post("/api/admin/tramites", json=payload)
+    created_response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
     created = created_response.json()
 
     consulta_response = client.post(
@@ -272,6 +304,7 @@ def test_created_tramite_is_immediately_available_for_consulta(
 
 def test_updated_tramite_is_reflected_in_consulta_results(
     client,
+    admin_headers,
     test_slug_prefix,
 ) -> None:
     create_payload = build_payload(
@@ -282,7 +315,7 @@ def test_updated_tramite_is_reflected_in_consulta_results(
             "la actualizacion administrativa del tramite."
         ),
     )
-    created = client.post("/api/admin/tramites", json=create_payload).json()
+    created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()
 
     update_payload = {
         "nombre": f"Liquidacion definitiva {test_slug_prefix}",
@@ -294,6 +327,7 @@ def test_updated_tramite_is_reflected_in_consulta_results(
     update_response = client.put(
         f"/api/admin/tramites/{created['id']}",
         json=update_payload,
+        headers=admin_headers,
     )
     consulta_response = client.post(
         "/api/consulta",
@@ -311,6 +345,7 @@ def test_updated_tramite_is_reflected_in_consulta_results(
 
 def test_deactivated_tramite_is_no_longer_available_for_consulta(
     client,
+    admin_headers,
     test_slug_prefix,
 ) -> None:
     payload = build_payload(
@@ -321,9 +356,9 @@ def test_deactivated_tramite_is_no_longer_available_for_consulta(
             "desactivacion quite el tramite de la consulta ciudadana."
         ),
     )
-    created = client.post("/api/admin/tramites", json=payload).json()
+    created = client.post("/api/admin/tramites", json=payload, headers=admin_headers).json()
 
-    delete_response = client.delete(f"/api/admin/tramites/{created['id']}")
+    delete_response = client.delete(f"/api/admin/tramites/{created['id']}", headers=admin_headers)
     consulta_response = client.post(
         "/api/consulta",
         json={"pregunta": payload["nombre"]},

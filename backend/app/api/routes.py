@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -8,21 +8,30 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.database import get_db_session
 from app.models import Tramite
+from app.schemas.admin_session import (
+    AdminSessionRead,
+    AdminSessionRequest,
+    AdminSessionStatus,
+)
 from app.schemas.consulta_log import ConsultaLogRead
 from app.schemas.consulta import ConsultaRequest, ConsultaResponse
 from app.schemas.tramite import TramiteCreate, TramiteRead, TramiteUpdate
 from app.services import (
     assess_tramite_quality,
+    create_admin_session_token,
     list_recent_consulta_logs,
     log_consulta_result,
     process_consulta,
+    require_admin_session,
     update_tramite_embedding,
     validate_tramite_payload,
+    verify_admin_pin,
 )
 
 
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db_session)]
+AdminSession = Annotated[object, Depends(require_admin_session)]
 
 
 def _sync_tramite_embedding(db: Session, tramite: Tramite) -> None:
@@ -67,6 +76,8 @@ def _serialize_tramite(tramite: Tramite) -> TramiteRead:
             "semantic_quality_score": quality.score,
             "semantic_quality_level": quality.level,
             "semantic_quality_alerts": quality.alerts,
+            "semantic_scope_status": quality.scope_status,
+            "semantic_recommended_action": quality.recommended_action,
         }
     )
     return TramiteRead.model_validate(payload)
@@ -87,6 +98,34 @@ def health_check() -> dict[str, str]:
         "service": settings.app_name,
         "version": settings.app_version,
     }
+
+
+@router.post(
+    "/admin/session",
+    response_model=AdminSessionRead,
+    tags=["admin-auth"],
+)
+def create_admin_session(payload: AdminSessionRequest) -> AdminSessionRead:
+    if not verify_admin_pin(payload.pin):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="El PIN administrativo no es valido.",
+        )
+
+    access_token, expires_in_seconds = create_admin_session_token()
+    return AdminSessionRead(
+        access_token=access_token,
+        expires_in_seconds=expires_in_seconds,
+    )
+
+
+@router.get(
+    "/admin/session",
+    response_model=AdminSessionStatus,
+    tags=["admin-auth"],
+)
+def read_admin_session(_: AdminSession) -> AdminSessionStatus:
+    return AdminSessionStatus(authenticated=True)
 
 
 @router.get("/tramites", response_model=list[TramiteRead], tags=["tramites"])
@@ -129,7 +168,11 @@ def get_tramite_detail(tramite_id: int, db: DbSession) -> TramiteRead:
     status_code=201,
     tags=["admin-tramites"],
 )
-def create_tramite(payload: TramiteCreate, db: DbSession) -> TramiteRead:
+def create_tramite(
+    payload: TramiteCreate,
+    db: DbSession,
+    _: AdminSession,
+) -> TramiteRead:
     blocking_issues = validate_tramite_payload(payload.model_dump())
     if blocking_issues:
         raise HTTPException(status_code=422, detail=" ".join(blocking_issues))
@@ -207,6 +250,7 @@ def update_tramite(
     tramite_id: int,
     payload: TramiteUpdate,
     db: DbSession,
+    _: AdminSession,
 ) -> TramiteRead:
     try:
         tramite = db.get(Tramite, tramite_id)
@@ -285,7 +329,11 @@ def update_tramite(
     response_model=TramiteRead,
     tags=["admin-tramites"],
 )
-def delete_tramite(tramite_id: int, db: DbSession) -> TramiteRead:
+def delete_tramite(
+    tramite_id: int,
+    db: DbSession,
+    _: AdminSession,
+) -> TramiteRead:
     try:
         tramite = db.get(Tramite, tramite_id)
     except SQLAlchemyError as exc:
@@ -318,7 +366,10 @@ def delete_tramite(tramite_id: int, db: DbSession) -> TramiteRead:
     response_model=list[ConsultaLogRead],
     tags=["admin-consultas"],
 )
-def list_consulta_logs(db: DbSession) -> list[ConsultaLogRead]:
+def list_consulta_logs(
+    db: DbSession,
+    _: AdminSession,
+) -> list[ConsultaLogRead]:
     logs = list_recent_consulta_logs(db)
     return [ConsultaLogRead.model_validate(log) for log in logs]
 
