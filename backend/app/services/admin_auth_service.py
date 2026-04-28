@@ -48,8 +48,12 @@ def get_admin_session_remaining_seconds(claims: AdminSessionClaims) -> int:
     return max(claims.exp - int(time.time()), 0)
 
 
+def get_admin_session_ttl_seconds() -> int:
+    return max(settings.admin_session_ttl_minutes, 1) * 60
+
+
 def create_admin_session_token() -> tuple[str, int, int]:
-    ttl_seconds = max(settings.admin_session_ttl_minutes, 1) * 60
+    ttl_seconds = get_admin_session_ttl_seconds()
     expires_at = int(time.time()) + ttl_seconds
     claims = {
         "scope": "admin",
@@ -97,7 +101,16 @@ def decode_admin_session_token(token: str) -> AdminSessionClaims:
             detail="La sesion administrativa no tiene permisos suficientes.",
         )
 
-    if claims.exp <= int(time.time()):
+    remaining_seconds = get_admin_session_remaining_seconds(claims)
+    max_allowed_seconds = get_admin_session_ttl_seconds() + 5
+
+    if remaining_seconds <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="La sesion administrativa expiro. Vuelve a ingresar tu PIN.",
+        )
+
+    if remaining_seconds > max_allowed_seconds:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="La sesion administrativa expiro. Vuelve a ingresar tu PIN.",

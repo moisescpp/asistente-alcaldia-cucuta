@@ -1,6 +1,7 @@
 import app.api.routes as routes_module
 from app.database import SessionLocal
 from app.models import Tramite
+from app.services.admin_auth_service import create_admin_session_token
 
 
 def build_payload(slug: str, **overrides) -> dict:
@@ -49,6 +50,24 @@ def test_admin_session_status_confirms_active_private_access(client, admin_heade
     assert data["authenticated"] is True
     assert 0 < data["expires_in_seconds"] <= 300
     assert data["expires_at"] > 0
+
+
+def test_admin_session_status_rejects_legacy_long_lived_token(client) -> None:
+    original_ttl_minutes = routes_module.settings.admin_session_ttl_minutes
+    try:
+        routes_module.settings.admin_session_ttl_minutes = 600
+        legacy_token, _, _ = create_admin_session_token()
+        routes_module.settings.admin_session_ttl_minutes = 5
+
+        response = client.get(
+            "/api/admin/session",
+            headers={"Authorization": f"Bearer {legacy_token}"},
+        )
+    finally:
+        routes_module.settings.admin_session_ttl_minutes = original_ttl_minutes
+
+    assert response.status_code == 401
+    assert "expiro" in response.json()["detail"].lower()
 
 
 def test_admin_endpoints_require_authenticated_session(client, test_slug_prefix) -> None:

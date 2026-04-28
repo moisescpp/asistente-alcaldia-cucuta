@@ -41,10 +41,10 @@ Backend del asistente de tramites estrella de rentas e impuestos, actualmente en
 - registro de actividad del asistente con origen, estado y resultados;
 - estadisticas de preguntas para ayudar a mejorar el catalogo.
 
-## Punto de atencion actual
+## Nota de catalogo actual
 
 La auditoria actual del catalogo deja un hallazgo fuera de foco:
 
 - `ID 1158 - Duplicado de la licencia de tránsito de un vehículo automotor`
 
-No falla semanticamente, pero no muestra contexto claro de rentas e impuestos. Conviene revisarlo antes del cierre formal de la iteracion.
+No falla semanticamente, pero no muestra contexto claro de rentas e impuestos. Hoy se conserva solo como tramite de prueba y no como un bloqueo funcional del cierre.

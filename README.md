@@ -170,8 +170,7 @@ La iteracion ya deja una base casi cerrada para pasar a la siguiente fase:
 - sesion administrativa privada con cuenta regresiva visible y recuperacion del contexto de trabajo;
 - pruebas del backend, validacion RAG y auditoria del catalogo en verde.
 
-Punto de catalogo que aun conviene decidir antes del cierre formal:
+Nota de catalogo para pruebas:
 
 - `ID 1158 - Duplicado de la licencia de tránsito de un vehículo automotor`
-  - semanticamente fuerte, pero fuera del foco tributario de Hacienda;
-  - conviene moverlo, desactivarlo o dejarlo explicitamente fuera del alcance.
+  - hoy aparece como fuera de foco tributario, pero se mantiene solo como tramite de prueba y no como un bloqueo funcional de la iteracion.

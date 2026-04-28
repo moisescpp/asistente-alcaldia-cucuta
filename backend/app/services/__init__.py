@@ -3,6 +3,7 @@ from app.services.admin_auth_service import (
     create_admin_session_token,
     decode_admin_session_token,
     get_admin_session_remaining_seconds,
+    get_admin_session_ttl_seconds,
     require_admin_session,
     verify_admin_pin,
 )
@@ -30,6 +31,7 @@ __all__ = [
     "build_tramite_embedding_text",
     "generate_embedding",
     "get_admin_session_remaining_seconds",
+    "get_admin_session_ttl_seconds",
     "get_tramite_semantic_aliases",
     "infer_response_origin",
     "list_recent_consulta_logs",
