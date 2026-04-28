@@ -12,8 +12,6 @@ GENERIC_DESCRIPTION_PATTERNS = (
     "tramite de prueba",
     "sin descripcion",
     "no hay descripcion",
-    "tramite para",
-    "proceso para",
 )
 
 HACIENDA_KEYWORDS = {
@@ -56,6 +54,15 @@ def _normalize_text(value: str | None) -> str:
 def _word_count(value: str | None) -> int:
     normalized = _normalize_text(value)
     return len([token for token in normalized.split() if token])
+
+
+def _looks_like_weak_prefixed_description(normalized_description: str, word_count: int) -> bool:
+    return (
+        word_count < 12 and (
+            normalized_description.startswith("tramite para ")
+            or normalized_description.startswith("proceso para ")
+        )
+    )
 
 
 def _has_tax_context(payload: dict[str, Any]) -> bool:
@@ -129,7 +136,10 @@ def assess_tramite_quality(payload_or_tramite: Any) -> TramiteQualityReport:
         alerts.append("La descripcion todavia puede ser mas especifica.")
 
     normalized_description = _normalize_text(description)
-    if any(pattern in normalized_description for pattern in GENERIC_DESCRIPTION_PATTERNS):
+    if (
+        any(pattern in normalized_description for pattern in GENERIC_DESCRIPTION_PATTERNS)
+        or _looks_like_weak_prefixed_description(normalized_description, description_words)
+    ):
         score -= 18
         message = "La descripcion suena generica; explica mejor para que sirve el tramite."
         alerts.append(message)

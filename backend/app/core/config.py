@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     response_text_verbosity: str = "low"
     admin_access_pin: str = "246810"
     admin_session_secret: str = "cucuta-admin-session-secret"
-    admin_session_ttl_hours: int = 10
+    admin_session_ttl_minutes: int = 5
     database_url: str = (
         "postgresql+psycopg://postgres:postgres@localhost:5432/alcaldia_cucuta"
     )

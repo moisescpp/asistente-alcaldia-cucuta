@@ -46,8 +46,10 @@ La Iteracion 4 no busca rehacer la arquitectura base, sino **pulir la experienci
 - panel de actividad del asistente;
 - agrupacion por fecha y filtros por estado;
 - deteccion de patrones problematicos;
+- estadisticas visuales sobre como preguntan los ciudadanos;
+- alertas de impacto real para detectar tramites que conviene reforzar primero;
 - buscador y filtro por dependencia en el inventario de tramites;
-- acceso menos expuesto al admin desde la interfaz principal.
+- acceso privado al admin con PIN, sesion temporal visible y recuperacion del borrador tras recarga o expiracion.
 
 ## Mejoras laterales ya hechas pero no nucleares para Iteracion 4
 
@@ -72,8 +74,10 @@ Estas mejoras existen en el proyecto, pero **no se consideran el centro de la it
 - crear tramites;
 - editar tramites;
 - desactivar tramites;
+- proteger el acceso administrativo con una sesion temporal;
 - revisar consultas recientes del asistente;
 - analizar preguntas ambiguas, positivas y sin coincidencia;
+- revisar estadisticas de claridad y señales de catalogo debil;
 - reflejar automaticamente los cambios en la consulta del asistente.
 
 ## Endpoints principales
@@ -132,9 +136,10 @@ pytest -q
 
 Estado de validacion del entorno vigente:
 
-- `53 passed, 1 skipped` en `pytest -q`
+- `61 passed, 1 skipped` en `pytest -q`
 - `scripts\backfill_embeddings.py` ejecutado correctamente
 - `scripts\validate_rag_queries.py` superado con `0` fallos
+- `scripts\audit_tramite_quality.py` ejecutado correctamente
 
 ### Bateria funcional RAG
 
@@ -152,4 +157,21 @@ Cerrar la Iteracion 4 con una validacion funcional clara del flujo completo, ase
 - control de consultas ambiguas con guias utiles;
 - observabilidad real de las preguntas ciudadanas;
 - consistencia entre panel interno, base de datos y respuesta final;
+- seguridad administrativa visible sin perder continuidad de trabajo;
 - y una experiencia ciudadana mas clara sin perder honestidad sobre datos faltantes.
+
+## Sintesis corta de cierre de Iteracion 4
+
+La iteracion ya deja una base casi cerrada para pasar a la siguiente fase:
+
+- respuesta ciudadana mas clara, guiada y navegable;
+- recuperacion semantica y textual mas robusta para preguntas reales;
+- panel admin con actividad, estadisticas y alertas accionables;
+- sesion administrativa privada con cuenta regresiva visible y recuperacion del contexto de trabajo;
+- pruebas del backend, validacion RAG y auditoria del catalogo en verde.
+
+Punto de catalogo que aun conviene decidir antes del cierre formal:
+
+- `ID 1158 - Duplicado de la licencia de tránsito de un vehículo automotor`
+  - semanticamente fuerte, pero fuera del foco tributario de Hacienda;
+  - conviene moverlo, desactivarlo o dejarlo explicitamente fuera del alcance.

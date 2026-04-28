@@ -1,3 +1,4 @@
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -19,6 +20,8 @@ from app.schemas.tramite import TramiteCreate, TramiteRead, TramiteUpdate
 from app.services import (
     assess_tramite_quality,
     create_admin_session_token,
+    AdminSessionClaims,
+    get_admin_session_remaining_seconds,
     list_recent_consulta_logs,
     log_consulta_result,
     process_consulta,
@@ -31,7 +34,7 @@ from app.services import (
 
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db_session)]
-AdminSession = Annotated[object, Depends(require_admin_session)]
+AdminSession = Annotated[AdminSessionClaims, Depends(require_admin_session)]
 
 
 def _sync_tramite_embedding(db: Session, tramite: Tramite) -> None:
@@ -112,10 +115,11 @@ def create_admin_session(payload: AdminSessionRequest) -> AdminSessionRead:
             detail="El PIN administrativo no es valido.",
         )
 
-    access_token, expires_in_seconds = create_admin_session_token()
+    access_token, expires_in_seconds, expires_at = create_admin_session_token()
     return AdminSessionRead(
         access_token=access_token,
         expires_in_seconds=expires_in_seconds,
+        expires_at=expires_at,
     )
 
 
@@ -124,8 +128,12 @@ def create_admin_session(payload: AdminSessionRequest) -> AdminSessionRead:
     response_model=AdminSessionStatus,
     tags=["admin-auth"],
 )
-def read_admin_session(_: AdminSession) -> AdminSessionStatus:
-    return AdminSessionStatus(authenticated=True)
+def read_admin_session(claims: AdminSession) -> AdminSessionStatus:
+    return AdminSessionStatus(
+        authenticated=True,
+        expires_in_seconds=get_admin_session_remaining_seconds(claims),
+        expires_at=claims.exp,
+    )
 
 
 @router.get("/tramites", response_model=list[TramiteRead], tags=["tramites"])

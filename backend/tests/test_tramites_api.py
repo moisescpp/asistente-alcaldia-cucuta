@@ -32,11 +32,23 @@ def test_admin_session_rejects_invalid_pin(client) -> None:
     assert "pin administrativo" in response.json()["detail"].lower()
 
 
+def test_admin_session_returns_trial_ttl_metadata(client) -> None:
+    response = client.post("/api/admin/session", json={"pin": routes_module.settings.admin_access_pin})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["expires_in_seconds"] == 300
+    assert data["expires_at"] > 0
+
+
 def test_admin_session_status_confirms_active_private_access(client, admin_headers) -> None:
     response = client.get("/api/admin/session", headers=admin_headers)
 
     assert response.status_code == 200
-    assert response.json() == {"authenticated": True}
+    data = response.json()
+    assert data["authenticated"] is True
+    assert 0 < data["expires_in_seconds"] <= 300
+    assert data["expires_at"] > 0
 
 
 def test_admin_endpoints_require_authenticated_session(client, test_slug_prefix) -> None:

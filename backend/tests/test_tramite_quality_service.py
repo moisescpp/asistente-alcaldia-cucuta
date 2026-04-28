@@ -65,3 +65,16 @@ def test_quality_report_flags_out_of_scope_catalog_entries() -> None:
     assert any("rentas e impuestos" in alert for alert in report.alerts)
     assert report.scope_status == "fuera_de_foco"
     assert "catalogo institucional" in report.recommended_action.lower()
+
+
+def test_validate_tramite_payload_allows_specific_description_even_if_it_starts_with_tramite_para() -> None:
+    payload = build_payload(
+        descripcion=(
+            "Tramite para corregir o actualizar datos del impuesto predial cuando el "
+            "propietario detecta errores en identificacion del predio, titular o direccion."
+        ),
+    )
+
+    blocking_issues = validate_tramite_payload(payload)
+
+    assert not any("descripcion suena generica" in issue.lower() for issue in blocking_issues)

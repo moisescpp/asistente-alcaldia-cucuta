@@ -44,17 +44,22 @@ def verify_admin_pin(pin: str) -> bool:
     return hmac.compare_digest(cleaned_pin, expected_pin)
 
 
-def create_admin_session_token() -> tuple[str, int]:
-    ttl_seconds = max(settings.admin_session_ttl_hours, 1) * 3600
+def get_admin_session_remaining_seconds(claims: AdminSessionClaims) -> int:
+    return max(claims.exp - int(time.time()), 0)
+
+
+def create_admin_session_token() -> tuple[str, int, int]:
+    ttl_seconds = max(settings.admin_session_ttl_minutes, 1) * 60
+    expires_at = int(time.time()) + ttl_seconds
     claims = {
         "scope": "admin",
-        "exp": int(time.time()) + ttl_seconds,
+        "exp": expires_at,
     }
     payload_segment = _encode_segment(
         json.dumps(claims, separators=(",", ":"), sort_keys=True).encode("utf-8")
     )
     signature = _build_signature(payload_segment)
-    return f"{payload_segment}.{signature}", ttl_seconds
+    return f"{payload_segment}.{signature}", ttl_seconds, expires_at
 
 
 def decode_admin_session_token(token: str) -> AdminSessionClaims:

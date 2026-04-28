@@ -8,6 +8,9 @@ const FALLBACK_QUICK_QUESTIONS = [
   'Consulta por devolucion de pagos en exceso',
   'Consulta por industria y comercio',
 ]
+const ADMIN_TOKEN_STORAGE_KEY = 'admin-access-token'
+const ADMIN_SESSION_EXPIRES_AT_STORAGE_KEY = 'admin-session-expires-at'
+const ADMIN_WORKSPACE_STORAGE_KEY = 'admin-workspace-state'
 const EMPTY_FORM = {
   nombre: '',
   slug: '',
@@ -29,8 +32,23 @@ const EMPTY_ADMIN_ERRORS = {
   requisitos: '',
   fuente_url: '',
 }
+const FRONTEND_GENERIC_DESCRIPTION_PATTERNS = [
+  'consulta orientativa',
+  'tramite de prueba',
+  'sin descripcion',
+  'no hay descripcion',
+]
+const EMPTY_ADMIN_WORKSPACE = {
+  formData: EMPTY_FORM,
+  editingId: null,
+  slugTouched: false,
+  adminSearch: '',
+  adminDependency: 'todas',
+}
 
 function App() {
+  const storedAdminWorkspace = readStoredAdminWorkspace()
+  const storedAdminSessionExpiresAt = readStoredAdminSessionExpiresAt()
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'light'
     return window.localStorage.getItem('app-theme') ?? 'light'
@@ -48,27 +66,31 @@ function App() {
   const [consulta, setConsulta] = useState(null)
   const [consultaError, setConsultaError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState(EMPTY_FORM)
-  const [editingId, setEditingId] = useState(null)
+  const [formData, setFormData] = useState(storedAdminWorkspace.formData)
+  const [editingId, setEditingId] = useState(storedAdminWorkspace.editingId)
   const [adminError, setAdminError] = useState('')
   const [adminMessage, setAdminMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [adminFieldErrors, setAdminFieldErrors] = useState(EMPTY_ADMIN_ERRORS)
-  const [slugTouched, setSlugTouched] = useState(false)
-  const [adminSearch, setAdminSearch] = useState('')
-  const [adminDependency, setAdminDependency] = useState('todas')
+  const [slugTouched, setSlugTouched] = useState(storedAdminWorkspace.slugTouched)
+  const [adminSearch, setAdminSearch] = useState(storedAdminWorkspace.adminSearch)
+  const [adminDependency, setAdminDependency] = useState(storedAdminWorkspace.adminDependency)
   const [adminToken, setAdminToken] = useState(() => {
     if (typeof window === 'undefined') return ''
-    return window.sessionStorage.getItem('admin-access-token') ?? ''
+    return window.sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? ''
   })
+  const [adminSessionExpiresAt, setAdminSessionExpiresAt] = useState(storedAdminSessionExpiresAt)
+  const [adminTimeRemainingSeconds, setAdminTimeRemainingSeconds] = useState(() =>
+    getRemainingSeconds(storedAdminSessionExpiresAt),
+  )
   const [adminPin, setAdminPin] = useState('')
   const [adminAuthError, setAdminAuthError] = useState('')
   const [adminAuthBusy, setAdminAuthBusy] = useState(false)
   const [adminAuthenticated, setAdminAuthenticated] = useState(false)
   const [adminSessionChecked, setAdminSessionChecked] = useState(() => {
     if (typeof window === 'undefined') return true
-    return !(window.sessionStorage.getItem('admin-access-token') ?? '')
+    return !(window.sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? '')
   })
 
   const isDarkTheme = theme === 'dark'
@@ -87,7 +109,14 @@ function App() {
   const hasActiveAdminFilters = Boolean(normalizedAdminSearch) || adminDependency !== 'todas'
   const qualitySummary = summarizeTramiteQuality(tramites)
   const weakestTramites = selectWeakestTramites(tramites)
+  const catalogAttention = buildCatalogAttention(consultaLogs, tramites)
   const quickQuestions = buildQuickQuestions(tramites)
+  const hasRestorableAdminWorkspace = hasStoredAdminWorkspace({
+    formData,
+    editingId,
+    adminSearch,
+    adminDependency,
+  })
   const draftQualityReport = assessFrontendTramiteQuality({
     ...formData,
     dependencia: normalizeDependencySelection(formData.dependencia, dependencyOptions),
@@ -159,11 +188,59 @@ function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (adminToken) {
-      window.sessionStorage.setItem('admin-access-token', adminToken)
+      window.sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, adminToken)
       return
     }
-    window.sessionStorage.removeItem('admin-access-token')
+    window.sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY)
   }, [adminToken])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (adminSessionExpiresAt) {
+      window.sessionStorage.setItem(
+        ADMIN_SESSION_EXPIRES_AT_STORAGE_KEY,
+        String(adminSessionExpiresAt),
+      )
+      return
+    }
+    window.sessionStorage.removeItem(ADMIN_SESSION_EXPIRES_AT_STORAGE_KEY)
+  }, [adminSessionExpiresAt])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const snapshot = {
+      formData,
+      editingId,
+      slugTouched,
+      adminSearch,
+      adminDependency,
+    }
+    window.sessionStorage.setItem(ADMIN_WORKSPACE_STORAGE_KEY, JSON.stringify(snapshot))
+  }, [formData, editingId, slugTouched, adminSearch, adminDependency])
+
+  useEffect(() => {
+    if (!adminToken || !adminSessionExpiresAt) {
+      setAdminTimeRemainingSeconds(0)
+      return
+    }
+
+    const updateRemaining = () => {
+      const remaining = getRemainingSeconds(adminSessionExpiresAt)
+      setAdminTimeRemainingSeconds(remaining)
+      if (remaining <= 0) {
+        clearAdminSession(
+          'La sesion administrativa expiro. Tu borrador quedo guardado para retomarlo al volver a ingresar el PIN.',
+        )
+      }
+    }
+
+    updateRemaining()
+    const timerId = window.setInterval(updateRemaining, 1000)
+
+    return () => {
+      window.clearInterval(timerId)
+    }
+  }, [adminToken, adminSessionExpiresAt])
 
   useEffect(() => {
     if (!adminToken) {
@@ -192,9 +269,12 @@ function App() {
           throw new Error('No fue posible validar la sesion administrativa.')
         }
 
+        const data = await response.json()
+
         if (!isCancelled) {
           setAdminAuthenticated(true)
           setAdminAuthError('')
+          setAdminSessionExpiresAt(resolveSessionExpiryTimestamp(data))
         }
       } catch {
         if (!isCancelled) {
@@ -235,12 +315,15 @@ function App() {
 
   function clearAdminSession(message = '') {
     setAdminToken('')
+    setAdminSessionExpiresAt(null)
+    setAdminTimeRemainingSeconds(0)
     setAdminAuthenticated(false)
     setAdminSessionChecked(true)
     setAdminPin('')
     setConsultaLogs([])
     setHasLoadedConsultaLogs(false)
     setConsultaLogsStale(false)
+    setAdminMessage('')
     if (message) {
       setAdminAuthError(message)
     }
@@ -292,10 +375,16 @@ function App() {
       }
 
       setAdminToken(data.access_token)
+      setAdminSessionExpiresAt(resolveSessionExpiryTimestamp(data))
+      setAdminTimeRemainingSeconds(data.expires_in_seconds ?? 0)
       setAdminAuthenticated(true)
       setAdminSessionChecked(true)
       setAdminPin('')
-      setAdminMessage('Acceso privado habilitado para el panel administrativo.')
+      setAdminMessage(
+        hasRestorableAdminWorkspace
+          ? 'Acceso privado habilitado. Recuperamos tu contexto administrativo para que sigas donde ibas.'
+          : 'Acceso privado habilitado para el panel administrativo.',
+      )
       setAdminError('')
       await refreshConsultaLogs(data.access_token)
     } catch (error) {
@@ -513,8 +602,8 @@ function App() {
               <button
                 type="button"
                 onClick={openAdminView}
-                aria-label="Abrir panel interno"
-                className={`inline-flex h-14 w-14 items-center justify-center rounded-2xl border transition ${
+                aria-label="Abrir panel administrativo"
+                className={`inline-flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
                   isDarkTheme
                     ? 'border-slate-700 bg-slate-950/80 hover:border-slate-500 hover:bg-slate-950'
                     : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
@@ -533,6 +622,18 @@ function App() {
                   <path d="M18 20a6 6 0 0 0-12 0" />
                   <circle cx="12" cy="8" r="4" />
                 </svg>
+                <span className="text-left">
+                  <span className={`block text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                    isDarkTheme ? 'text-slate-400' : 'text-slate-500'
+                  }`}>
+                    Acceso privado
+                  </span>
+                  <span className={`block text-sm font-semibold ${
+                    isDarkTheme ? 'text-slate-100' : 'text-slate-800'
+                  }`}>
+                    Panel admin
+                  </span>
+                </span>
               </button>
               {view === 'admin' ? (
                 <button
@@ -680,6 +781,7 @@ function App() {
               onSubmit={handleAdminUnlock}
               isBusy={adminAuthBusy}
               error={adminAuthError}
+              hasRestorableWorkspace={hasRestorableAdminWorkspace}
             />
           ) : (
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)]">
@@ -693,9 +795,22 @@ function App() {
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-3">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Sesion privada</p>
-                      <p className="text-sm font-semibold text-slate-700">Panel desbloqueado</p>
+                    <div className={`rounded-2xl border px-4 py-3 text-right ${getSessionToneClassName(adminTimeRemainingSeconds).panel}`}>
+                      <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${getSessionToneClassName(adminTimeRemainingSeconds).eyebrow}`}>
+                        Sesion privada
+                      </p>
+                      <p className={`text-sm font-semibold ${getSessionToneClassName(adminTimeRemainingSeconds).label}`}>
+                        {formatSessionCountdown(adminTimeRemainingSeconds)}
+                      </p>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/70">
+                        <div
+                          className={`h-full rounded-full transition-all ${getSessionToneClassName(adminTimeRemainingSeconds).bar}`}
+                          style={{ width: `${getSessionProgress(adminTimeRemainingSeconds)}%` }}
+                        />
+                      </div>
+                      <p className={`mt-2 text-[11px] font-medium ${getSessionToneClassName(adminTimeRemainingSeconds).hint}`}>
+                        Si expira, conservamos tu borrador y filtros para retomarlos al reingresar.
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -718,6 +833,11 @@ function App() {
                   <span className="text-sm text-slate-500">
                     Los campos con <span className="font-semibold text-rose-500">*</span> son obligatorios.
                   </span>
+                  {hasRestorableAdminWorkspace ? (
+                    <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">
+                      Contexto recuperable activo
+                    </span>
+                  ) : null}
                 </div>
 
                 <form className="mt-8 grid gap-4 md:grid-cols-2" onSubmit={handleAdminSubmit}>
@@ -857,6 +977,9 @@ function App() {
                     <span className="rounded-full border border-rose-200 bg-white px-3 py-1 text-rose-700">
                       Fuera de foco {qualitySummary.outOfScope}
                     </span>
+                    <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sky-700">
+                      Con impacto real {catalogAttention.items.length}
+                    </span>
                     <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
                       Fuertes {qualitySummary.strong}
                     </span>
@@ -897,6 +1020,10 @@ function App() {
                     <div className="mt-4 grid gap-3 xl:grid-cols-3">
                       {weakestTramites.map(({ tramite, report }) => (
                         <article key={`weak-${tramite.id}`} className="rounded-3xl border border-amber-200 bg-white px-4 py-4">
+                          {(() => {
+                            const signal = catalogAttention.byId.get(tramite.id)
+                            return (
+                              <>
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
                               report.scopeStatus === 'fuera_de_foco'
@@ -931,9 +1058,22 @@ function App() {
                               ))}
                             </ul>
                           ) : null}
+                          {signal ? (
+                            <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">
+                                Impacto real en preguntas
+                              </p>
+                              <p className="mt-2 text-sm leading-6 text-rose-900">
+                                {signal.hits} senal(es) recientes. Ejemplo: "{signal.example}".
+                              </p>
+                            </div>
+                          ) : null}
                           <p className="mt-3 text-sm leading-6 text-slate-700">
                             {report.recommendedAction}
                           </p>
+                              </>
+                            )
+                          })()}
                         </article>
                       ))}
                     </div>
@@ -949,11 +1089,13 @@ function App() {
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   hasActiveFilters={hasActiveAdminFilters}
+                  catalogAttentionById={catalogAttention.byId}
                 />
               </section>
 
               <ConsultaActivityPanel
                 logs={consultaLogs}
+                tramites={tramites}
                 loading={loadingConsultaLogs || (!hasLoadedConsultaLogs && !consultaLogsError)}
                 error={consultaLogsError}
                 onRefresh={refreshConsultaLogs}
@@ -1058,13 +1200,15 @@ function assessFrontendTramiteQuality(tramite) {
     alerts.push('La descripcion puede ser mas especifica.')
   }
 
-  if (
-    normalizedDescription.includes('consulta orientativa') ||
-    normalizedDescription.includes('tramite de prueba') ||
-    normalizedDescription.includes('sin descripcion') ||
-    normalizedDescription.includes('no hay descripcion') ||
-    normalizedDescription.includes('tramite para')
-  ) {
+  const hasGenericPattern = FRONTEND_GENERIC_DESCRIPTION_PATTERNS.some((pattern) =>
+    normalizedDescription.includes(pattern),
+  )
+  const hasWeakPrefixedDescription =
+    descriptionWords < 12 &&
+    (normalizedDescription.startsWith('tramite para ') ||
+      normalizedDescription.startsWith('proceso para '))
+
+  if (hasGenericPattern || hasWeakPrefixedDescription) {
     score -= 18
     alerts.push('La descripcion sigue sonando generica.')
     blockingIssues.push('descripcion generica')
@@ -1817,6 +1961,8 @@ function StateActionPanel({ mode }) {
       title: 'Necesitamos una pista mas especifica',
       description:
         'Todavia no conviene mostrar una ficha completa porque la consulta puede apuntar a varios tramites distintos.',
+      promptGuide: 'Prueba una estructura corta como: impuesto + gestion + contexto.',
+      promptExample: 'Ejemplo: requisitos para paz y salvo predial',
       tips: [
         'Menciona el impuesto o tramite concreto que necesitas.',
         'Agrega una pista como predial, paz y salvo, industria y comercio o devolucion.',
@@ -1829,6 +1975,8 @@ function StateActionPanel({ mode }) {
       title: 'No encontramos un tramite confiable todavia',
       description:
         'Preferimos no inventar una respuesta. Abajo te dejamos rutas cercanas para que llegues al tramite correcto con menos ensayo y error.',
+      promptGuide: 'Reformula la consulta con el nombre del impuesto o la gestion esperada.',
+      promptExample: 'Ejemplo: devolucion de pagos en exceso del impuesto predial',
       tips: [
         'Prueba una consulta mas concreta o enfocada en el impuesto.',
         'Usa las sugerencias disponibles para acercarte al catalogo actual.',
@@ -1841,6 +1989,8 @@ function StateActionPanel({ mode }) {
       title: 'Estamos guiando la siguiente accion',
       description:
         'Todavia no hay una ficha principal visible, pero abajo tienes opciones cercanas para continuar la consulta.',
+      promptGuide: '',
+      promptExample: '',
       tips: [],
     },
   }
@@ -1856,6 +2006,16 @@ function StateActionPanel({ mode }) {
         <h4 className="mt-3 text-xl font-semibold text-slate-950">{current.title}</h4>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{current.description}</p>
       </div>
+
+      {current.promptGuide ? (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Como reformular mejor
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-700">{current.promptGuide}</p>
+          <p className="mt-2 text-sm font-medium leading-6 text-slate-900">{current.promptExample}</p>
+        </div>
+      ) : null}
 
       {current.tips.length ? (
         <ul className="mt-4 grid gap-3 md:grid-cols-3">
@@ -1967,6 +2127,7 @@ function TramitesAdminList({
   onEdit,
   onDelete,
   hasActiveFilters,
+  catalogAttentionById,
 }) {
   const dependencyOptions = buildDependencyOptions(tramites)
   if (loadingTramites) return <LoadingPanel title="Tramites disponibles" />
@@ -1991,6 +2152,7 @@ function TramitesAdminList({
           <article key={tramite.id} className={`rounded-3xl border px-5 py-5 ${editingId === tramite.id ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-slate-50'}`}>
             {(() => {
             const qualityReport = getTramiteQualitySnapshot(tramite)
+            const catalogSignal = catalogAttentionById?.get(tramite.id)
               return (
                 <>
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -2012,6 +2174,11 @@ function TramitesAdminList({
                 <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${scopeBadgeClassName(qualityReport.scopeStatus)}`}>
                   {humanizeScopeStatus(qualityReport.scopeStatus)}
                 </span>
+                {catalogSignal ? (
+                  <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700">
+                    Impacto real {catalogSignal.hits}
+                  </span>
+                ) : null}
               </div>
               <p className="text-sm text-slate-600">
                 {getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)}
@@ -2034,6 +2201,19 @@ function TramitesAdminList({
               ))}
             </div>
           ) : null}
+          {catalogSignal ? (
+            <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">
+                Senal desde preguntas reales
+              </p>
+              <p className="mt-2 text-sm leading-6 text-rose-900">
+                {catalogSignal.headline}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-rose-800">
+                Ejemplo: "{catalogSignal.example}"
+              </p>
+            </div>
+          ) : null}
           <p className="mt-4 text-sm leading-6 text-slate-600">
             Accion sugerida: <span className="font-medium text-slate-800">{qualityReport.recommendedAction}</span>
           </p>
@@ -2046,7 +2226,7 @@ function TramitesAdminList({
   )
 }
 
-function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = '' }) {
+function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, className = '' }) {
   const [expandedLogId, setExpandedLogId] = useState(null)
   const [statusFilter, setStatusFilter] = useState('todas')
   const [showAllLogs, setShowAllLogs] = useState(false)
@@ -2061,9 +2241,9 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
     : logs
   const stats = dateScopedLogs.reduce(
     (summary, log) => {
-      if (log.mensaje_estado === 'Coincidencias semanticas encontradas') summary.positivas += 1
-      else if (log.mensaje_estado === 'Consulta demasiado general') summary.ambiguas += 1
-      else summary.sinCoincidencia += 1
+      if (isPositiveLogStatus(log.mensaje_estado)) summary.positivas += 1
+      else if (isAmbiguousLogStatus(log.mensaje_estado)) summary.ambiguas += 1
+      else if (isNoMatchLogStatus(log.mensaje_estado)) summary.sinCoincidencia += 1
       return summary
     },
     { positivas: 0, ambiguas: 0, sinCoincidencia: 0 },
@@ -2072,6 +2252,48 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
   const visibleLogs = showAllLogs ? filteredLogs : filteredLogs.slice(0, 4)
   const groupedVisibleLogs = groupLogsByDate(visibleLogs)
   const problematicPatterns = buildProblematicPatterns(dateScopedLogs)
+  const questionInsights = buildQuestionInsights(dateScopedLogs, tramites)
+  const catalogAttention = buildCatalogAttention(dateScopedLogs, tramites)
+  const totalQuestionsInView = dateScopedLogs.length || 1
+  const questionInsightSeries = [
+    {
+      key: 'wellDetailed',
+      label: 'Bien detalladas',
+      value: questionInsights.wellDetailed,
+      tone: 'emerald',
+      description: 'Preguntas con contexto suficiente que el asistente resolvio bien.',
+      example: questionInsights.examples.wellDetailed,
+    },
+    {
+      key: 'tooGeneral',
+      label: 'Muy generales',
+      value: questionInsights.tooGeneral,
+      tone: 'amber',
+      description: 'Consultas amplias que necesitan una pista mas concreta del ciudadano.',
+      example: questionInsights.examples.tooGeneral,
+    },
+    {
+      key: 'possibleDescriptionGap',
+      label: 'Posible falta de descripcion',
+      value: questionInsights.possibleDescriptionGap,
+      tone: 'rose',
+      description: 'Preguntas razonables que no lograron una respuesta clara y conviene revisar contra el catalogo.',
+      example: questionInsights.examples.possibleDescriptionGap,
+    },
+    {
+      key: 'shortQuestions',
+      label: 'Preguntas cortas',
+      value: questionInsights.shortQuestions,
+      tone: 'slate',
+      description: 'Mensajes muy breves que suelen requerir apoyo de sugerencias o desambiguacion.',
+      example: questionInsights.examples.shortQuestions,
+    },
+  ]
+  const statusSeries = [
+    { key: 'positivas', label: 'Positivas', value: stats.positivas, tone: 'emerald' },
+    { key: 'ambiguas', label: 'Ambiguas', value: stats.ambiguas, tone: 'amber' },
+    { key: 'sinCoincidencia', label: 'Sin coincidencia', value: stats.sinCoincidencia, tone: 'slate' },
+  ]
   const filters = [
     { id: 'todas', label: 'Todas', count: dateScopedLogs.length },
     { id: 'positivas', label: 'Positivas', count: stats.positivas },
@@ -2148,11 +2370,108 @@ function ConsultaActivityPanel({ logs, loading, error, onRefresh, className = ''
         </div>
       ) : null}
 
+      {!loading && !error && logs.length && catalogAttention.items.length ? (
+        <div className="mb-6 rounded-3xl border border-rose-200 bg-[linear-gradient(180deg,#fff5f5_0%,#fffdfd_100%)] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700">
+                Tramites que estas preguntas estan golpeando
+              </p>
+              <h4 className="mt-2 text-lg font-semibold text-slate-950">
+                Revisiones sugeridas por actividad real
+              </h4>
+            </div>
+            <p className="max-w-2xl text-sm leading-6 text-slate-600">
+              Si una pregunta es razonable y aun asi termina ambigua o sin coincidencia, aqui te mostramos el tramite que mas conviene reforzar primero.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-3 xl:grid-cols-3">
+            {catalogAttention.items.map((item) => (
+              <article key={`attention-${item.tramite.id}`} className="rounded-3xl border border-rose-200 bg-white px-4 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">
+                    {item.hits} senal(es)
+                  </span>
+                  <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${scopeBadgeClassName(item.report.scopeStatus)}`}>
+                    {humanizeScopeStatus(item.report.scopeStatus)}
+                  </span>
+                </div>
+                <h5 className="mt-3 text-sm font-semibold leading-6 text-slate-950">
+                  {item.tramite.nombre}
+                </h5>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  {cleanDependencyLabel(item.tramite.dependencia)}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-slate-700">{item.headline}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Ejemplo: "{item.example}"
+                </p>
+                <p className="mt-3 text-sm leading-6 text-slate-800">
+                  Accion sugerida: <span className="font-medium">{item.recommendedAction}</span>
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {!loading && !error && logs.length ? (
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
           <MetricCard label="Positivas" value={String(stats.positivas)} tone="emerald" />
           <MetricCard label="Ambiguas" value={String(stats.ambiguas)} tone="amber" />
           <MetricCard label="Sin coincidencia" value={String(stats.sinCoincidencia)} tone="slate" />
+        </div>
+      ) : null}
+
+      {!loading && !error && logs.length ? (
+        <div className="mb-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Estadisticas de preguntas
+              </p>
+              <h4 className="mt-2 text-lg font-semibold text-slate-950">
+                Como estan preguntando los ciudadanos
+              </h4>
+            </div>
+            <p className="max-w-2xl text-sm leading-6 text-slate-500">
+              Aqui separamos preguntas bien detalladas, consultas generales y casos donde una pregunta razonable sigue sin respuesta clara, porque eso suele apuntar a una descripcion debil del tramite.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <QuestionInsightChart
+              total={totalQuestionsInView}
+              title="Distribucion visual del dia"
+              description="Esta barra resume de forma grafica como se repartieron las preguntas segun su nivel de claridad."
+              items={questionInsightSeries}
+            />
+
+            <div className="grid gap-3 xl:grid-cols-2">
+              {questionInsightSeries.map((item) => (
+                <QuestionInsightCard
+                  key={item.key}
+                  title={item.label}
+                  value={item.value}
+                  tone={item.tone}
+                  description={item.description}
+                  example={item.example}
+                  total={totalQuestionsInView}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <QuestionInsightChart
+              total={totalQuestionsInView}
+              title="Estado de respuesta del asistente"
+              description="Asi se repartieron los resultados entre respuestas positivas, consultas ambiguas y casos sin coincidencia."
+              items={statusSeries}
+              compact
+            />
+          </div>
         </div>
       ) : null}
 
@@ -2417,7 +2736,143 @@ function LogPill({ label, value, hint = '', toneClassName = '' }) {
   )
 }
 
-function AdminAccessPanel({ pin, onPinChange, onSubmit, isBusy, error }) {
+function QuestionInsightChart({ title, description, items, total, compact = false }) {
+  return (
+    <section className={`rounded-3xl border border-slate-200 bg-white ${compact ? 'p-4' : 'p-5'}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {title}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+          {total} preguntas
+        </span>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+        <div className={`flex ${compact ? 'h-4' : 'h-5'}`}>
+          {items.map((item) => (
+            <div
+              key={item.key}
+              className={chartSegmentClassName(item.tone)}
+              style={{ width: `${calculateInsightPercent(item.value, total)}%` }}
+              title={`${item.label}: ${item.value}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className={`mt-4 grid gap-3 ${compact ? 'md:grid-cols-3' : 'sm:grid-cols-2'}`}>
+        {items.map((item) => (
+          <div key={`legend-${item.key}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className={`h-3 w-3 rounded-full ${chartDotClassName(item.tone)}`} />
+                <span className="text-sm font-semibold text-slate-800">{item.label}</span>
+              </div>
+              <span className="text-sm font-black text-slate-950">{item.value}</span>
+            </div>
+            <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+              {calculateInsightPercent(item.value, total)}% del total
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function QuestionInsightCard({ title, value, description, example, tone, total }) {
+  const tones = {
+    emerald: {
+      card: 'border-emerald-200 bg-white',
+      badge: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      progress: 'bg-emerald-500',
+    },
+    amber: {
+      card: 'border-amber-200 bg-white',
+      badge: 'border-amber-200 bg-amber-50 text-amber-700',
+      progress: 'bg-amber-500',
+    },
+    rose: {
+      card: 'border-rose-200 bg-white',
+      badge: 'border-rose-200 bg-rose-50 text-rose-700',
+      progress: 'bg-rose-500',
+    },
+    slate: {
+      card: 'border-slate-200 bg-white',
+      badge: 'border-slate-200 bg-slate-50 text-slate-700',
+      progress: 'bg-slate-500',
+    },
+  }
+
+  const styles = tones[tone] ?? tones.slate
+
+  return (
+    <article className={`rounded-3xl border p-4 ${styles.card}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {title}
+          </p>
+          <p className="mt-3 text-3xl font-black text-slate-950">{value}</p>
+        </div>
+        <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${styles.badge}`}>
+          {calculateInsightPercent(value, total)}%
+        </span>
+      </div>
+      <div className="mt-4 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+        <div
+          className={`h-3 rounded-full ${styles.progress}`}
+          style={{ width: `${calculateInsightPercent(value, total)}%` }}
+        />
+      </div>
+      <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
+      {example ? (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Ejemplo reciente
+          </p>
+          <p className="mt-2 text-sm font-medium leading-6 text-slate-800">{example}</p>
+        </div>
+      ) : (
+        <p className="mt-4 text-xs leading-5 text-slate-500">
+          Todavia no hay un ejemplo reciente en esta fecha.
+        </p>
+      )}
+    </article>
+  )
+}
+
+function calculateInsightPercent(value, total) {
+  if (!total) return 0
+  return Math.round((value / total) * 100)
+}
+
+function chartSegmentClassName(tone) {
+  if (tone === 'emerald') return 'bg-emerald-500'
+  if (tone === 'amber') return 'bg-amber-500'
+  if (tone === 'rose') return 'bg-rose-500'
+  return 'bg-slate-500'
+}
+
+function chartDotClassName(tone) {
+  if (tone === 'emerald') return 'bg-emerald-500'
+  if (tone === 'amber') return 'bg-amber-500'
+  if (tone === 'rose') return 'bg-rose-500'
+  return 'bg-slate-500'
+}
+
+function AdminAccessPanel({
+  pin,
+  onPinChange,
+  onSubmit,
+  isBusy,
+  error,
+  hasRestorableWorkspace,
+}) {
   return (
     <section className="mx-auto max-w-3xl rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -2433,6 +2888,17 @@ function AdminAccessPanel({ pin, onPinChange, onSubmit, isBusy, error }) {
           <p className="text-sm font-semibold text-emerald-900">PIN + sesion temporal</p>
         </div>
       </div>
+
+      {hasRestorableWorkspace ? (
+        <div className="mt-6 rounded-3xl border border-sky-200 bg-sky-50 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+            Borrador protegido
+          </p>
+          <p className="mt-2 text-sm leading-6 text-sky-900">
+            Conservamos tu formulario, filtros y modo de edicion. Cuando abras de nuevo el panel privado retomaras exactamente donde ibas.
+          </p>
+        </div>
+      ) : null}
 
       <form className="mt-8 space-y-4" onSubmit={onSubmit}>
         <Field
@@ -2490,6 +2956,117 @@ function EmptyPanel({ title, body }) {
       </div>
     </div>
   )
+}
+
+function readStoredAdminSessionExpiresAt() {
+  if (typeof window === 'undefined') return null
+
+  const rawValue = window.sessionStorage.getItem(ADMIN_SESSION_EXPIRES_AT_STORAGE_KEY)
+  if (!rawValue) return null
+
+  const parsedValue = Number(rawValue)
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) return null
+
+  return parsedValue
+}
+
+function readStoredAdminWorkspace() {
+  if (typeof window === 'undefined') return EMPTY_ADMIN_WORKSPACE
+
+  const rawValue = window.sessionStorage.getItem(ADMIN_WORKSPACE_STORAGE_KEY)
+  if (!rawValue) return EMPTY_ADMIN_WORKSPACE
+
+  try {
+    const parsed = JSON.parse(rawValue)
+    return {
+      formData: {
+        ...EMPTY_FORM,
+        ...(parsed?.formData ?? {}),
+      },
+      editingId: Number.isInteger(parsed?.editingId) ? parsed.editingId : null,
+      slugTouched: Boolean(parsed?.slugTouched),
+      adminSearch: typeof parsed?.adminSearch === 'string' ? parsed.adminSearch : '',
+      adminDependency:
+        typeof parsed?.adminDependency === 'string' && parsed.adminDependency
+          ? parsed.adminDependency
+          : 'todas',
+    }
+  } catch {
+    return EMPTY_ADMIN_WORKSPACE
+  }
+}
+
+function hasStoredAdminWorkspace({ formData, editingId, adminSearch, adminDependency }) {
+  const hasMeaningfulFormData = Object.values(formData ?? {}).some((value) =>
+    typeof value === 'string' ? value.trim() : Boolean(value),
+  )
+
+  return (
+    hasMeaningfulFormData ||
+    Boolean(editingId) ||
+    Boolean((adminSearch ?? '').trim()) ||
+    adminDependency !== 'todas'
+  )
+}
+
+function resolveSessionExpiryTimestamp(sessionPayload) {
+  if (sessionPayload?.expires_at) {
+    return Number(sessionPayload.expires_at) * 1000
+  }
+
+  if (sessionPayload?.expires_in_seconds) {
+    return Date.now() + Number(sessionPayload.expires_in_seconds) * 1000
+  }
+
+  return null
+}
+
+function getRemainingSeconds(expiresAt) {
+  if (!expiresAt) return 0
+  return Math.max(Math.ceil((expiresAt - Date.now()) / 1000), 0)
+}
+
+function formatSessionCountdown(remainingSeconds) {
+  if (!remainingSeconds) return 'Sesion expirada'
+
+  const minutes = Math.floor(remainingSeconds / 60)
+  const seconds = remainingSeconds % 60
+  return `Tiempo restante ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function getSessionProgress(remainingSeconds) {
+  const trialWindowSeconds = 5 * 60
+  return Math.max(Math.min((remainingSeconds / trialWindowSeconds) * 100, 100), 0)
+}
+
+function getSessionToneClassName(remainingSeconds) {
+  if (remainingSeconds <= 60) {
+    return {
+      panel: 'border-rose-200 bg-rose-50',
+      eyebrow: 'text-rose-700',
+      label: 'text-rose-900',
+      bar: 'bg-rose-500',
+      hint: 'text-rose-700',
+    }
+  }
+
+  if (remainingSeconds <= 180) {
+    return {
+      panel: 'border-amber-200 bg-amber-50',
+      eyebrow: 'text-amber-700',
+      label: 'text-amber-900',
+      bar: 'bg-amber-500',
+      hint: 'text-amber-700',
+    }
+  }
+
+  return {
+    panel: 'border-emerald-200 bg-emerald-50',
+    eyebrow: 'text-emerald-700',
+    label: 'text-emerald-900',
+    bar: 'bg-emerald-500',
+    hint: 'text-emerald-700',
+  }
 }
 
 function Callout() {
@@ -2574,6 +3151,7 @@ function originBadgeClassName(origin) {
 function shortStatusLabel(messageStatus) {
   const mapping = {
     'Coincidencias semanticas encontradas': 'Coincidencia valida',
+    'Coincidencias encontradas': 'Coincidencia valida',
     'Consulta demasiado general': 'Falta precision',
     'Sin coincidencias en la base actual': 'Sin coincidencia',
   }
@@ -2583,9 +3161,9 @@ function shortStatusLabel(messageStatus) {
 
 function matchesLogFilter(log, filter) {
   if (filter === 'todas') return true
-  if (filter === 'positivas') return log.mensaje_estado === 'Coincidencias semanticas encontradas'
-  if (filter === 'ambiguas') return log.mensaje_estado === 'Consulta demasiado general'
-  if (filter === 'sin_coincidencia') return log.mensaje_estado === 'Sin coincidencias en la base actual'
+  if (filter === 'positivas') return isPositiveLogStatus(log.mensaje_estado)
+  if (filter === 'ambiguas') return isAmbiguousLogStatus(log.mensaje_estado)
+  if (filter === 'sin_coincidencia') return isNoMatchLogStatus(log.mensaje_estado)
   return true
 }
 
@@ -2622,6 +3200,281 @@ function buildProblematicPatterns(logs) {
     .slice(0, 3)
 }
 
+function buildQuestionInsights(logs, tramites = []) {
+  const summary = {
+    wellDetailed: 0,
+    tooGeneral: 0,
+    possibleDescriptionGap: 0,
+    shortQuestions: 0,
+    examples: {
+      wellDetailed: '',
+      tooGeneral: '',
+      possibleDescriptionGap: '',
+      shortQuestions: '',
+    },
+  }
+
+  logs.forEach((log) => {
+    const wordCount = countQuestionWords(log.pregunta)
+    const normalizedQuestion = (log.pregunta ?? '').trim()
+    const isPositive = isPositiveLogStatus(log.mensaje_estado)
+    const isGeneral = isAmbiguousLogStatus(log.mensaje_estado)
+    const isNoMatch = isNoMatchLogStatus(log.mensaje_estado)
+    const isWellDetailedQuestion = wordCount >= 5
+    const isShortQuestion = wordCount > 0 && wordCount <= 2
+
+    if (isPositive && isWellDetailedQuestion) {
+      summary.wellDetailed += 1
+      if (!summary.examples.wellDetailed) {
+        summary.examples.wellDetailed = normalizedQuestion
+      }
+    }
+
+    if (isGeneral) {
+      summary.tooGeneral += 1
+      if (!summary.examples.tooGeneral) {
+        summary.examples.tooGeneral = normalizedQuestion
+      }
+    }
+
+    const likelyCatalogCandidates = findLikelyTramitesForQuestion(normalizedQuestion, tramites)
+    const canBlameCatalog = likelyCatalogCandidates.some((candidate) => candidate.score >= 2)
+
+    if ((isNoMatch || isGeneral) && wordCount >= 4 && canBlameCatalog) {
+      summary.possibleDescriptionGap += 1
+      if (!summary.examples.possibleDescriptionGap) {
+        summary.examples.possibleDescriptionGap = normalizedQuestion
+      }
+    }
+
+    if (isShortQuestion) {
+      summary.shortQuestions += 1
+      if (!summary.examples.shortQuestions) {
+        summary.examples.shortQuestions = normalizedQuestion
+      }
+    }
+  })
+
+  return summary
+}
+
+function countQuestionWords(question) {
+  return (question ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length
+}
+
+function buildCatalogAttention(logs, tramites) {
+  const attentionById = new Map()
+
+  logs.forEach((log) => {
+    if (!isCatalogAttentionLog(log)) return
+
+    const candidates = findLikelyTramitesForQuestion(log.pregunta, tramites)
+      .filter((candidate) => candidate.score >= 2)
+      .slice(0, 3)
+
+    candidates.forEach((candidate, index) => {
+      const current = attentionById.get(candidate.tramite.id)
+      const weight = index === 0 ? 2 : 1
+
+      if (current) {
+        current.hits += weight
+        if (isNoMatchLogStatus(log.mensaje_estado)) current.noMatchCount += 1
+        if (isAmbiguousLogStatus(log.mensaje_estado)) current.ambiguityCount += 1
+        if (countQuestionWords(log.pregunta) >= 5) current.detailedMissCount += 1
+        return
+      }
+
+      attentionById.set(candidate.tramite.id, {
+        tramite: candidate.tramite,
+        report: getTramiteQualitySnapshot(candidate.tramite),
+        hits: weight,
+        noMatchCount: isNoMatchLogStatus(log.mensaje_estado) ? 1 : 0,
+        ambiguityCount: isAmbiguousLogStatus(log.mensaje_estado) ? 1 : 0,
+        detailedMissCount: countQuestionWords(log.pregunta) >= 5 ? 1 : 0,
+        example: log.pregunta,
+      })
+    })
+  })
+
+  const items = Array.from(attentionById.values())
+    .map((item) => {
+      const likelyCause =
+        item.report.scopeStatus === 'fuera_de_foco'
+          ? 'fuera_de_foco'
+          : item.report.level === 'critico' || item.report.level === 'en_riesgo'
+            ? 'catalogo_debil'
+            : item.noMatchCount >= item.ambiguityCount
+              ? 'falta_de_precision_del_catalogo'
+              : 'necesita_mas_claves_ciudadanas'
+
+      return {
+        ...item,
+        likelyCause,
+        headline: buildCatalogAttentionHeadline(item, likelyCause),
+        recommendedAction: buildCatalogAttentionAction(item, likelyCause),
+      }
+    })
+    .sort((left, right) => {
+      if (right.hits !== left.hits) return right.hits - left.hits
+      if (right.detailedMissCount !== left.detailedMissCount) {
+        return right.detailedMissCount - left.detailedMissCount
+      }
+      if (left.report.score !== right.report.score) return left.report.score - right.report.score
+      return left.tramite.nombre.localeCompare(right.tramite.nombre, 'es-CO', {
+        sensitivity: 'base',
+      })
+    })
+
+  const byId = new Map(items.map((item) => [item.tramite.id, item]))
+
+  return {
+    items: items.slice(0, 4),
+    byId,
+  }
+}
+
+function isCatalogAttentionLog(log) {
+  const isProblematicStatus =
+    isNoMatchLogStatus(log.mensaje_estado) ||
+    isAmbiguousLogStatus(log.mensaje_estado)
+
+  return isProblematicStatus && countQuestionWords(log.pregunta) >= 4
+}
+
+function isPositiveLogStatus(messageStatus) {
+  return (
+    messageStatus === 'Coincidencias semanticas encontradas' ||
+    messageStatus === 'Coincidencias encontradas'
+  )
+}
+
+function isAmbiguousLogStatus(messageStatus) {
+  return messageStatus === 'Consulta demasiado general'
+}
+
+function isNoMatchLogStatus(messageStatus) {
+  return messageStatus === 'Sin coincidencias en la base actual'
+}
+
+function findLikelyTramitesForQuestion(question, tramites) {
+  const questionTokens = extractMeaningfulTokens(question)
+
+  return tramites
+    .map((tramite) => {
+      const source = [
+        tramite.nombre,
+        tramite.descripcion,
+        tramite.requisitos,
+        tramite.dependencia,
+      ]
+        .filter(Boolean)
+        .join(' ')
+      const catalogTokens = extractMeaningfulTokens(source)
+      const overlap = questionTokens.filter((token) => catalogTokens.includes(token))
+      const score = new Set(overlap).size
+
+      return {
+        tramite,
+        score,
+      }
+    })
+    .filter((candidate) => candidate.score > 0)
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score
+      return left.tramite.nombre.localeCompare(right.tramite.nombre, 'es-CO', {
+        sensitivity: 'base',
+      })
+    })
+}
+
+function extractMeaningfulTokens(value) {
+  const stopwords = new Set([
+    'al',
+    'algo',
+    'ante',
+    'aqui',
+    'con',
+    'como',
+    'cual',
+    'cuanto',
+    'de',
+    'del',
+    'desde',
+    'donde',
+    'el',
+    'en',
+    'es',
+    'esta',
+    'este',
+    'hay',
+    'hoy',
+    'impuesto',
+    'la',
+    'las',
+    'lo',
+    'los',
+    'mas',
+    'mi',
+    'necesito',
+    'para',
+    'pero',
+    'por',
+    'que',
+    'quiero',
+    'se',
+    'ser',
+    'sin',
+    'sobre',
+    'tengo',
+    'tramite',
+    'una',
+    'uno',
+    'uso',
+    'ver',
+    'ya',
+  ])
+
+  return normalizeLooseText(value)
+    .split(/\s+/)
+    .map((token) => token.replace(/[^a-z0-9-]/g, '').trim())
+    .filter((token) => token.length >= 4 && !stopwords.has(token))
+}
+
+function buildCatalogAttentionHeadline(item, likelyCause) {
+  if (likelyCause === 'fuera_de_foco') {
+    return 'Las preguntas reales lo estan tocando, pero su contexto se ve fuera del foco tributario de Hacienda.'
+  }
+
+  if (likelyCause === 'catalogo_debil') {
+    return 'Las preguntas ciudadanas ya lo estan rozando y la ficha todavia necesita mas contexto para responder con firmeza.'
+  }
+
+  if (likelyCause === 'falta_de_precision_del_catalogo') {
+    return 'La gente pregunta con bastante contexto, pero el catalogo aun no devuelve una coincidencia suficientemente clara.'
+  }
+
+  return 'Las preguntas se acercan a este tramite, pero todavia hace falta mas lenguaje ciudadano para conectar mejor la intencion.'
+}
+
+function buildCatalogAttentionAction(item, likelyCause) {
+  if (likelyCause === 'fuera_de_foco') {
+    return 'Revisa si este tramite debe seguir en el panel de Hacienda o si conviene moverlo a otro catalogo institucional.'
+  }
+
+  if (likelyCause === 'catalogo_debil') {
+    return 'Fortalece descripcion, requisitos y fuente oficial con lenguaje ciudadano parecido al ejemplo detectado.'
+  }
+
+  if (likelyCause === 'falta_de_precision_del_catalogo') {
+    return 'Agrega a la descripcion palabras y escenarios reales de la consulta ciudadana para reducir los casos sin coincidencia.'
+  }
+
+  return 'Refuerza la descripcion con sinonimos ciudadanos y ejemplos de uso para que el asistente reconozca mejor la intencion.'
+}
+
 function normalizePatternQuestion(question) {
   return question
     .normalize('NFD')
@@ -2653,8 +3506,8 @@ function groupLogsByDate(logs) {
 }
 
 function getPatternSeverity(log) {
-  if (log.mensaje_estado === 'Consulta demasiado general') return 3
-  if (log.mensaje_estado === 'Sin coincidencias en la base actual') return 4
+  if (isAmbiguousLogStatus(log.mensaje_estado)) return 3
+  if (isNoMatchLogStatus(log.mensaje_estado)) return 4
   if (log.total_resultados > 1) return 2
   return 0
 }
@@ -2696,13 +3549,13 @@ function getConsultaStatusConfig(messageStatus) {
 }
 
 function getConsultaLogStatusConfig(messageStatus) {
-  if (messageStatus === 'Coincidencias semanticas encontradas') {
+  if (isPositiveLogStatus(messageStatus)) {
     return {
       badgeClassName: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     }
   }
 
-  if (messageStatus === 'Consulta demasiado general') {
+  if (isAmbiguousLogStatus(messageStatus)) {
     return {
       badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700',
     }

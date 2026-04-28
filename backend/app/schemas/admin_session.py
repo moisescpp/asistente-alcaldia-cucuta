@@ -14,7 +14,10 @@ class AdminSessionRead(BaseModel):
     access_token: str
     token_type: str = "Bearer"
     expires_in_seconds: int
+    expires_at: int
 
 
 class AdminSessionStatus(BaseModel):
     authenticated: bool
+    expires_in_seconds: int
+    expires_at: int

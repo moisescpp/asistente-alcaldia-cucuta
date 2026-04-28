@@ -1,14 +1,14 @@
 # Backend
 
-Base del backend para el asistente de tramites estrella de rentas e impuestos.
+Backend del asistente de tramites estrella de rentas e impuestos, actualmente enfocado en el cierre de la **Iteracion 4**.
 
 ## Estructura
 
 - `app/main.py`: punto de entrada de FastAPI.
 - `app/api/routes.py`: rutas base de la API.
 - `app/core/config.py`: configuracion de entorno.
-- `tests/`: pruebas iniciales.
-- `requirements.txt`: dependencias iniciales.
+- `tests/`: pruebas automatizadas del flujo administrativo, calidad semantica y consulta.
+- `requirements.txt`: dependencias del backend.
 
 ## Arranque esperado
 
@@ -27,14 +27,24 @@ Base del backend para el asistente de tramites estrella de rentas e impuestos.
 - entorno estandar actual: `backend/.venv`
 - version validada hoy en esta maquina: `Python 3.14.3`
 - validacion ejecutada:
-  - `pytest -q` -> `53 passed, 1 skipped`
+  - `pytest -q` -> `61 passed, 1 skipped`
   - `scripts\backfill_embeddings.py`
   - `scripts\validate_rag_queries.py` -> bateria superada
+  - `scripts\audit_tramite_quality.py` -> catalogo auditado
 
-## Objetivo de Iteracion 1
+## Capacidades activas al cierre de Iteracion 4
 
-Dejar listo el entorno base del backend para que en la siguiente iteracion podamos:
+- sesion administrativa privada con PIN y expiracion visible;
+- restauracion del borrador admin tras expiracion o recarga;
+- validacion semantica de tramites antes de crear o editar;
+- recuperacion semantica y textual para la consulta ciudadana;
+- registro de actividad del asistente con origen, estado y resultados;
+- estadisticas de preguntas para ayudar a mejorar el catalogo.
 
-- modelar tramites estrella,
-- conectar PostgreSQL,
-- y exponer los primeros endpoints del asistente.
+## Punto de atencion actual
+
+La auditoria actual del catalogo deja un hallazgo fuera de foco:
+
+- `ID 1158 - Duplicado de la licencia de tránsito de un vehículo automotor`
+
+No falla semanticamente, pero no muestra contexto claro de rentas e impuestos. Conviene revisarlo antes del cierre formal de la iteracion.
