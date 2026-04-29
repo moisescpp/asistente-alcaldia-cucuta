@@ -146,7 +146,7 @@ def _is_fuzzy_token_match(token: str, candidate: str) -> bool:
     if token == candidate:
         return True
 
-    if min(len(token), len(candidate)) < 5:
+    if min(len(token), len(candidate)) < 4:
         return False
 
     if token[0] != candidate[0]:
@@ -468,6 +468,10 @@ def _query_tokens(pregunta: str) -> list[str]:
 def _is_overly_generic_query(pregunta: str) -> bool:
     tokens = _query_tokens(pregunta)
     if not tokens:
+        return True
+
+    specific_tokens = _query_specific_tokens(pregunta)
+    if not specific_tokens:
         return True
 
     return len(tokens) == 1 and (

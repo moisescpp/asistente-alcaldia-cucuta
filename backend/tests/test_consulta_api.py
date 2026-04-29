@@ -359,6 +359,34 @@ def test_consulta_rejects_overly_generic_tax_query_with_typo(client) -> None:
     assert len(data["tramites_relacionados"]) >= 1
 
 
+def test_consulta_rejects_generic_multiword_query_even_with_typos(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "informacion de impuetos"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Consulta demasiado general"
+    assert data["tramite_principal"] is None
+    assert len(data["sugerencias"]) >= 1
+    assert len(data["tramites_relacionados"]) >= 1
+
+
+def test_consulta_rejects_generic_payment_phrase_without_specific_context(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "ayda con pagoss"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Consulta demasiado general"
+    assert data["tramite_principal"] is None
+    assert len(data["sugerencias"]) >= 1
+    assert len(data["tramites_relacionados"]) >= 1
+
+
 def test_consulta_rejects_overly_generic_payment_query(client) -> None:
     response = client.post(
         "/api/consulta",
@@ -367,9 +395,10 @@ def test_consulta_rejects_overly_generic_payment_query(client) -> None:
 
     assert response.status_code == 200
     data = response.json()
-    assert data["mensaje_estado"] == "Sin coincidencias en la base actual"
+    assert data["mensaje_estado"] == "Consulta demasiado general"
     assert data["tramite_principal"] is None
-    assert "Esta version del asistente esta enfocada en rentas e impuestos" in data["respuesta"]
+    assert len(data["sugerencias"]) >= 1
+    assert len(data["tramites_relacionados"]) >= 1
 
 
 def test_consulta_requests_more_specific_query_for_generic_public_term(client) -> None:
