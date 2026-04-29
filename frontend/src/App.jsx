@@ -1514,20 +1514,18 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
       ]
     : []
   const [selectedMatchId, setSelectedMatchId] = useState(null)
-  const defaultMatchId =
-    consulta?.tramite_principal?.id ?? consulta?.tramites_relacionados?.[0]?.id ?? null
+  const canPromoteVisibleMatch = Boolean(consulta?.tramite_principal)
+  const defaultMatchId = canPromoteVisibleMatch ? consulta?.tramite_principal?.id ?? null : null
   const activeMatchId = allMatches.some((tramite) => tramite.id === selectedMatchId)
     ? selectedMatchId
     : defaultMatchId
 
   const activeMatch =
-    allMatches.find((tramite) => tramite.id === activeMatchId) ??
-    consulta?.tramite_principal ??
-    consulta?.tramites_relacionados?.[0] ??
-    null
-  const secondaryMatches = activeMatch
+    (activeMatchId ? allMatches.find((tramite) => tramite.id === activeMatchId) : null) ??
+    (canPromoteVisibleMatch ? consulta?.tramite_principal ?? null : null)
+  const secondaryMatches = activeMatch && canPromoteVisibleMatch
     ? allMatches.filter((tramite) => tramite.id !== activeMatch.id)
-    : allMatches
+    : []
   const isViewingAlternative =
     Boolean(activeMatch && consulta?.tramite_principal) &&
     activeMatch.id !== consulta.tramite_principal.id
@@ -1606,7 +1604,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
             </div>
           </div>
 
-          {activeMatch ? (
+          {activeMatch && canPromoteVisibleMatch ? (
             <article className="rounded-[1.9rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-5 shadow-[0_12px_45px_-35px_rgba(15,23,42,0.35)]">
               <div className="flex flex-wrap items-start justify-between gap-4 rounded-[1.6rem] border border-slate-100 bg-[linear-gradient(135deg,#f8fafc_0%,#f1f5f9_100%)] px-5 py-5">
                 <div className="max-w-3xl">

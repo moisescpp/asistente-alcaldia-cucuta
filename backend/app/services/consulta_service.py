@@ -123,6 +123,10 @@ INTENT_QUERY_TOKENS = {
 }
 
 
+def _matches_token_group(token: str, token_group: set[str]) -> bool:
+    return any(_is_fuzzy_token_match(token, candidate) for candidate in token_group)
+
+
 def _normalize_text(value: str | None) -> str:
     if not value:
         return ""
@@ -451,7 +455,8 @@ def _query_specific_tokens(pregunta: str) -> list[str]:
     return [
         token
         for token in tokens
-        if token not in GENERIC_QUERY_TOKENS and token not in INTENT_QUERY_TOKENS
+        if not _matches_token_group(token, GENERIC_QUERY_TOKENS)
+        and not _matches_token_group(token, INTENT_QUERY_TOKENS)
     ]
 
 
@@ -466,7 +471,8 @@ def _is_overly_generic_query(pregunta: str) -> bool:
         return True
 
     return len(tokens) == 1 and (
-        tokens[0] in GENERIC_QUERY_TOKENS or tokens[0] in INTENT_QUERY_TOKENS
+        _matches_token_group(tokens[0], GENERIC_QUERY_TOKENS)
+        or _matches_token_group(tokens[0], INTENT_QUERY_TOKENS)
     )
 
 

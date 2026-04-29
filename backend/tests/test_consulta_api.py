@@ -345,6 +345,20 @@ def test_consulta_rejects_overly_generic_tax_query(client) -> None:
     assert len(data["tramites_relacionados"]) >= 1
 
 
+def test_consulta_rejects_overly_generic_tax_query_with_typo(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "immpuestos"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Consulta demasiado general"
+    assert data["tramite_principal"] is None
+    assert len(data["sugerencias"]) >= 1
+    assert len(data["tramites_relacionados"]) >= 1
+
+
 def test_consulta_rejects_overly_generic_payment_query(client) -> None:
     response = client.post(
         "/api/consulta",
