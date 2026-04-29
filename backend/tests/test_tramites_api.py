@@ -183,6 +183,38 @@ def test_delete_tramite_marks_record_inactive_and_hides_from_public_list(
     assert created["id"] not in listed_ids
 
 
+def test_admin_can_list_inactive_tramites(client, admin_headers, test_slug_prefix) -> None:
+    create_payload = build_payload(f"{test_slug_prefix}-inactive-list")
+    created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()
+    client.delete(f"/api/admin/tramites/{created['id']}", headers=admin_headers)
+
+    response = client.get("/api/admin/tramites/desactivados", headers=admin_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    inactive_ids = [tramite["id"] for tramite in data]
+    assert created["id"] in inactive_ids
+
+
+def test_admin_can_reactivate_inactive_tramite(client, admin_headers, test_slug_prefix) -> None:
+    create_payload = build_payload(f"{test_slug_prefix}-reactivar-directo")
+    created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()
+    client.delete(f"/api/admin/tramites/{created['id']}", headers=admin_headers)
+
+    reactivate_response = client.post(
+        f"/api/admin/tramites/{created['id']}/reactivar",
+        headers=admin_headers,
+    )
+
+    assert reactivate_response.status_code == 200
+    reactivated = reactivate_response.json()
+    assert reactivated["activo"] is True
+
+    public_list_response = client.get("/api/tramites")
+    listed_ids = [tramite["id"] for tramite in public_list_response.json()]
+    assert created["id"] in listed_ids
+
+
 def test_create_tramite_reactivates_existing_inactive_record(client, admin_headers, test_slug_prefix) -> None:
     slug = f"{test_slug_prefix}-reactivate"
     create_payload = build_payload(slug, nombre=f"Test tramite reactivate {slug}")

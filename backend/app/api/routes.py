@@ -249,6 +249,27 @@ def create_tramite(
     )
 
 
+@router.get(
+    "/admin/tramites/desactivados",
+    response_model=list[TramiteRead],
+    tags=["admin-tramites"],
+)
+def list_inactive_tramites(
+    db: DbSession,
+    _: AdminSession,
+) -> list[TramiteRead]:
+    try:
+        query = select(Tramite).where(Tramite.activo.is_(False)).order_by(Tramite.nombre)
+        tramites = db.scalars(query).all()
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="No fue posible consultar los tramites desactivados.",
+        ) from exc
+
+    return [_serialize_tramite(tramite) for tramite in tramites]
+
+
 @router.put(
     "/admin/tramites/{tramite_id}",
     response_model=TramiteRead,
@@ -367,6 +388,47 @@ def delete_tramite(
         ) from exc
 
     return _serialize_tramite(tramite)
+
+
+@router.post(
+    "/admin/tramites/{tramite_id}/reactivar",
+    response_model=TramiteRead,
+    tags=["admin-tramites"],
+)
+def reactivate_tramite(
+    tramite_id: int,
+    db: DbSession,
+    _: AdminSession,
+) -> TramiteRead:
+    try:
+        tramite = db.get(Tramite, tramite_id)
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="No fue posible consultar la base de datos.",
+        ) from exc
+
+    if tramite is None:
+        raise HTTPException(status_code=404, detail="Tramite no encontrado.")
+
+    tramite.activo = True
+
+    try:
+        db.add(tramite)
+        db.commit()
+        db.refresh(tramite)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="No fue posible reactivar el tramite.",
+        ) from exc
+
+    _sync_tramite_embedding(db, tramite)
+
+    return _serialize_tramite(
+        _reload_tramite_snapshot(db, tramite_id) or tramite
+    )
 
 
 @router.get(

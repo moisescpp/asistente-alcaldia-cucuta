@@ -11,6 +11,8 @@ const FALLBACK_QUICK_QUESTIONS = [
 const ADMIN_TOKEN_STORAGE_KEY = 'admin-access-token'
 const ADMIN_SESSION_EXPIRES_AT_STORAGE_KEY = 'admin-session-expires-at'
 const ADMIN_WORKSPACE_STORAGE_KEY = 'admin-workspace-state'
+const DESCRIPTION_MIN_WORDS = 12
+const REQUIREMENTS_MIN_WORDS = 6
 const EMPTY_FORM = {
   nombre: '',
   slug: '',
@@ -41,9 +43,11 @@ const FRONTEND_GENERIC_DESCRIPTION_PATTERNS = [
 const EMPTY_ADMIN_WORKSPACE = {
   formData: EMPTY_FORM,
   editingId: null,
+  editingActivo: true,
   slugTouched: false,
   adminSearch: '',
   adminDependency: 'todas',
+  inventoryTab: 'activos',
 }
 
 function App() {
@@ -57,6 +61,9 @@ function App() {
   const [tramites, setTramites] = useState([])
   const [loadingTramites, setLoadingTramites] = useState(true)
   const [tramitesError, setTramitesError] = useState('')
+  const [inactiveTramites, setInactiveTramites] = useState([])
+  const [loadingInactiveTramites, setLoadingInactiveTramites] = useState(false)
+  const [inactiveTramitesError, setInactiveTramitesError] = useState('')
   const [consultaLogs, setConsultaLogs] = useState([])
   const [loadingConsultaLogs, setLoadingConsultaLogs] = useState(false)
   const [consultaLogsError, setConsultaLogsError] = useState('')
@@ -68,14 +75,17 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState(storedAdminWorkspace.formData)
   const [editingId, setEditingId] = useState(storedAdminWorkspace.editingId)
+  const [editingActivo, setEditingActivo] = useState(storedAdminWorkspace.editingActivo)
   const [adminError, setAdminError] = useState('')
   const [adminMessage, setAdminMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
+  const [reactivatingId, setReactivatingId] = useState(null)
   const [adminFieldErrors, setAdminFieldErrors] = useState(EMPTY_ADMIN_ERRORS)
   const [slugTouched, setSlugTouched] = useState(storedAdminWorkspace.slugTouched)
   const [adminSearch, setAdminSearch] = useState(storedAdminWorkspace.adminSearch)
   const [adminDependency, setAdminDependency] = useState(storedAdminWorkspace.adminDependency)
+  const [inventoryTab, setInventoryTab] = useState(storedAdminWorkspace.inventoryTab)
   const [adminToken, setAdminToken] = useState(() => {
     if (typeof window === 'undefined') return ''
     return window.sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? ''
@@ -94,18 +104,15 @@ function App() {
   })
 
   const isDarkTheme = theme === 'dark'
-  const dependencyOptions = buildDependencyOptions(tramites)
+  const allKnownTramites = [...tramites, ...inactiveTramites]
+  const dependencyOptions = buildDependencyOptions(allKnownTramites)
   const normalizedAdminSearch = normalizeLooseText(adminSearch)
-  const filteredTramites = tramites.filter((tramite) => {
-    const dependencyLabel = getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)
-    const searchableText = normalizeLooseText(
-      [tramite.nombre, tramite.descripcion, dependencyLabel].filter(Boolean).join(' '),
-    )
-    const matchesSearch =
-      !normalizedAdminSearch || searchableText.includes(normalizedAdminSearch)
-    const matchesDependency = adminDependency === 'todas' || dependencyLabel === adminDependency
-    return matchesSearch && matchesDependency
-  })
+  const filteredTramites = tramites.filter((tramite) =>
+    matchesAdminInventoryFilters(tramite, normalizedAdminSearch, adminDependency, dependencyOptions),
+  )
+  const filteredInactiveTramites = inactiveTramites.filter((tramite) =>
+    matchesAdminInventoryFilters(tramite, normalizedAdminSearch, adminDependency, dependencyOptions),
+  )
   const hasActiveAdminFilters = Boolean(normalizedAdminSearch) || adminDependency !== 'todas'
   const qualitySummary = summarizeTramiteQuality(tramites)
   const weakestTramites = selectWeakestTramites(tramites)
@@ -114,13 +121,17 @@ function App() {
   const hasRestorableAdminWorkspace = hasStoredAdminWorkspace({
     formData,
     editingId,
+    editingActivo,
     adminSearch,
     adminDependency,
+    inventoryTab,
   })
   const draftQualityReport = assessFrontendTramiteQuality({
     ...formData,
     dependencia: normalizeDependencySelection(formData.dependencia, dependencyOptions),
   })
+  const descripcionWordCount = frontendWordCount(formData.descripcion)
+  const requisitosWordCount = frontendWordCount(formData.requisitos)
 
   useEffect(() => {
     refreshTramites()
@@ -211,12 +222,14 @@ function App() {
     const snapshot = {
       formData,
       editingId,
+      editingActivo,
       slugTouched,
       adminSearch,
       adminDependency,
+      inventoryTab,
     }
     window.sessionStorage.setItem(ADMIN_WORKSPACE_STORAGE_KEY, JSON.stringify(snapshot))
-  }, [formData, editingId, slugTouched, adminSearch, adminDependency])
+  }, [formData, editingId, editingActivo, slugTouched, adminSearch, adminDependency, inventoryTab])
 
   useEffect(() => {
     if (!adminToken || !adminSessionExpiresAt) {
@@ -294,6 +307,53 @@ function App() {
     }
   }, [adminToken])
 
+  useEffect(() => {
+    if (view !== 'admin' || !adminAuthenticated || !adminToken) return
+
+    let isCancelled = false
+
+    async function loadInactiveTramites() {
+      setLoadingInactiveTramites(true)
+      setInactiveTramitesError('')
+      try {
+        const response = await fetch(`${API_URL}/admin/tramites/desactivados`, {
+          headers: { Authorization: `Bearer ${adminToken}` },
+        })
+
+        if (response.status === 401) {
+          if (!isCancelled) {
+            clearAdminSession('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
+          }
+          return
+        }
+
+        if (!response.ok) throw new Error('No fue posible cargar los tramites desactivados.')
+        const data = await response.json()
+        if (!isCancelled) {
+          setInactiveTramites(data)
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setInactiveTramitesError(
+            error instanceof Error
+              ? error.message
+              : 'Ocurrio un error al consultar los tramites desactivados.',
+          )
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingInactiveTramites(false)
+        }
+      }
+    }
+
+    loadInactiveTramites()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [view, adminAuthenticated, adminToken])
+
   async function refreshTramites() {
     setLoadingTramites(true)
     setTramitesError('')
@@ -306,6 +366,34 @@ function App() {
     } finally {
       setLoadingTramites(false)
     }
+  }
+
+  async function refreshInactiveTramites(tokenOverride = adminToken) {
+    if (!tokenOverride) {
+      setInactiveTramites([])
+      setLoadingInactiveTramites(false)
+      return
+    }
+
+    setLoadingInactiveTramites(true)
+    setInactiveTramitesError('')
+    try {
+      const response = await fetchAdmin(`${API_URL}/admin/tramites/desactivados`, {}, tokenOverride)
+      if (!response.ok) throw new Error('No fue posible cargar los tramites desactivados.')
+      setInactiveTramites(await response.json())
+    } catch (error) {
+      setInactiveTramitesError(
+        error instanceof Error
+          ? error.message
+          : 'Ocurrio un error al consultar los tramites desactivados.',
+      )
+    } finally {
+      setLoadingInactiveTramites(false)
+    }
+  }
+
+  async function handleInventoryRefresh() {
+    await Promise.all([refreshTramites(), refreshInactiveTramites()])
   }
 
   function openAdminView() {
@@ -321,6 +409,8 @@ function App() {
     setAdminSessionChecked(true)
     setAdminPin('')
     setConsultaLogs([])
+    setInactiveTramites([])
+    setInactiveTramitesError('')
     setHasLoadedConsultaLogs(false)
     setConsultaLogsStale(false)
     setAdminMessage('')
@@ -386,7 +476,10 @@ function App() {
           : 'Acceso privado habilitado para el panel administrativo.',
       )
       setAdminError('')
-      await refreshConsultaLogs(data.access_token)
+      await Promise.all([
+        refreshConsultaLogs(data.access_token),
+        refreshInactiveTramites(data.access_token),
+      ])
     } catch (error) {
       setAdminAuthError(
         error instanceof Error ? error.message : 'No fue posible abrir la sesion administrativa.',
@@ -481,6 +574,7 @@ function App() {
 
   function handleResetForm(clearFeedback = true) {
     setEditingId(null)
+    setEditingActivo(true)
     setFormData(EMPTY_FORM)
     setAdminFieldErrors(EMPTY_ADMIN_ERRORS)
     setSlugTouched(false)
@@ -492,6 +586,7 @@ function App() {
 
   function handleEdit(tramite) {
     setEditingId(tramite.id)
+    setEditingActivo(tramite.activo !== false)
     setFormData({
       nombre: tramite.nombre ?? '',
       slug: tramite.slug ?? '',
@@ -505,13 +600,18 @@ function App() {
     setAdminFieldErrors(EMPTY_ADMIN_ERRORS)
     setSlugTouched(true)
     setAdminError('')
-    setAdminMessage(`Editando "${tramite.nombre}".`)
+    setAdminMessage(
+      tramite.activo === false
+        ? `Editando "${tramite.nombre}" en estado desactivado. Puedes actualizarlo y reactivarlo cuando quieras.`
+        : `Editando "${tramite.nombre}".`,
+    )
     setView('admin')
   }
 
   async function handleAdminSubmit(event) {
     event.preventDefault()
     const payload = normalizePayload(formData)
+    payload.activo = editingId && editingActivo === false ? false : true
     payload.dependencia = normalizeDependencySelection(payload.dependencia, dependencyOptions)
     const nextFieldErrors = validateAdminForm(payload)
 
@@ -545,10 +645,12 @@ function App() {
       }
 
       const savedTramite = await response.json()
-      await refreshTramites()
+      await Promise.all([refreshTramites(), refreshInactiveTramites()])
       setAdminMessage(
         editingId
-          ? `Tramite "${savedTramite.nombre}" actualizado.`
+          ? editingActivo === false
+            ? `Tramite desactivado "${savedTramite.nombre}" actualizado. Sigue disponible en el apartado de desactivados hasta que lo reactives.`
+            : `Tramite "${savedTramite.nombre}" actualizado.`
           : `Tramite "${savedTramite.nombre}" creado o reactivado correctamente.`,
       )
       handleResetForm(false)
@@ -566,13 +668,35 @@ function App() {
     try {
       const response = await fetchAdmin(`${API_URL}/admin/tramites/${tramite.id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('No fue posible desactivar el tramite.')
-      await refreshTramites()
+      await Promise.all([refreshTramites(), refreshInactiveTramites()])
       if (editingId === tramite.id) handleResetForm()
       setAdminMessage(`Tramite "${tramite.nombre}" desactivado.`)
     } catch (error) {
       setAdminError(error instanceof Error ? error.message : 'Ocurrio un error al desactivar el tramite.')
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  async function handleReactivate(tramite) {
+    setReactivatingId(tramite.id)
+    setAdminError('')
+    setAdminMessage('')
+    try {
+      const response = await fetchAdmin(`${API_URL}/admin/tramites/${tramite.id}/reactivar`, {
+        method: 'POST',
+      })
+      if (!response.ok) throw new Error('No fue posible reactivar el tramite.')
+      const reactivatedTramite = await response.json()
+      await Promise.all([refreshTramites(), refreshInactiveTramites()])
+      if (editingId === tramite.id) {
+        setEditingActivo(true)
+      }
+      setAdminMessage(`Tramite "${reactivatedTramite.nombre}" reactivado.`)
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Ocurrio un error al reactivar el tramite.')
+    } finally {
+      setReactivatingId(null)
     }
   }
 
@@ -825,14 +949,25 @@ function App() {
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
                     editingId
-                      ? 'border border-amber-200 bg-amber-50 text-amber-700'
+                      ? editingActivo === false
+                        ? 'border border-rose-200 bg-rose-50 text-rose-700'
+                        : 'border border-amber-200 bg-amber-50 text-amber-700'
                       : 'border border-emerald-200 bg-emerald-50 text-emerald-700'
                   }`}>
-                    {editingId ? 'Modo edicion' : 'Nuevo tramite'}
+                    {editingId
+                      ? editingActivo === false
+                        ? 'Edicion de tramite desactivado'
+                        : 'Modo edicion'
+                      : 'Nuevo tramite'}
                   </span>
                   <span className="text-sm text-slate-500">
                     Los campos con <span className="font-semibold text-rose-500">*</span> son obligatorios.
                   </span>
+                  {editingId && editingActivo === false ? (
+                    <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">
+                      Guardar no lo reactiva automaticamente
+                    </span>
+                  ) : null}
                   {hasRestorableAdminWorkspace ? (
                     <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">
                       Contexto recuperable activo
@@ -871,8 +1006,44 @@ function App() {
                   </Field>
                   <Field label="Costo"><input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} /></Field>
                   <Field label="Horario"><input className={inputClassName} name="horario" value={formData.horario} onChange={handleInputChange} /></Field>
-                  <Field className="md:col-span-2" label="Descripcion" error={adminFieldErrors.descripcion}><textarea className={fieldClassName(adminFieldErrors.descripcion) + ' min-h-28'} name="descripcion" value={formData.descripcion} onChange={handleInputChange} /></Field>
-                  <Field className="md:col-span-2" label="Requisitos" error={adminFieldErrors.requisitos}><textarea className={fieldClassName(adminFieldErrors.requisitos) + ' min-h-28'} name="requisitos" value={formData.requisitos} onChange={handleInputChange} /></Field>
+                  <Field
+                    className="md:col-span-2"
+                    label="Descripcion"
+                    hint={
+                      <WordMinimumHint
+                        current={descripcionWordCount}
+                        minimum={DESCRIPTION_MIN_WORDS}
+                        label="Minimo recomendado para aceptar el tramite"
+                      />
+                    }
+                    error={adminFieldErrors.descripcion}
+                  >
+                    <textarea
+                      className={fieldClassName(adminFieldErrors.descripcion) + ' min-h-28'}
+                      name="descripcion"
+                      value={formData.descripcion}
+                      onChange={handleInputChange}
+                    />
+                  </Field>
+                  <Field
+                    className="md:col-span-2"
+                    label="Requisitos"
+                    hint={
+                      <WordMinimumHint
+                        current={requisitosWordCount}
+                        minimum={REQUIREMENTS_MIN_WORDS}
+                        label="Minimo recomendado para aceptar el tramite"
+                      />
+                    }
+                    error={adminFieldErrors.requisitos}
+                  >
+                    <textarea
+                      className={fieldClassName(adminFieldErrors.requisitos) + ' min-h-28'}
+                      name="requisitos"
+                      value={formData.requisitos}
+                      onChange={handleInputChange}
+                    />
+                  </Field>
                   <div className="md:col-span-2 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -927,12 +1098,42 @@ function App() {
               <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
                 <div className="mb-6 flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Inventario activo</p>
-                    <h3 className="mt-2 text-2xl font-bold text-slate-950">Tramites disponibles</h3>
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Inventario administrativo</p>
+                    <h3 className="mt-2 text-2xl font-bold text-slate-950">Catalogo de tramites</h3>
                   </div>
-                  <button type="button" onClick={refreshTramites} className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
-                    Actualizar lista
+                  <button type="button" onClick={handleInventoryRefresh} className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
+                    Actualizar inventario
                   </button>
+                </div>
+
+                <div className="mb-6 flex flex-wrap gap-3">
+                  {[
+                    { id: 'activos', label: 'Activos', count: tramites.length },
+                    { id: 'desactivados', label: 'Desactivados', count: inactiveTramites.length },
+                  ].map((tab) => {
+                    const isSelected = inventoryTab === tab.id
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setInventoryTab(tab.id)}
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                          isSelected
+                            ? 'border-slate-900 bg-slate-950 text-white'
+                            : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>{tab.label}</span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${
+                            isSelected ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          {tab.count}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
 
                 <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
@@ -965,31 +1166,40 @@ function App() {
 
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
                   <p>
-                    Mostrando {filteredTramites.length} de {tramites.length} tramite(s) activos.
+                    {inventoryTab === 'activos'
+                      ? `Mostrando ${filteredTramites.length} de ${tramites.length} tramite(s) activos.`
+                      : `Mostrando ${filteredInactiveTramites.length} de ${inactiveTramites.length} tramite(s) desactivados.`}
                   </p>
-                  <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
-                    <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-rose-700">
-                      Criticos {qualitySummary.critical}
+                  {inventoryTab === 'activos' ? (
+                    <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
+                      <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-rose-700">
+                        Criticos {qualitySummary.critical}
+                      </span>
+                      <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
+                        En riesgo {qualitySummary.warning}
+                      </span>
+                      <span className="rounded-full border border-rose-200 bg-white px-3 py-1 text-rose-700">
+                        Fuera de foco {qualitySummary.outOfScope}
+                      </span>
+                      <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sky-700">
+                        Con impacto real {catalogAttention.items.length}
+                      </span>
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
+                        Fuertes {qualitySummary.strong}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
+                      Archivo administrativo
                     </span>
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
-                      En riesgo {qualitySummary.warning}
-                    </span>
-                    <span className="rounded-full border border-rose-200 bg-white px-3 py-1 text-rose-700">
-                      Fuera de foco {qualitySummary.outOfScope}
-                    </span>
-                    <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sky-700">
-                      Con impacto real {catalogAttention.items.length}
-                    </span>
-                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
-                      Fuertes {qualitySummary.strong}
-                    </span>
-                  </div>
+                  )}
                   {hasActiveAdminFilters ? (
                     <button
                       type="button"
                       onClick={() => {
                         setAdminSearch('')
                         setAdminDependency('todas')
+                        setInventoryTab('activos')
                       }}
                       className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
                     >
@@ -998,7 +1208,7 @@ function App() {
                   ) : null}
                 </div>
 
-                {weakestTramites.length ? (
+                {inventoryTab === 'activos' && weakestTramites.length ? (
                   <div className="mb-6 rounded-3xl border border-amber-200 bg-[linear-gradient(180deg,#fff8eb_0%,#fffdf8_100%)] p-5 shadow-sm">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
@@ -1080,17 +1290,36 @@ function App() {
                   </div>
                 ) : null}
 
-                <TramitesAdminList
-                  tramites={filteredTramites}
-                  loadingTramites={loadingTramites}
-                  tramitesError={tramitesError}
-                  editingId={editingId}
-                  deletingId={deletingId}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  hasActiveFilters={hasActiveAdminFilters}
-                  catalogAttentionById={catalogAttention.byId}
-                />
+                {inventoryTab === 'activos' ? (
+                  <TramitesAdminList
+                    tramites={filteredTramites}
+                    loadingTramites={loadingTramites}
+                    tramitesError={tramitesError}
+                    editingId={editingId}
+                    actionBusyId={deletingId}
+                    onEdit={handleEdit}
+                    onSecondaryAction={handleDelete}
+                    secondaryActionLabel="Desactivar"
+                    secondaryActionBusyLabel="Desactivando..."
+                    hasActiveFilters={hasActiveAdminFilters}
+                    catalogAttentionById={catalogAttention.byId}
+                  />
+                ) : (
+                  <TramitesAdminList
+                    tramites={filteredInactiveTramites}
+                    loadingTramites={loadingInactiveTramites}
+                    tramitesError={inactiveTramitesError}
+                    editingId={editingId}
+                    actionBusyId={reactivatingId}
+                    onEdit={handleEdit}
+                    onSecondaryAction={handleReactivate}
+                    secondaryActionLabel="Reactivar"
+                    secondaryActionBusyLabel="Reactivando..."
+                    hasActiveFilters={hasActiveAdminFilters}
+                    emptyTitle="No hay tramites desactivados registrados."
+                    emptyDescription="Cuando desactives un tramite, aparecera aqui para que puedas editarlo con calma o devolverlo al catalogo activo."
+                  />
+                )}
               </section>
 
               <ConsultaActivityPanel
@@ -1137,11 +1366,11 @@ function validateAdminForm(payload) {
 
   const qualityReport = assessFrontendTramiteQuality(payload)
   if (qualityReport.blockingIssues.some((issue) => issue.includes('descripcion'))) {
-    errors.descripcion = 'Describe el tramite con mas contexto ciudadano y menos frases genericas.'
+    errors.descripcion = `Describe el tramite con mas contexto ciudadano y al menos ${DESCRIPTION_MIN_WORDS} palabras.`
   }
 
   if (qualityReport.blockingIssues.some((issue) => issue.includes('requisitos'))) {
-    errors.requisitos = 'Detalla requisitos reales; evita dejar este campo demasiado corto.'
+    errors.requisitos = `Detalla requisitos reales con al menos ${REQUIREMENTS_MIN_WORDS} palabras.`
   }
 
   if (payload.fuente_url && !isValidUrl(payload.fuente_url)) {
@@ -1170,6 +1399,21 @@ function frontendWordCount(value) {
     .filter(Boolean).length
 }
 
+function matchesAdminInventoryFilters(
+  tramite,
+  normalizedSearch,
+  dependencyFilter,
+  dependencyOptions,
+) {
+  const dependencyLabel = getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)
+  const searchableText = normalizeLooseText(
+    [tramite.nombre, tramite.descripcion, dependencyLabel].filter(Boolean).join(' '),
+  )
+  const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch)
+  const matchesDependency = dependencyFilter === 'todas' || dependencyLabel === dependencyFilter
+  return matchesSearch && matchesDependency
+}
+
 function assessFrontendTramiteQuality(tramite) {
   const description = String(tramite.descripcion ?? '')
   const requirements = String(tramite.requisitos ?? '')
@@ -1191,7 +1435,7 @@ function assessFrontendTramiteQuality(tramite) {
     score -= 40
     alerts.push('Falta una descripcion clara del tramite.')
     blockingIssues.push('descripcion vacia')
-  } else if (descriptionWords < 12) {
+  } else if (descriptionWords < DESCRIPTION_MIN_WORDS) {
     score -= 24
     alerts.push('La descripcion es demasiado corta para preguntas ciudadanas.')
     blockingIssues.push('descripcion corta')
@@ -1204,7 +1448,7 @@ function assessFrontendTramiteQuality(tramite) {
     normalizedDescription.includes(pattern),
   )
   const hasWeakPrefixedDescription =
-    descriptionWords < 12 &&
+    descriptionWords < DESCRIPTION_MIN_WORDS &&
     (normalizedDescription.startsWith('tramite para ') ||
       normalizedDescription.startsWith('proceso para '))
 
@@ -1218,7 +1462,7 @@ function assessFrontendTramiteQuality(tramite) {
     score -= 14
     alerts.push('Faltan requisitos del tramite.')
     blockingIssues.push('requisitos vacios')
-  } else if (requirementWords < 6) {
+  } else if (requirementWords < REQUIREMENTS_MIN_WORDS) {
     score -= 8
     alerts.push('Los requisitos son muy cortos y pueden perder contexto.')
     blockingIssues.push('requisitos cortos')
@@ -1507,6 +1751,9 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
   const orientationText = compactOrientationText(summaryText)
   const isNoMatch = consulta?.mensaje_estado === 'Sin coincidencias en la base actual'
   const isTooGeneral = consulta?.mensaje_estado === 'Consulta demasiado general'
+  const effectiveOrientationText = isTooGeneral
+    ? 'Tu consulta sigue siendo amplia. No elegimos un tramite principal todavia; abajo tienes rutas reales para aterrizarla mejor.'
+    : orientationText
   const allMatches = consulta
     ? [
         ...(consulta.tramite_principal ? [consulta.tramite_principal] : []),
@@ -1541,14 +1788,16 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
 
   return (
     <section className="rounded-[2rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Respuesta del asistente</p>
-          <h3 className="mt-2 text-2xl font-bold text-slate-950">Resultado de la consulta</h3>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Primero ves la guia esencial y luego los datos de apoyo del tramite.
-          </p>
-        </div>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Respuesta del asistente</p>
+            <h3 className="mt-2 text-2xl font-bold text-slate-950">Resultado de la consulta</h3>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+              {isTooGeneral
+                ? 'Primero te mostramos una guia corta y luego las rutas mas cercanas para precisar la consulta.'
+                : 'Primero ves la guia esencial y luego los datos de apoyo del tramite.'}
+            </p>
+          </div>
         <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700 shadow-sm">
           Consulta asistida
         </span>
@@ -1583,15 +1832,21 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                 {consulta.mensaje_estado === 'Coincidencias semanticas encontradas'
                   ? 'El asistente encontro una ruta suficientemente confiable.'
                   : consulta.mensaje_estado === 'Consulta demasiado general'
-                    ? 'Necesita una pista mas concreta para responder mejor.'
+                    ? 'Hay varias rutas plausibles y necesitamos que elijas una.'
                     : 'Te muestra caminos cercanos para continuar sin perder el hilo.'}
               </p>
             </ResultMetricCard>
 
-            <ResultMetricCard label="Resultados" className="bg-white">
+            <ResultMetricCard label={isTooGeneral ? 'Opciones' : 'Resultados'} className="bg-white">
               <p className="text-4xl font-black tracking-tight text-slate-950">{consulta.total_resultados}</p>
               <p className="mt-1 text-sm text-slate-500">
-                {consulta.total_resultados === 1 ? 'resultado util' : 'resultados detectados'}
+                {isTooGeneral
+                  ? consulta.total_resultados === 1
+                    ? 'opcion para precisar'
+                    : 'opciones para precisar'
+                  : consulta.total_resultados === 1
+                    ? 'resultado util'
+                    : 'resultados detectados'}
               </p>
             </ResultMetricCard>
           </div>
@@ -1600,7 +1855,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
             <div className="pointer-events-none absolute inset-y-4 left-4 w-1 rounded-full bg-white/80" />
             <div className="pl-4">
               <p className={`text-xs uppercase tracking-[0.2em] ${statusConfig.labelClassName}`}>Orientacion inmediata</p>
-              <p className="mt-2 text-[15px] leading-7 text-slate-800">{orientationText}</p>
+              <p className="mt-2 text-[15px] leading-7 text-slate-800">{effectiveOrientationText}</p>
             </div>
           </div>
 
@@ -1789,7 +2044,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
             </div>
           ) : null}
 
-          {consulta.sugerencias?.length ? (
+          {consulta.sugerencias?.length && !isTooGeneral ? (
             <div className={`rounded-3xl border p-5 ${
               isTooGeneral
                 ? 'border-amber-200 bg-amber-50/70'
@@ -1832,11 +2087,18 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
           {consulta.tramites_relacionados.length && !consulta.tramite_principal ? (
             <div>
               <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                {isTooGeneral ? 'Opciones cercanas para precisar' : 'Coincidencias cercanas detectadas'}
+                {isTooGeneral ? 'Elige una ruta para responder mejor' : 'Coincidencias cercanas detectadas'}
               </p>
+              {isTooGeneral ? (
+                <p className="mb-4 max-w-3xl text-sm leading-6 text-slate-600">
+                  No elegimos un tramite principal porque la consulta aun puede apuntar a varios temas. Escoge una opcion y continuamos desde ahi.
+                </p>
+              ) : null}
               <div className="grid gap-4 md:grid-cols-2">
                 {consulta.tramites_relacionados.map((tramite) => (
-                  <article key={tramite.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_10px_35px_-30px_rgba(15,23,42,0.35)]">
+                  <article key={tramite.id} className={`rounded-3xl border bg-white p-5 shadow-[0_10px_35px_-30px_rgba(15,23,42,0.35)] ${
+                    isTooGeneral ? 'border-amber-200/80' : 'border-slate-200'
+                  }`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h4 className="text-lg font-semibold text-slate-950">{tramite.nombre}</h4>
@@ -1849,15 +2111,19 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                       </span>
                     </div>
                     {tramite.descripcion ? (
-                      <p className="mt-4 text-sm leading-6 text-slate-600">{tramite.descripcion}</p>
+                      <p className={`mt-4 text-sm leading-6 text-slate-600 ${isTooGeneral ? 'line-clamp-4' : ''}`}>{tramite.descripcion}</p>
                     ) : null}
                     {!consulta.tramite_principal ? (
                       <button
                         type="button"
                         onClick={() => onUseSuggestion(`Consulta por ${tramite.nombre}`)}
-                        className="mt-4 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
+                        className={`mt-4 inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                          isTooGeneral
+                            ? 'border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-400 hover:bg-amber-100'
+                            : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100'
+                        }`}
                       >
-                        Usar esta opcion
+                        {isTooGeneral ? 'Elegir esta ruta' : 'Usar esta opcion'}
                       </button>
                     ) : null}
                   </article>
@@ -1956,15 +2222,14 @@ function StateActionPanel({ mode }) {
     ambigua: {
       badge: 'Consulta demasiado general',
       badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700',
-      title: 'Necesitamos una pista mas especifica',
+      title: 'Elige una ruta mas concreta',
       description:
-        'Todavia no conviene mostrar una ficha completa porque la consulta puede apuntar a varios tramites distintos.',
-      promptGuide: 'Prueba una estructura corta como: impuesto + gestion + contexto.',
-      promptExample: 'Ejemplo: requisitos para paz y salvo predial',
+        'Tu pregunta todavia puede referirse a varios tramites, asi que preferimos no elegir uno por ti.',
+      promptGuide: '',
+      promptExample: '',
       tips: [
         'Menciona el impuesto o tramite concreto que necesitas.',
-        'Agrega una pista como predial, paz y salvo, industria y comercio o devolucion.',
-        'Usa una de las sugerencias rapidas para aterrizar la intencion.',
+        'Si puedes, agrega una pista como predial, paz y salvo o industria y comercio.',
       ],
     },
     sin_coincidencia: {
@@ -2121,11 +2386,15 @@ function TramitesAdminList({
   loadingTramites,
   tramitesError,
   editingId,
-  deletingId,
+  actionBusyId,
   onEdit,
-  onDelete,
-  hasActiveFilters,
+  onSecondaryAction,
+  secondaryActionLabel,
+  secondaryActionBusyLabel,
+  hasActiveFilters = false,
   catalogAttentionById,
+  emptyTitle = '',
+  emptyDescription = '',
 }) {
   const dependencyOptions = buildDependencyOptions(tramites)
   if (loadingTramites) return <LoadingPanel title="Tramites disponibles" />
@@ -2134,12 +2403,16 @@ function TramitesAdminList({
     return (
       <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
         <p className="text-base font-semibold text-slate-700">
-          {hasActiveFilters ? 'No hay tramites para los filtros actuales.' : 'No hay tramites activos registrados.'}
+          {emptyTitle ||
+            (hasActiveFilters
+              ? 'No hay tramites para los filtros actuales.'
+              : 'No hay tramites activos registrados.')}
         </p>
         <p className="mt-3 text-sm leading-6 text-slate-500">
-          {hasActiveFilters
-            ? 'Prueba otra combinacion de busqueda o dependencia para seguir revisando la base administrativa.'
-            : 'Usa el formulario de la izquierda para crear el primer tramite estrella y comenzar a poblar la base administrativa.'}
+          {emptyDescription ||
+            (hasActiveFilters
+              ? 'Prueba otra combinacion de busqueda o dependencia para seguir revisando la base administrativa.'
+              : 'Usa el formulario de la izquierda para crear el primer tramite estrella y comenzar a poblar la base administrativa.')}
         </p>
       </div>
     )
@@ -2184,8 +2457,17 @@ function TramitesAdminList({
             </div>
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
               <button type="button" onClick={() => onEdit(tramite)} className="inline-flex flex-1 items-center justify-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-white sm:flex-none">Editar</button>
-              <button type="button" onClick={() => onDelete(tramite)} disabled={deletingId === tramite.id} className="inline-flex flex-1 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none">
-                {deletingId === tramite.id ? 'Desactivando...' : 'Desactivar'}
+              <button
+                type="button"
+                onClick={() => onSecondaryAction(tramite)}
+                disabled={actionBusyId === tramite.id}
+                className={`inline-flex flex-1 items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none ${
+                  secondaryActionLabel === 'Reactivar'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    : 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
+                }`}
+              >
+                {actionBusyId === tramite.id ? secondaryActionBusyLabel : secondaryActionLabel}
               </button>
             </div>
           </div>
@@ -2982,19 +3264,23 @@ function readStoredAdminWorkspace() {
         ...(parsed?.formData ?? {}),
       },
       editingId: Number.isInteger(parsed?.editingId) ? parsed.editingId : null,
+      editingActivo:
+        typeof parsed?.editingActivo === 'boolean' ? parsed.editingActivo : true,
       slugTouched: Boolean(parsed?.slugTouched),
       adminSearch: typeof parsed?.adminSearch === 'string' ? parsed.adminSearch : '',
       adminDependency:
         typeof parsed?.adminDependency === 'string' && parsed.adminDependency
           ? parsed.adminDependency
           : 'todas',
+      inventoryTab:
+        parsed?.inventoryTab === 'desactivados' ? 'desactivados' : 'activos',
     }
   } catch {
     return EMPTY_ADMIN_WORKSPACE
   }
 }
 
-function hasStoredAdminWorkspace({ formData, editingId, adminSearch, adminDependency }) {
+function hasStoredAdminWorkspace({ formData, editingId, editingActivo, adminSearch, adminDependency, inventoryTab }) {
   const hasMeaningfulFormData = Object.values(formData ?? {}).some((value) =>
     typeof value === 'string' ? value.trim() : Boolean(value),
   )
@@ -3002,8 +3288,10 @@ function hasStoredAdminWorkspace({ formData, editingId, adminSearch, adminDepend
   return (
     hasMeaningfulFormData ||
     Boolean(editingId) ||
+    editingActivo === false ||
     Boolean((adminSearch ?? '').trim()) ||
-    adminDependency !== 'todas'
+    adminDependency !== 'todas' ||
+    inventoryTab === 'desactivados'
   )
 }
 
@@ -3601,6 +3889,25 @@ function MetricCard({ label, value, tone }) {
   )
 }
 
+function WordMinimumHint({ current, minimum, label }) {
+  const isEnough = current >= minimum
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+      <span className="text-slate-500">{label}</span>
+      <span
+        className={`rounded-full border px-2.5 py-1 font-semibold uppercase tracking-[0.14em] ${
+          isEnough
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            : 'border-amber-200 bg-amber-50 text-amber-700'
+        }`}
+      >
+        {current}/{minimum} palabras
+      </span>
+    </div>
+  )
+}
+
 function Field({
   label,
   children,
@@ -3615,7 +3922,11 @@ function Field({
         {label} {required ? <span className="text-rose-500">*</span> : null}
       </span>
       {children}
-      {hint ? <span className="mt-2 block text-xs text-slate-500">{hint}</span> : null}
+      {hint
+        ? typeof hint === 'string'
+          ? <span className="mt-2 block text-xs text-slate-500">{hint}</span>
+          : hint
+        : null}
       {error ? <span className="mt-2 block text-xs font-medium text-rose-600">{error}</span> : null}
     </label>
   )
