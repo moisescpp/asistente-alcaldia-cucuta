@@ -9,11 +9,15 @@ from fastapi import Header, HTTPException, status
 
 from app.core.config import settings
 
+JWT_ISSUER = "alcaldia-cucuta-admin"
+
 
 @dataclass(frozen=True)
 class AdminSessionClaims:
     scope: str
     exp: int
+    iat: int
+    iss: str
 
 
 def _encode_segment(raw: bytes) -> str:
@@ -29,10 +33,10 @@ def _session_secret_bytes() -> bytes:
     return settings.admin_session_secret.encode("utf-8")
 
 
-def _build_signature(payload_segment: str) -> str:
+def _build_signature(signing_input: str) -> str:
     digest = hmac.new(
         _session_secret_bytes(),
-        payload_segment.encode("utf-8"),
+        signing_input.encode("utf-8"),
         hashlib.sha256,
     ).digest()
     return _encode_segment(digest)
@@ -54,19 +58,30 @@ def get_admin_session_ttl_seconds() -> int:
 
 def create_admin_session_token() -> tuple[str, int, int]:
     ttl_seconds = get_admin_session_ttl_seconds()
-    expires_at = int(time.time()) + ttl_seconds
+    issued_at = int(time.time())
+    expires_at = issued_at + ttl_seconds
+    header = {
+        "alg": "HS256",
+        "typ": "JWT",
+    }
     claims = {
         "scope": "admin",
+        "iss": JWT_ISSUER,
+        "iat": issued_at,
         "exp": expires_at,
     }
+    header_segment = _encode_segment(
+        json.dumps(header, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    )
     payload_segment = _encode_segment(
         json.dumps(claims, separators=(",", ":"), sort_keys=True).encode("utf-8")
     )
-    signature = _build_signature(payload_segment)
-    return f"{payload_segment}.{signature}", ttl_seconds, expires_at
+    signing_input = f"{header_segment}.{payload_segment}"
+    signature = _build_signature(signing_input)
+    return f"{signing_input}.{signature}", ttl_seconds, expires_at
 
 
-def decode_admin_session_token(token: str) -> AdminSessionClaims:
+def _decode_legacy_admin_session_token(token: str) -> AdminSessionClaims:
     try:
         payload_segment, signature = token.split(".", maxsplit=1)
     except ValueError as exc:
@@ -90,12 +105,61 @@ def decode_admin_session_token(token: str) -> AdminSessionClaims:
             detail="Sesion administrativa invalida.",
         ) from exc
 
-    claims = AdminSessionClaims(
+    return AdminSessionClaims(
         scope=str(payload.get("scope") or ""),
         exp=int(payload.get("exp") or 0),
+        iat=int(payload.get("iat") or 0),
+        iss=str(payload.get("iss") or ""),
     )
 
+
+def decode_admin_session_token(token: str) -> AdminSessionClaims:
+    segments = token.split(".")
+    if len(segments) == 2:
+        claims = _decode_legacy_admin_session_token(token)
+    elif len(segments) == 3:
+        header_segment, payload_segment, signature = segments
+        expected_signature = _build_signature(f"{header_segment}.{payload_segment}")
+        if not hmac.compare_digest(signature, expected_signature):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Sesion administrativa invalida.",
+            )
+
+        try:
+            header = json.loads(_decode_segment(header_segment).decode("utf-8"))
+            payload = json.loads(_decode_segment(payload_segment).decode("utf-8"))
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Sesion administrativa invalida.",
+            ) from exc
+
+        if str(header.get("alg") or "") != "HS256" or str(header.get("typ") or "") != "JWT":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Sesion administrativa invalida.",
+            )
+
+        claims = AdminSessionClaims(
+            scope=str(payload.get("scope") or ""),
+            exp=int(payload.get("exp") or 0),
+            iat=int(payload.get("iat") or 0),
+            iss=str(payload.get("iss") or ""),
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sesion administrativa invalida.",
+        )
+
     if claims.scope != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="La sesion administrativa no tiene permisos suficientes.",
+        )
+
+    if claims.iss and claims.iss != JWT_ISSUER:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="La sesion administrativa no tiene permisos suficientes.",

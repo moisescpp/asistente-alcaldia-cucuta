@@ -34,12 +34,13 @@ Backend del asistente de tramites estrella de rentas e impuestos, actualmente en
 
 ## Capacidades activas al cierre de Iteracion 4
 
-- sesion administrativa privada con PIN y expiracion visible;
+- sesion administrativa privada con PIN, JWT firmado y expiracion visible;
 - restauracion del borrador admin tras expiracion o recarga;
 - validacion semantica de tramites antes de crear o editar;
 - recuperacion semantica y textual para la consulta ciudadana;
 - registro de actividad del asistente con origen, estado y resultados;
-- estadisticas de preguntas para ayudar a mejorar el catalogo.
+- estadisticas de preguntas para ayudar a mejorar el catalogo;
+- reactivacion explicita de tramites desactivados desde el panel admin.
 
 ## Nota de catalogo actual
 

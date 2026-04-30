@@ -49,7 +49,8 @@ La Iteracion 4 no busca rehacer la arquitectura base, sino **pulir la experienci
 - estadisticas visuales sobre como preguntan los ciudadanos;
 - alertas de impacto real para detectar tramites que conviene reforzar primero;
 - buscador y filtro por dependencia en el inventario de tramites;
-- acceso privado al admin con PIN, sesion temporal visible y recuperacion del borrador tras recarga o expiracion.
+- acceso privado al admin con PIN, sesion temporal visible y recuperacion del borrador tras recarga o expiracion;
+- token administrativo tipo JWT firmado con expiracion corta para proteger el panel interno.
 
 ## Mejoras laterales ya hechas pero no nucleares para Iteracion 4
 
@@ -74,6 +75,7 @@ Estas mejoras existen en el proyecto, pero **no se consideran el centro de la it
 - crear tramites;
 - editar tramites;
 - desactivar tramites;
+- reactivar tramites desactivados desde el inventario admin;
 - proteger el acceso administrativo con una sesion temporal;
 - revisar consultas recientes del asistente;
 - analizar preguntas ambiguas, positivas y sin coincidencia;
@@ -88,6 +90,8 @@ Estas mejoras existen en el proyecto, pero **no se consideran el centro de la it
 - `POST /api/admin/tramites`
 - `PUT /api/admin/tramites/{id}`
 - `DELETE /api/admin/tramites/{id}`
+- `GET /api/admin/tramites/desactivados`
+- `POST /api/admin/tramites/{id}/reactivar`
 - `GET /api/admin/consultas`
 - `POST /api/consulta`
 

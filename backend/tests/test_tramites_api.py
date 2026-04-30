@@ -38,6 +38,7 @@ def test_admin_session_returns_trial_ttl_metadata(client) -> None:
 
     assert response.status_code == 200
     data = response.json()
+    assert data["access_token"].count(".") == 2
     assert data["expires_in_seconds"] == 300
     assert data["expires_at"] > 0
 
