@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     api_prefix: str = "/api"
     frontend_url: str = "http://localhost:5173"
+    frontend_urls: str = ""
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     embedding_model: str = "text-embedding-3-small"
@@ -28,6 +29,37 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @property
+    def frontend_origins(self) -> list[str]:
+        origins: list[str] = []
+
+        for raw_value in (self.frontend_url, self.frontend_urls):
+            for candidate in str(raw_value or "").replace("\n", ",").split(","):
+                cleaned = candidate.strip().rstrip("/")
+                if cleaned and cleaned not in origins:
+                    origins.append(cleaned)
+
+        return origins or ["http://localhost:5173"]
+
+    @property
+    def sqlalchemy_database_url(self) -> str:
+        if self.database_url.startswith("postgresql+psycopg://"):
+            return self.database_url
+        if self.database_url.startswith("postgresql://"):
+            return self.database_url.replace(
+                "postgresql://",
+                "postgresql+psycopg://",
+                1,
+            )
+        if self.database_url.startswith("postgres://"):
+            return self.database_url.replace(
+                "postgres://",
+                "postgresql+psycopg://",
+                1,
+            )
+
+        return self.database_url
 
 
 settings = Settings()

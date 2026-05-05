@@ -19,15 +19,15 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description=(
-        "API base para el asistente de tramites estrella "
-        "de rentas e impuestos de la Alcaldia de Cucuta."
+        "API base para el asistente institucional de tramites "
+        "y servicios orientado a consultas ciudadanas."
     ),
     lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url],
+    allow_origins=settings.frontend_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

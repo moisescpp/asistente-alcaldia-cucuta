@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 const DEFAULT_QUESTION = 'Quiero informacion sobre impuesto predial'
@@ -608,6 +608,17 @@ function App() {
     setView('admin')
   }
 
+  function handleEnumerateRequirements() {
+    setFormData((current) => ({
+      ...current,
+      requisitos: buildNumberedRequirements(current.requisitos),
+    }))
+    setAdminFieldErrors((current) => ({
+      ...current,
+      requisitos: '',
+    }))
+  }
+
   async function handleAdminSubmit(event) {
     event.preventDefault()
     const payload = normalizePayload(formData)
@@ -717,11 +728,13 @@ function App() {
         </a>
 
         <header
-          className={`overflow-hidden rounded-[2rem] border p-6 shadow-[0_25px_80px_-45px_rgba(15,23,42,0.45)] backdrop-blur transition-colors ${
-            isDarkTheme ? 'border-slate-700/70 bg-slate-900/80' : 'border-white/70 bg-white/75'
+          className={`overflow-hidden rounded-[2rem] border p-6 shadow-[0_25px_80px_-45px_rgba(15,23,42,0.38)] backdrop-blur transition-colors ${
+            isDarkTheme
+              ? 'border-slate-700/70 bg-[linear-gradient(180deg,rgba(15,23,42,0.92)_0%,rgba(15,23,42,0.82)_100%)]'
+              : 'border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,252,0.88)_100%)]'
           }`}
         >
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -729,8 +742,8 @@ function App() {
                 aria-label="Abrir panel administrativo"
                 className={`inline-flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
                   isDarkTheme
-                    ? 'border-slate-700 bg-slate-950/80 hover:border-slate-500 hover:bg-slate-950'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                    ? 'border-slate-700/80 bg-slate-950/50 hover:border-slate-500 hover:bg-slate-950/70'
+                    : 'border-slate-200 bg-white/90 hover:border-slate-300 hover:bg-white'
                 }`}
               >
                 <svg
@@ -765,8 +778,8 @@ function App() {
                   onClick={() => setView('ciudadania')}
                   className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
                     isDarkTheme
-                      ? 'border-slate-600 bg-slate-950/70 text-slate-100 hover:border-slate-400 hover:bg-slate-900'
-                      : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                      ? 'border-slate-600 bg-slate-950/50 text-slate-100 hover:border-slate-400 hover:bg-slate-900'
+                      : 'border-slate-300 bg-white/90 text-slate-700 hover:border-slate-400 hover:bg-white'
                   }`}
                 >
                   Volver a consulta
@@ -779,26 +792,34 @@ function App() {
               onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
               className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
                 isDarkTheme
-                  ? 'border-amber-300/30 bg-amber-300/10 text-amber-100 hover:bg-amber-300/20'
-                  : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                  ? 'border-slate-600 bg-slate-950/45 text-slate-100 hover:border-slate-400 hover:bg-slate-900'
+                  : 'border-slate-300 bg-white/90 text-slate-700 hover:border-slate-400 hover:bg-white'
               }`}
             >
               {isDarkTheme ? 'Modo claro' : 'Modo oscuro'}
             </button>
           </div>
 
-          <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl space-y-4">
-              <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
-                isDarkTheme
-                  ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100'
-                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              }`}>
-                Iteracion 4 en fortalecimiento
-              </span>
+          <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.8fr)] xl:items-end">
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${
+                  isDarkTheme ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  Plataforma institucional de orientacion · Alcaldia de Cucuta
+                </p>
+                <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] ${
+                  isDarkTheme
+                    ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                }`}>
+                  Asistente de tramites y servicios
+                </span>
+              </div>
+
               <div className="flex items-start gap-4">
-                <div className={`hidden rounded-3xl border p-3 sm:block ${
-                  isDarkTheme ? 'border-slate-700 bg-slate-950/70' : 'border-slate-200 bg-white'
+                <div className={`hidden rounded-[1.75rem] border p-3 sm:block ${
+                  isDarkTheme ? 'border-slate-700/80 bg-slate-950/50' : 'border-slate-200 bg-white/95'
                 }`}>
                   <img
                     src="/logo-alcaldia.png"
@@ -806,21 +827,35 @@ function App() {
                     className="h-14 w-14 object-contain"
                   />
                 </div>
-                <div className="space-y-3">
-                  <h1 className={`max-w-3xl text-4xl font-black tracking-tight md:text-5xl ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>
-                    Asistente de tramites para rentas e impuestos
+                <div className="space-y-4">
+                  <h1 className={`max-w-4xl text-3xl font-black tracking-tight sm:text-4xl xl:text-[3.35rem] ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>
+                    Asistente institucional de tramites
                   </h1>
                   <p className={`max-w-3xl text-base leading-7 md:text-lg ${isDarkTheme ? 'text-slate-300' : 'text-slate-600'}`}>
-                    Estamos dejando el sistema mas claro para ciudadania y mas confiable para consultas reales sobre tramites tributarios de la Alcaldia de Cucuta.
+                    Espacio de consulta y apoyo institucional para orientar a la ciudadania con informacion clara, verificable y facil de gestionar desde el panel administrativo.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <MetricCard label="API" value="Activa" tone="emerald" />
-              <MetricCard label="Tramites activos" value={loadingTramites ? '...' : String(tramites.length)} tone="amber" />
-              <MetricCard label="Vista" value={view === 'ciudadania' ? 'Consulta' : 'Admin'} tone="slate" />
+            <div className={`rounded-[1.8rem] border p-4 sm:p-5 ${
+              isDarkTheme ? 'border-slate-700/70 bg-slate-950/45' : 'border-slate-200 bg-white/80'
+            }`}>
+              <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${
+                isDarkTheme ? 'text-slate-400' : 'text-slate-500'
+              }`}>
+                Resumen operativo
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <MetricCard label="Catalogo" value={loadingTramites ? '...' : String(tramites.length)} tone="emerald" />
+                <MetricCard label="Cobertura" value="Oficial" tone="amber" />
+                <MetricCard label="Vista actual" value={view === 'ciudadania' ? 'Consulta' : 'Admin'} tone="slate" />
+              </div>
+              <p className={`mt-4 text-sm leading-6 ${
+                isDarkTheme ? 'text-slate-300' : 'text-slate-600'
+              }`}>
+                La experiencia combina consulta asistida, trazabilidad administrativa y enlaces de validacion para mantener coherencia entre orientacion ciudadana y gestion interna.
+              </p>
             </div>
           </div>
         </header>
@@ -893,7 +928,6 @@ function App() {
 
               <aside className="space-y-6">
                 <TramitesPanel tramites={tramites} loadingTramites={loadingTramites} tramitesError={tramitesError} />
-                <Callout />
               </aside>
             </div>
           ) : !adminSessionChecked ? (
@@ -1043,6 +1077,18 @@ function App() {
                       value={formData.requisitos}
                       onChange={handleInputChange}
                     />
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs leading-5 text-slate-500">
+                        Escribe un requisito por linea o usa el boton para ordenarlos automaticamente.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleEnumerateRequirements}
+                        className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                      >
+                        Enumerar requisitos
+                      </button>
+                    </div>
                   </Field>
                   <div className="md:col-span-2 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1655,6 +1701,15 @@ function buildDependencyOptions(tramites) {
   )
 }
 
+function dedupeTramitesById(tramites) {
+  const seen = new Set()
+  return tramites.filter((tramite) => {
+    if (!tramite || seen.has(tramite.id)) return false
+    seen.add(tramite.id)
+    return true
+  })
+}
+
 function normalizeDependencySelection(value, dependencyOptions) {
   const cleanedValue = cleanDependencyLabel(value)
   if (!cleanedValue) return ''
@@ -1751,26 +1806,27 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
   const orientationText = compactOrientationText(summaryText)
   const isNoMatch = consulta?.mensaje_estado === 'Sin coincidencias en la base actual'
   const isTooGeneral = consulta?.mensaje_estado === 'Consulta demasiado general'
+  const visibleMatchRef = useRef(null)
   const effectiveOrientationText = isTooGeneral
     ? 'Tu consulta sigue siendo amplia. No elegimos un tramite principal todavia; abajo tienes rutas reales para aterrizarla mejor.'
     : orientationText
   const allMatches = consulta
-    ? [
+    ? dedupeTramitesById([
         ...(consulta.tramite_principal ? [consulta.tramite_principal] : []),
         ...(consulta.tramites_relacionados ?? []),
-      ]
+      ])
     : []
   const [selectedMatchId, setSelectedMatchId] = useState(null)
-  const canPromoteVisibleMatch = Boolean(consulta?.tramite_principal)
-  const defaultMatchId = canPromoteVisibleMatch ? consulta?.tramite_principal?.id ?? null : null
+  const hasExplicitPrincipal = Boolean(consulta?.tramite_principal)
+  const defaultMatchId = hasExplicitPrincipal ? consulta?.tramite_principal?.id ?? null : null
   const activeMatchId = allMatches.some((tramite) => tramite.id === selectedMatchId)
     ? selectedMatchId
     : defaultMatchId
 
   const activeMatch =
     (activeMatchId ? allMatches.find((tramite) => tramite.id === activeMatchId) : null) ??
-    (canPromoteVisibleMatch ? consulta?.tramite_principal ?? null : null)
-  const secondaryMatches = activeMatch && canPromoteVisibleMatch
+    (hasExplicitPrincipal ? consulta?.tramite_principal ?? null : null)
+  const secondaryMatches = activeMatch
     ? allMatches.filter((tramite) => tramite.id !== activeMatch.id)
     : []
   const isViewingAlternative =
@@ -1786,6 +1842,15 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
       ].filter(Boolean)
     : []
 
+  useEffect(() => {
+    if (!selectedMatchId || !visibleMatchRef.current) return
+    visibleMatchRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [selectedMatchId])
+
+  function handleSelectMatch(matchId) {
+    setSelectedMatchId(matchId)
+  }
+
   return (
     <section className="rounded-[2rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1794,8 +1859,10 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
             <h3 className="mt-2 text-2xl font-bold text-slate-950">Resultado de la consulta</h3>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
               {isTooGeneral
-                ? 'Primero te mostramos una guia corta y luego las rutas mas cercanas para precisar la consulta.'
-                : 'Primero ves la guia esencial y luego los datos de apoyo del tramite.'}
+                ? 'Te ayudamos a elegir una ruta clara antes de mostrar una ficha completa.'
+                : isNoMatch
+                  ? 'Primero ves la orientacion central y luego caminos cercanos para continuar la consulta.'
+                  : 'Primero ves la orientacion esencial y luego los datos clave del tramite.'}
             </p>
           </div>
         <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700 shadow-sm">
@@ -1819,7 +1886,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
         </div>
       ) : consulta ? (
         <div className="mt-6 space-y-6">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(15rem,0.75fr)_minmax(8.5rem,0.4fr)]">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(14rem,0.8fr)_minmax(8.5rem,0.4fr)]">
             <ResultMetricCard label="Pregunta" className="bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_100%)]">
               <p className="text-base font-semibold leading-7 text-slate-950">{consulta.pregunta}</p>
             </ResultMetricCard>
@@ -1830,10 +1897,12 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
               </span>
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 {consulta.mensaje_estado === 'Coincidencias semanticas encontradas'
-                  ? 'El asistente encontro una ruta suficientemente confiable.'
+                  ? 'La consulta quedo bien encaminada con una coincidencia confiable.'
                   : consulta.mensaje_estado === 'Consulta demasiado general'
-                    ? 'Hay varias rutas plausibles y necesitamos que elijas una.'
-                    : 'Te muestra caminos cercanos para continuar sin perder el hilo.'}
+                    ? 'Hay varias rutas plausibles y te mostramos opciones para elegir.'
+                    : isNoMatch
+                      ? 'No inventamos una respuesta; preferimos mostrar rutas cercanas.'
+                      : 'Te mostramos caminos cercanos para continuar sin perder el hilo.'}
               </p>
             </ResultMetricCard>
 
@@ -1852,19 +1921,28 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
           </div>
 
           <div className={`relative overflow-hidden rounded-3xl border p-5 ${statusConfig.panelClassName}`}>
-            <div className="pointer-events-none absolute inset-y-4 left-4 w-1 rounded-full bg-white/80" />
-            <div className="pl-4">
-              <p className={`text-xs uppercase tracking-[0.2em] ${statusConfig.labelClassName}`}>Orientacion inmediata</p>
-              <p className="mt-2 text-[15px] leading-7 text-slate-800">{effectiveOrientationText}</p>
+            <div className="pointer-events-none absolute inset-y-5 left-5 w-1 rounded-full bg-white/75" />
+            <div className="pl-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className={`text-xs uppercase tracking-[0.2em] ${statusConfig.labelClassName}`}>Orientacion inmediata</p>
+                <span className="rounded-full border border-white/70 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+                  {isTooGeneral ? 'Elige una ruta' : isNoMatch ? 'Continua desde una opcion cercana' : 'Coincidencia principal'}
+                </span>
+              </div>
+              <p className="mt-3 text-[15px] leading-7 text-slate-800">{effectiveOrientationText}</p>
             </div>
           </div>
 
-          {activeMatch && canPromoteVisibleMatch ? (
-            <article className="rounded-[1.9rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-5 shadow-[0_12px_45px_-35px_rgba(15,23,42,0.35)]">
+          {activeMatch ? (
+            <article ref={visibleMatchRef} className="rounded-[1.9rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-5 shadow-[0_12px_45px_-35px_rgba(15,23,42,0.35)]">
               <div className="flex flex-wrap items-start justify-between gap-4 rounded-[1.6rem] border border-slate-100 bg-[linear-gradient(135deg,#f8fafc_0%,#f1f5f9_100%)] px-5 py-5">
                 <div className="max-w-3xl">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                    {isViewingAlternative ? 'Coincidencia seleccionada' : 'Tramite principal'}
+                    {hasExplicitPrincipal
+                      ? isViewingAlternative
+                        ? 'Coincidencia seleccionada'
+                        : 'Tramite principal'
+                      : 'Ruta seleccionada'}
                   </p>
                   <h4 className="mt-2 text-2xl font-bold leading-tight text-slate-950">
                     {activeMatch.nombre}
@@ -1876,6 +1954,10 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                     <p className="mt-3 text-sm leading-6 text-slate-500">
                       Estas viendo otra coincidencia relacionada con la misma consulta. Puedes volver a la principal desde la lista superior.
                     </p>
+                  ) : !hasExplicitPrincipal ? (
+                    <p className="mt-3 text-sm leading-6 text-slate-500">
+                      Abrimos esta ruta para que revises sus detalles y confirmes si coincide con lo que necesitas.
+                    </p>
                   ) : null}
                 </div>
                 <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-500 shadow-sm">
@@ -1886,7 +1968,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
               <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.78fr)]">
                 <div className="grid gap-4">
                   {activeMatch.descripcion ? (
-                    <div className="order-2 lg:order-1">
+                    <div className="order-2 lg:order-2">
                       <DetailCard
                         label="Descripcion del tramite"
                         value={activeMatch.descripcion}
@@ -1896,7 +1978,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                   ) : null}
 
                   {activeMatch.requisitos ? (
-                    <div className="order-1 lg:order-2">
+                    <div className="order-1 lg:order-1">
                       <DetailCard
                         label="Requisitos clave"
                         value={activeMatch.requisitos}
@@ -1918,9 +2000,9 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                 <aside className="space-y-4">
                   {activeMatch.fuente_url ? (
                     <div className="rounded-3xl border border-emerald-200 bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fffb_100%)] p-5 shadow-sm">
-                      <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Validacion oficial</p>
+                      <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Fuente oficial de validacion</p>
                       <p className="mt-2 text-sm leading-6 text-emerald-900">
-                        Revisa la fuente institucional para confirmar el tramite o continuar la gestion.
+                        Usa este enlace como referencia institucional para confirmar requisitos, soporte documental o el siguiente paso de la gestion.
                       </p>
                       <a
                         href={activeMatch.fuente_url}
@@ -1957,7 +2039,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
 
                   {missingFields.length ? (
                     <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-amber-700">Informacion pendiente</p>
+                      <p className="text-xs uppercase tracking-[0.18em] text-amber-700">Informacion que aun conviene completar</p>
                       <p className="mt-2 text-sm leading-6 text-amber-900">
                         Aun no hay datos registrados para: {missingFields.join(', ')}.
                       </p>
@@ -1982,7 +2064,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                     Otras coincidencias disponibles
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Aqui ves opciones cercanas en version resumida. Si quieres revisar otra, usa el boton y reemplazamos la ficha visible.
+                    Aqui ves rutas cercanas en version resumida. Si una parece mas adecuada, abre su ficha y reemplazamos la vista actual.
                   </p>
                 </div>
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -2030,7 +2112,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                         <div className="flex flex-none items-center">
                           <button
                             type="button"
-                            onClick={() => setSelectedMatchId(match.id)}
+                            onClick={() => handleSelectMatch(match.id)}
                             className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
                           >
                             Ver mas informacion
@@ -2056,17 +2138,17 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                 {isTooGeneral
                   ? 'Sugerencias para precisar la consulta'
                   : isNoMatch
-                    ? 'Rutas sugeridas para seguir buscando'
+                    ? 'Rutas sugeridas para continuar'
                     : 'Sugerencias para continuar'}
               </p>
               <p className="mt-3 text-sm font-medium text-slate-700">
-                Elige una ruta y la usamos de inmediato.
+                {isNoMatch ? 'Prueba una de estas rutas y retomamos la consulta desde ahi.' : 'Elige una ruta y la usamos de inmediato.'}
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 {isTooGeneral
                   ? 'Tu pregunta necesita una pista más concreta. Estas opciones te ayudan a aterrizar la intención y llegar más rápido al trámite correcto.'
                   : isNoMatch
-                    ? 'No hubo una coincidencia suficientemente confiable, pero estas consultas cercanas pueden ayudarte a llegar al tramite correcto.'
+                    ? 'No hubo una coincidencia suficientemente confiable, pero estas consultas cercanas pueden ayudarte a acercarte al tramite correcto sin empezar desde cero.'
                     : 'Si quieres afinar la consulta o revisar otra ruta cercana, puedes usar una de estas preguntas.'}
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
@@ -2091,7 +2173,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
               </p>
               {isTooGeneral ? (
                 <p className="mb-4 max-w-3xl text-sm leading-6 text-slate-600">
-                  No elegimos un tramite principal porque la consulta aun puede apuntar a varios temas. Escoge una opcion y continuamos desde ahi.
+                  Tu consulta todavia puede referirse a varios temas. En lugar de adivinar, te mostramos rutas reales para que elijas la que mejor se parece a lo que necesitas.
                 </p>
               ) : null}
               <div className="grid gap-4 md:grid-cols-2">
@@ -2116,14 +2198,14 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                     {!consulta.tramite_principal ? (
                       <button
                         type="button"
-                        onClick={() => onUseSuggestion(`Consulta por ${tramite.nombre}`)}
+                        onClick={() => handleSelectMatch(tramite.id)}
                         className={`mt-4 inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
                           isTooGeneral
                             ? 'border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-400 hover:bg-amber-100'
                             : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100'
                         }`}
                       >
-                        {isTooGeneral ? 'Elegir esta ruta' : 'Usar esta opcion'}
+                        {isTooGeneral ? 'Ver esta ruta' : 'Ver esta opcion'}
                       </button>
                     ) : null}
                   </article>
@@ -2168,6 +2250,16 @@ function DetailCardBase({ label, value, tone = 'slate', asList = false }) {
     <div className={`rounded-3xl border p-5 shadow-sm ${tones[tone] ?? tones.slate}`}>
       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
       {segments.length > 1 ? (
+        asList ? (
+          <ul className="mt-4 space-y-3">
+            {segments.map((segment) => (
+              <li key={`${label}-${segment.slice(0, 24)}`} className="flex items-start gap-3 text-sm leading-6 text-slate-800">
+                <span className="mt-2 h-2.5 w-2.5 flex-none rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.14)]" />
+                <span>{segment}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
         <ul className="mt-4 space-y-3">
           {segments.map((segment) => (
             <li key={`${label}-${segment.slice(0, 24)}`} className="flex items-start gap-3 text-sm leading-6 text-slate-800">
@@ -2176,6 +2268,7 @@ function DetailCardBase({ label, value, tone = 'slate', asList = false }) {
             </li>
           ))}
         </ul>
+        )
       ) : (
         <p className="mt-3 text-sm leading-7 text-slate-800">{segments[0] ?? value}</p>
       )}
@@ -2220,24 +2313,25 @@ function CompactInfoRow({ label, value, accent = 'slate' }) {
 function StateActionPanel({ mode }) {
   const content = {
     ambigua: {
-      badge: 'Consulta demasiado general',
+      badge: 'Elige una ruta',
       badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700',
-      title: 'Elige una ruta mas concreta',
+      title: 'Tu consulta aun puede significar varias cosas',
       description:
-        'Tu pregunta todavia puede referirse a varios tramites, asi que preferimos no elegir uno por ti.',
-      promptGuide: '',
-      promptExample: '',
+        'En lugar de asumir un tramite principal, te mostramos rutas reales para que elijas la que mejor se parece a lo que necesitas.',
+      promptGuide: 'Una formula corta que suele funcionar bien es: impuesto o tramite + gestion + contexto.',
+      promptExample: 'Ejemplo: requisitos para paz y salvo predial',
       tips: [
         'Menciona el impuesto o tramite concreto que necesitas.',
-        'Si puedes, agrega una pista como predial, paz y salvo o industria y comercio.',
+        'Agrega una pista como predial, paz y salvo o industria y comercio.',
+        'Si ya ves una ruta parecida abajo, elige esa opcion para continuar.',
       ],
     },
     sin_coincidencia: {
-      badge: 'Sin coincidencia suficiente',
+      badge: 'Necesitamos otra pista',
       badgeClassName: 'border-sky-200 bg-sky-50 text-sky-700',
-      title: 'No encontramos un tramite confiable todavia',
+      title: 'Todavia no encontramos una coincidencia confiable',
       description:
-        'Preferimos no inventar una respuesta. Abajo te dejamos rutas cercanas para que llegues al tramite correcto con menos ensayo y error.',
+        'Preferimos no inventar una respuesta. Te mostramos rutas cercanas para que puedas continuar con una consulta mejor enfocada.',
       promptGuide: 'Reformula la consulta con el nombre del impuesto o la gestion esperada.',
       promptExample: 'Ejemplo: devolucion de pagos en exceso del impuesto predial',
       tips: [
@@ -2311,6 +2405,7 @@ function formatDetailSegments(value, asList = false) {
 
   const normalized = text
     .replace(/\n+/g, '\n')
+    .replace(/\s+(?=\d+[).:-]\s+)/g, '\n')
     .replace(/\s+[•·]\s+/g, '\n')
     .replace(/\s+-\s+/g, '\n')
 
@@ -2320,6 +2415,18 @@ function formatDetailSegments(value, asList = false) {
     .filter(Boolean)
 
   return segments.length ? segments : [text]
+}
+
+function buildNumberedRequirements(value) {
+  const segments = formatDetailSegments(value, true)
+
+  if (!segments.length) {
+    return ''
+  }
+
+  return segments
+    .map((segment, index) => `${index + 1}. ${segment}`)
+    .join('\n')
 }
 
 function compactOrientationText(value) {
@@ -3355,18 +3462,6 @@ function getSessionToneClassName(remainingSeconds) {
   }
 }
 
-function Callout() {
-  return (
-    <div className="rounded-[2rem] border border-slate-200/70 bg-[linear-gradient(135deg,#0f172a_0%,#1f2937_50%,#1a4334_100%)] p-6 text-white shadow-[0_25px_80px_-45px_rgba(15,23,42,0.7)]">
-      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-200">Foco actual</p>
-      <h2 className="mt-2 text-2xl font-bold">Claridad, precision y experiencia</h2>
-      <p className="mt-4 text-sm leading-6 text-slate-200">
-        La arquitectura RAG ya funciona; ahora estamos puliendo la forma en que se muestran los resultados, la desambiguacion de consultas y la experiencia del ciudadano.
-      </p>
-    </div>
-  )
-}
-
 function formatLogDate(value) {
   const date = new Date(value)
 
@@ -3863,18 +3958,18 @@ function Message({ children, tone }) {
 function MetricCard({ label, value, tone }) {
   const tones = {
     emerald: {
-      card: 'border-emerald-200 bg-emerald-50 text-emerald-950',
-      label: 'text-emerald-900',
+      card: 'border-emerald-200 bg-emerald-50/80 text-emerald-950',
+      label: 'text-emerald-800',
       value: 'text-emerald-950',
     },
     amber: {
-      card: 'border-amber-200 bg-amber-50 text-amber-950',
-      label: 'text-amber-900',
+      card: 'border-amber-200 bg-amber-50/80 text-amber-950',
+      label: 'text-amber-800',
       value: 'text-amber-950',
     },
     slate: {
-      card: 'border-slate-200 bg-slate-100 text-slate-950',
-      label: 'text-slate-800',
+      card: 'border-slate-200 bg-slate-50 text-slate-950',
+      label: 'text-slate-600',
       value: 'text-slate-950',
     },
   }
@@ -3882,9 +3977,9 @@ function MetricCard({ label, value, tone }) {
   const styles = tones[tone]
 
   return (
-    <div className={`rounded-3xl border px-4 py-4 ${styles.card}`}>
-      <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${styles.label}`}>{label}</p>
-      <p className={`mt-2 text-2xl font-black ${styles.value}`}>{value}</p>
+    <div className={`rounded-[1.4rem] border px-4 py-4 ${styles.card}`}>
+      <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${styles.label}`}>{label}</p>
+      <p className={`mt-2 text-3xl font-black tracking-tight ${styles.value}`}>{value}</p>
     </div>
   )
 }

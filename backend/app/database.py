@@ -7,12 +7,12 @@ from app.core.config import settings
 from app.models.base import Base
 
 
-engine = create_engine(settings.database_url, echo=False)
+engine = create_engine(settings.sqlalchemy_database_url, echo=False)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
 def get_database_url() -> str:
-    return settings.database_url
+    return settings.sqlalchemy_database_url
 
 
 def get_db_session() -> Generator[Session, None, None]:

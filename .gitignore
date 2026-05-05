@@ -1,0 +1,13 @@
+.tmp/
+.unlighthouse/
+
+backend/.venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/uvicorn
+backend/*.pyc
+backend/.env
+
+frontend/node_modules/
+frontend/dist/
+frontend/*.local

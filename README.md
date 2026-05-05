@@ -153,6 +153,14 @@ cd C:\asistente-alcaldia-cucuta\backend
 python scripts\validate_rag_queries.py
 ```
 
+## Despliegue para pruebas con usuarios
+
+El frontend ya puede publicarse en Vercel y el backend esta preparado para desplegarse tambien en Vercel mediante [backend/app/index.py](backend/app/index.py).
+
+Guia paso a paso del backend:
+
+- [despliegue_backend_vercel.md](docs/despliegue_backend_vercel.md)
+
 ## Objetivo tecnico inmediato
 
 Cerrar la Iteracion 4 con una validacion funcional clara del flujo completo, asegurando:
