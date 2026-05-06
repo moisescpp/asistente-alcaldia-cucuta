@@ -14,6 +14,7 @@ class ConsultaLog(Base):
     mensaje_estado: Mapped[str] = mapped_column(String(120), nullable=False)
     origen_respuesta: Mapped[str] = mapped_column(String(40), nullable=False)
     total_resultados: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    response_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     tramite_principal_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     tramite_principal_nombre: Mapped[str | None] = mapped_column(
         String(255),

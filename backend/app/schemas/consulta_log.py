@@ -11,6 +11,7 @@ class ConsultaLogRead(BaseModel):
     mensaje_estado: str
     origen_respuesta: str
     total_resultados: int
+    response_time_ms: int | None = None
     tramite_principal_id: int | None = None
     tramite_principal_nombre: str | None = None
     resumen_respuesta: str | None = None

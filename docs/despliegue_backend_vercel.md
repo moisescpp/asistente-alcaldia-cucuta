@@ -67,6 +67,8 @@ DATABASE_URL=TU_DATABASE_URL
 EMBEDDING_DIMENSIONS=1536
 ```
 
+En produccion no uses los valores por defecto de desarrollo. Si `APP_ENV=production` y el backend detecta el PIN `246810`, el secreto `cucuta-admin-session-secret` o un secreto demasiado corto, el acceso administrativo queda bloqueado hasta configurar credenciales seguras.
+
 ## Base de datos
 
 Vercel no reemplaza la base de datos. El backend necesita una PostgreSQL externa y accesible por internet.

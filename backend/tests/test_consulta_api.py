@@ -723,5 +723,7 @@ def test_admin_can_list_recent_consulta_logs(client, admin_headers) -> None:
         assert "resumen_respuesta" in matching_log
         assert "sugerencias" in matching_log
         assert "tramites_relacionados" in matching_log
+        assert matching_log["response_time_ms"] is not None
+        assert matching_log["response_time_ms"] >= 0
     finally:
         app.state.disable_consulta_logging = True

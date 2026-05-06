@@ -4,6 +4,7 @@ from app.services.admin_auth_service import (
     decode_admin_session_token,
     get_admin_session_remaining_seconds,
     get_admin_session_ttl_seconds,
+    has_insecure_admin_config,
     require_admin_session,
     verify_admin_pin,
 )
@@ -33,6 +34,7 @@ __all__ = [
     "get_admin_session_remaining_seconds",
     "get_admin_session_ttl_seconds",
     "get_tramite_semantic_aliases",
+    "has_insecure_admin_config",
     "infer_response_origin",
     "list_recent_consulta_logs",
     "log_consulta_result",

@@ -43,6 +43,7 @@ def log_consulta_result(
     *,
     pregunta: str,
     response: ConsultaResponse,
+    response_time_ms: int | None = None,
 ) -> ConsultaLog:
     tramite_principal = response.tramite_principal
     log_entry = ConsultaLog(
@@ -50,6 +51,7 @@ def log_consulta_result(
         mensaje_estado=response.mensaje_estado,
         origen_respuesta=infer_response_origin(response),
         total_resultados=response.total_resultados,
+        response_time_ms=response_time_ms,
         tramite_principal_id=tramite_principal.id if tramite_principal else None,
         tramite_principal_nombre=tramite_principal.nombre if tramite_principal else None,
         resumen_respuesta=_extract_response_summary(response.respuesta),

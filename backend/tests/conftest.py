@@ -15,7 +15,7 @@ if str(ROOT_DIR) not in sys.path:
 from app.main import app
 from app.core.config import settings
 from app.database import SessionLocal
-from app.models import ConsultaLog, Tramite
+from app.models import CitizenFeedback, ConsultaLog, Tramite
 
 
 @pytest.fixture
@@ -55,6 +55,11 @@ def cleanup_test_tramites() -> None:
             ),
         )
         db.execute(delete(ConsultaLog).where(ConsultaLog.pregunta.like("test-%")))
+        db.execute(
+            delete(CitizenFeedback).where(
+                CitizenFeedback.participant_name.like("Test %")
+            )
+        )
         db.commit()
     finally:
         db.close()
@@ -74,6 +79,11 @@ def cleanup_test_tramites() -> None:
             ),
         )
         db.execute(delete(ConsultaLog).where(ConsultaLog.pregunta.like("test-%")))
+        db.execute(
+            delete(CitizenFeedback).where(
+                CitizenFeedback.participant_name.like("Test %")
+            )
+        )
         db.commit()
     finally:
         db.close()

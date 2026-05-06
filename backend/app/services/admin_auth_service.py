@@ -10,6 +10,8 @@ from fastapi import Header, HTTPException, status
 from app.core.config import settings
 
 JWT_ISSUER = "alcaldia-cucuta-admin"
+DEFAULT_ADMIN_ACCESS_PIN = "246810"
+DEFAULT_ADMIN_SESSION_SECRET = "cucuta-admin-session-secret"
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,18 @@ def verify_admin_pin(pin: str) -> bool:
     cleaned_pin = (pin or "").strip()
     expected_pin = settings.admin_access_pin.strip()
     return hmac.compare_digest(cleaned_pin, expected_pin)
+
+
+def has_insecure_admin_config() -> bool:
+    if settings.app_env.lower() != "production":
+        return False
+
+    secret = settings.admin_session_secret.strip()
+    return (
+        settings.admin_access_pin.strip() == DEFAULT_ADMIN_ACCESS_PIN
+        or secret == DEFAULT_ADMIN_SESSION_SECRET
+        or len(secret) < 24
+    )
 
 
 def get_admin_session_remaining_seconds(claims: AdminSessionClaims) -> int:

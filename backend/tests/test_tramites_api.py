@@ -43,6 +43,25 @@ def test_admin_session_returns_trial_ttl_metadata(client) -> None:
     assert data["expires_at"] > 0
 
 
+def test_admin_session_rejects_default_credentials_in_production(client) -> None:
+    original_env = routes_module.settings.app_env
+    original_pin = routes_module.settings.admin_access_pin
+    original_secret = routes_module.settings.admin_session_secret
+    try:
+        routes_module.settings.app_env = "production"
+        routes_module.settings.admin_access_pin = "246810"
+        routes_module.settings.admin_session_secret = "cucuta-admin-session-secret"
+
+        response = client.post("/api/admin/session", json={"pin": "246810"})
+    finally:
+        routes_module.settings.app_env = original_env
+        routes_module.settings.admin_access_pin = original_pin
+        routes_module.settings.admin_session_secret = original_secret
+
+    assert response.status_code == 503
+    assert "credenciales seguras" in response.json()["detail"].lower()
+
+
 def test_admin_session_status_confirms_active_private_access(client, admin_headers) -> None:
     response = client.get("/api/admin/session", headers=admin_headers)
 
