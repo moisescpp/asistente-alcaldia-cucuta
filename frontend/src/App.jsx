@@ -23,39 +23,6 @@ const EMPTY_FORM = {
   dependencia: '',
   fuente_url: '',
 }
-const EMPTY_FEEDBACK_FORM = {
-  participant_name: '',
-  participant_profile: '',
-  tested_question: '',
-  found_answer: '',
-  clarity_rating: '4',
-  speed_rating: '4',
-  visual_rating: '4',
-  sus_1: '4',
-  sus_2: '2',
-  sus_3: '4',
-  sus_4: '2',
-  sus_5: '4',
-  sus_6: '2',
-  sus_7: '4',
-  sus_8: '2',
-  sus_9: '4',
-  sus_10: '2',
-  confusion_notes: '',
-  suggestions: '',
-}
-const SUS_QUESTIONS = [
-  ['sus_1', 'Me gustaria usar este asistente cuando necesite orientacion sobre tramites.'],
-  ['sus_2', 'Senti que el sistema fue innecesariamente complicado.'],
-  ['sus_3', 'El asistente fue facil de usar.'],
-  ['sus_4', 'Necesitaria ayuda de otra persona para usar este sistema.'],
-  ['sus_5', 'Las opciones y respuestas se sintieron bien integradas.'],
-  ['sus_6', 'Encontre inconsistencias o cosas que me confundieron.'],
-  ['sus_7', 'Creo que una persona aprenderia rapido a usar este asistente.'],
-  ['sus_8', 'El sistema se sintio pesado o incomodo de usar.'],
-  ['sus_9', 'Me senti seguro entendiendo la respuesta del asistente.'],
-  ['sus_10', 'Tuve que aprender demasiadas cosas antes de poder usarlo.'],
-]
 
 const inputClassName =
   'w-full rounded-3xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100'
@@ -107,13 +74,6 @@ function App() {
   const [consultaError, setConsultaError] = useState('')
   const [consultaDurationMs, setConsultaDurationMs] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [feedbackForm, setFeedbackForm] = useState(EMPTY_FEEDBACK_FORM)
-  const [feedbackMessage, setFeedbackMessage] = useState('')
-  const [feedbackError, setFeedbackError] = useState('')
-  const [isFeedbackSubmitting, setIsFeedbackSubmitting] = useState(false)
-  const [citizenFeedback, setCitizenFeedback] = useState([])
-  const [loadingCitizenFeedback, setLoadingCitizenFeedback] = useState(false)
-  const [citizenFeedbackError, setCitizenFeedbackError] = useState('')
   const [formData, setFormData] = useState(storedAdminWorkspace.formData)
   const [editingId, setEditingId] = useState(storedAdminWorkspace.editingId)
   const [editingActivo, setEditingActivo] = useState(storedAdminWorkspace.editingActivo)
@@ -395,51 +355,6 @@ function App() {
     }
   }, [view, adminAuthenticated, adminToken])
 
-  useEffect(() => {
-    if (view !== 'admin' || !adminAuthenticated || !adminToken) return
-
-    let isCancelled = false
-
-    async function loadCitizenFeedback() {
-      setLoadingCitizenFeedback(true)
-      setCitizenFeedbackError('')
-      try {
-        const response = await fetch(`${API_URL}/admin/feedback`, {
-          headers: { Authorization: `Bearer ${adminToken}` },
-        })
-        if (response.status === 401) {
-          if (!isCancelled) {
-            clearAdminSession('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
-          }
-          return
-        }
-        if (!response.ok) throw new Error('No fue posible cargar las evaluaciones ciudadanas.')
-        const data = await response.json()
-        if (!isCancelled) {
-          setCitizenFeedback(data)
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          setCitizenFeedbackError(
-            error instanceof Error
-              ? error.message
-              : 'Ocurrio un error al consultar las evaluaciones ciudadanas.',
-          )
-        }
-      } finally {
-        if (!isCancelled) {
-          setLoadingCitizenFeedback(false)
-        }
-      }
-    }
-
-    loadCitizenFeedback()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [view, adminAuthenticated, adminToken])
-
   async function refreshTramites() {
     setLoadingTramites(true)
     setTramitesError('')
@@ -496,9 +411,7 @@ function App() {
     setAdminPin('')
     setConsultaLogs([])
     setInactiveTramites([])
-    setCitizenFeedback([])
     setInactiveTramitesError('')
-    setCitizenFeedbackError('')
     setHasLoadedConsultaLogs(false)
     setConsultaLogsStale(false)
     setAdminMessage('')
@@ -567,7 +480,6 @@ function App() {
       await Promise.all([
         refreshConsultaLogs(data.access_token),
         refreshInactiveTramites(data.access_token),
-        refreshCitizenFeedback(data.access_token),
       ])
     } catch (error) {
       setAdminAuthError(
@@ -609,29 +521,6 @@ function App() {
     }
   }
 
-  async function refreshCitizenFeedback(tokenOverride = adminToken) {
-    if (!tokenOverride) {
-      setLoadingCitizenFeedback(false)
-      return
-    }
-
-    setLoadingCitizenFeedback(true)
-    setCitizenFeedbackError('')
-    try {
-      const response = await fetchAdmin(`${API_URL}/admin/feedback`, {}, tokenOverride)
-      if (!response.ok) throw new Error('No fue posible cargar las evaluaciones ciudadanas.')
-      setCitizenFeedback(await response.json())
-    } catch (error) {
-      setCitizenFeedbackError(
-        error instanceof Error
-          ? error.message
-          : 'Ocurrio un error al consultar las evaluaciones ciudadanas.',
-      )
-    } finally {
-      setLoadingCitizenFeedback(false)
-    }
-  }
-
   async function handleSubmit(event) {
     event.preventDefault()
     const pregunta = question.trim()
@@ -662,42 +551,6 @@ function App() {
     }
   }
 
-  function handleFeedbackChange(event) {
-    const { name, value } = event.target
-    setFeedbackForm((current) => ({ ...current, [name]: value }))
-    setFeedbackError('')
-    setFeedbackMessage('')
-  }
-
-  async function handleFeedbackSubmit(event) {
-    event.preventDefault()
-    setIsFeedbackSubmitting(true)
-    setFeedbackError('')
-    setFeedbackMessage('')
-
-    const payload = normalizeFeedbackPayload(feedbackForm)
-
-    try {
-      const response = await fetch(`${API_URL}/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify(payload),
-      })
-
-      const data = await response.json().catch(() => null)
-      if (!response.ok) {
-        throw new Error(data?.detail || 'No fue posible registrar la evaluacion.')
-      }
-
-      setFeedbackForm(EMPTY_FEEDBACK_FORM)
-      setFeedbackMessage('Gracias. Tu evaluacion quedo registrada para mejorar el asistente.')
-    } catch (error) {
-      setFeedbackError(error instanceof Error ? error.message : 'No fue posible registrar la evaluacion.')
-    } finally {
-      setIsFeedbackSubmitting(false)
-    }
-  }
-
   function handleInputChange(event) {
     const { name, value } = event.target
 
@@ -723,13 +576,13 @@ function App() {
     }
   }
 
-  function handleResetForm(clearFeedback = true) {
+  function handleResetForm(clearMessages = true) {
     setEditingId(null)
     setEditingActivo(true)
     setFormData(EMPTY_FORM)
     setAdminFieldErrors(EMPTY_ADMIN_ERRORS)
     setSlugTouched(false)
-    if (clearFeedback) {
+    if (clearMessages) {
       setAdminError('')
       setAdminMessage('')
     }
@@ -1080,14 +933,6 @@ function App() {
 
               <aside className="space-y-6">
                 <TramitesPanel tramites={tramites} loadingTramites={loadingTramites} tramitesError={tramitesError} />
-                <CitizenFeedbackPanel
-                  formData={feedbackForm}
-                  onChange={handleFeedbackChange}
-                  onSubmit={handleFeedbackSubmit}
-                  isSubmitting={isFeedbackSubmitting}
-                  message={feedbackMessage}
-                  error={feedbackError}
-                />
               </aside>
             </div>
           ) : !adminSessionChecked ? (
@@ -1536,13 +1381,6 @@ function App() {
                 onRefresh={refreshConsultaLogs}
                 className="xl:col-span-2"
               />
-              <CitizenFeedbackAdminPanel
-                feedback={citizenFeedback}
-                loading={loadingCitizenFeedback}
-                error={citizenFeedbackError}
-                onRefresh={refreshCitizenFeedback}
-                className="xl:col-span-2"
-              />
             </div>
           )}
         </main>
@@ -1558,62 +1396,6 @@ function normalizePayload(data) {
       typeof value === 'string' ? value.trim() : value,
     ]),
   )
-}
-
-function normalizeFeedbackPayload(data) {
-  const scaleFields = [
-    'clarity_rating',
-    'speed_rating',
-    'visual_rating',
-    ...SUS_QUESTIONS.map(([name]) => name),
-  ]
-  const payload = {
-    participant_name: data.participant_name.trim() || null,
-    participant_profile: data.participant_profile.trim() || null,
-    tested_question: data.tested_question.trim() || null,
-    found_answer:
-      data.found_answer === 'true'
-        ? true
-        : data.found_answer === 'false'
-          ? false
-          : null,
-    confusion_notes: data.confusion_notes.trim() || null,
-    suggestions: data.suggestions.trim() || null,
-  }
-
-  scaleFields.forEach((field) => {
-    payload[field] = Number(data[field])
-  })
-
-  return payload
-}
-
-function summarizeCitizenFeedback(feedback) {
-  if (!feedback.length) {
-    return {
-      averageSus: 0,
-      averageClarity: 0,
-      averageSpeed: 0,
-      averageVisual: 0,
-    }
-  }
-
-  const totals = feedback.reduce(
-    (summary, item) => ({
-      sus: summary.sus + Number(item.sus_score ?? 0),
-      clarity: summary.clarity + Number(item.clarity_rating ?? 0),
-      speed: summary.speed + Number(item.speed_rating ?? 0),
-      visual: summary.visual + Number(item.visual_rating ?? 0),
-    }),
-    { sus: 0, clarity: 0, speed: 0, visual: 0 },
-  )
-
-  return {
-    averageSus: totals.sus / feedback.length,
-    averageClarity: totals.clarity / feedback.length,
-    averageSpeed: totals.speed / feedback.length,
-    averageVisual: totals.visual / feedback.length,
-  }
 }
 
 function validateAdminForm(payload) {
@@ -2619,243 +2401,6 @@ function StateActionPanel({ mode }) {
         </ul>
       ) : null}
     </div>
-  )
-}
-
-function CitizenFeedbackPanel({ formData, onChange, onSubmit, isSubmitting, message, error }) {
-  return (
-    <section className="rounded-[1.75rem] border border-slate-200/80 bg-white/85 p-5 shadow-[0_16px_55px_-42px_rgba(15,23,42,0.45)] backdrop-blur">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Evaluacion ciudadana
-          </p>
-          <h3 className="mt-2 text-xl font-bold text-slate-950">Cuestionario de uso</h3>
-        </div>
-        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
-          SUS
-        </span>
-      </div>
-
-      <form className="mt-5 space-y-4" onSubmit={onSubmit}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-slate-700">Nombre o iniciales</span>
-            <input
-              className={inputClassName}
-              name="participant_name"
-              value={formData.participant_name}
-              onChange={onChange}
-              placeholder="Opcional"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-slate-700">Perfil</span>
-            <input
-              className={inputClassName}
-              name="participant_profile"
-              value={formData.participant_profile}
-              onChange={onChange}
-              placeholder="Familiar, ciudadano, estudiante"
-            />
-          </label>
-        </div>
-
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium text-slate-700">Pregunta que probaste</span>
-          <input
-            className={inputClassName}
-            name="tested_question"
-            value={formData.tested_question}
-            onChange={onChange}
-            placeholder="Ejemplo: necesito saber sobre impuesto predial"
-          />
-        </label>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <RatingSelect label="Claridad" name="clarity_rating" value={formData.clarity_rating} onChange={onChange} />
-          <RatingSelect label="Rapidez" name="speed_rating" value={formData.speed_rating} onChange={onChange} />
-          <RatingSelect label="Visual" name="visual_rating" value={formData.visual_rating} onChange={onChange} />
-        </div>
-
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium text-slate-700">Pudiste encontrar una respuesta util?</span>
-          <select
-            className={inputClassName}
-            name="found_answer"
-            value={formData.found_answer}
-            onChange={onChange}
-          >
-            <option value="">Prefiero no responder</option>
-            <option value="true">Si</option>
-            <option value="false">No</option>
-          </select>
-        </label>
-
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Escala SUS
-          </p>
-          <div className="mt-4 space-y-3">
-            {SUS_QUESTIONS.map(([name, label], index) => (
-              <label key={name} className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_8rem] sm:items-center">
-                <span className="text-sm leading-6 text-slate-700">
-                  {index + 1}. {label}
-                </span>
-                <select
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-                  name={name}
-                  value={formData[name]}
-                  onChange={onChange}
-                >
-                  {[1, 2, 3, 4, 5].map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium text-slate-700">Que te confundio?</span>
-          <textarea
-            className={`${inputClassName} min-h-24`}
-            name="confusion_notes"
-            value={formData.confusion_notes}
-            onChange={onChange}
-            placeholder="Escribe lo que no fue claro, si algo se sintio raro o si no encontraste lo esperado."
-          />
-        </label>
-
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium text-slate-700">Opinion o sugerencia</span>
-          <textarea
-            className={`${inputClassName} min-h-24`}
-            name="suggestions"
-            value={formData.suggestions}
-            onChange={onChange}
-            placeholder="Cuenta que mejorarias o que te parecio util."
-          />
-        </label>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-        >
-          {isSubmitting ? 'Enviando evaluacion...' : 'Enviar evaluacion'}
-        </button>
-
-        {message ? <Message tone="success">{message}</Message> : null}
-        {error ? <Message tone="error">{error}</Message> : null}
-      </form>
-    </section>
-  )
-}
-
-function RatingSelect({ label, name, value, onChange }) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>
-      <select className={inputClassName} name={name} value={value} onChange={onChange}>
-        <option value="1">1 - Bajo</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5 - Alto</option>
-      </select>
-    </label>
-  )
-}
-
-function CitizenFeedbackAdminPanel({ feedback, loading, error, onRefresh, className = '' }) {
-  const summary = summarizeCitizenFeedback(feedback)
-
-  return (
-    <section className={`rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur ${className}`}>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Evaluaciones ciudadanas
-          </p>
-          <h3 className="mt-2 text-2xl font-bold text-slate-950">Satisfaccion y reseñas</h3>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Aqui quedan las respuestas SUS y comentarios de las personas que prueban el asistente.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onRefresh}
-          className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
-        >
-          Actualizar evaluaciones
-        </button>
-      </div>
-
-      {loading ? <LoadingPanel title="Evaluaciones ciudadanas" /> : null}
-      {!loading && error ? <Message tone="error">{error}</Message> : null}
-
-      {!loading && !error && feedback.length ? (
-        <>
-          <div className="grid gap-3 sm:grid-cols-4">
-            <MetricCard label="Registros" value={String(feedback.length)} tone="slate" />
-            <MetricCard label="SUS promedio" value={summary.averageSus.toFixed(1)} tone="emerald" />
-            <MetricCard label="Claridad" value={summary.averageClarity.toFixed(1)} tone="amber" />
-            <MetricCard label="Rapidez" value={summary.averageSpeed.toFixed(1)} tone="slate" />
-          </div>
-
-          <div className="mt-6 grid gap-4 xl:grid-cols-2">
-            {feedback.slice(0, 6).map((item) => (
-              <article key={item.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-950">
-                      {item.participant_name || 'Participante sin nombre'}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      {item.participant_profile || 'Perfil no indicado'}
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                    SUS {item.sus_score}
-                  </span>
-                </div>
-                {item.tested_question ? (
-                  <p className="mt-4 text-sm leading-6 text-slate-700">
-                    Pregunta probada: <span className="font-medium">{item.tested_question}</span>
-                  </p>
-                ) : null}
-                <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                  <LogPill label="Claridad" value={`${item.clarity_rating}/5`} />
-                  <LogPill label="Rapidez" value={`${item.speed_rating}/5`} />
-                  <LogPill label="Visual" value={`${item.visual_rating}/5`} />
-                </div>
-                {item.confusion_notes ? (
-                  <p className="mt-4 text-sm leading-6 text-slate-700">
-                    Confusion: {item.confusion_notes}
-                  </p>
-                ) : null}
-                {item.suggestions ? (
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Opinion: {item.suggestions}
-                  </p>
-                ) : null}
-              </article>
-            ))}
-          </div>
-        </>
-      ) : null}
-
-      {!loading && !error && !feedback.length ? (
-        <EmptyPanel
-          title="Aun no hay evaluaciones ciudadanas."
-          body="Cuando compartas el enlace con familiares o ciudadanos, sus reseñas apareceran aqui para apoyar la validacion SUS."
-        />
-      ) : null}
-    </section>
   )
 }
 

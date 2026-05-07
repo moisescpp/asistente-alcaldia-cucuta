@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.database import get_db_session
-from app.models import CitizenFeedback, Tramite
+from app.models import Tramite
 from app.schemas.admin_session import (
     AdminSessionRead,
     AdminSessionRequest,
@@ -16,7 +16,6 @@ from app.schemas.admin_session import (
 )
 from app.schemas.consulta_log import ConsultaLogRead
 from app.schemas.consulta import ConsultaRequest, ConsultaResponse
-from app.schemas.feedback import CitizenFeedbackCreate, CitizenFeedbackRead
 from app.schemas.tramite import TramiteCreate, TramiteRead, TramiteUpdate
 from app.services import (
     assess_tramite_quality,
@@ -37,37 +36,6 @@ from app.services import (
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db_session)]
 AdminSession = Annotated[AdminSessionClaims, Depends(require_admin_session)]
-
-
-def _calculate_sus_score(feedback: CitizenFeedback) -> float:
-    positive_items = [
-        feedback.sus_1,
-        feedback.sus_3,
-        feedback.sus_5,
-        feedback.sus_7,
-        feedback.sus_9,
-    ]
-    negative_items = [
-        feedback.sus_2,
-        feedback.sus_4,
-        feedback.sus_6,
-        feedback.sus_8,
-        feedback.sus_10,
-    ]
-    raw_score = sum(value - 1 for value in positive_items)
-    raw_score += sum(5 - value for value in negative_items)
-    return round(raw_score * 2.5, 1)
-
-
-def _serialize_feedback(feedback: CitizenFeedback) -> CitizenFeedbackRead:
-    payload = CitizenFeedbackRead.model_validate(
-        {
-            **feedback.__dict__,
-            "sus_score": _calculate_sus_score(feedback),
-        }
-    )
-    return payload
-
 
 def _sync_tramite_embedding(db: Session, tramite: Tramite) -> None:
     try:
@@ -483,56 +451,6 @@ def list_consulta_logs(
 ) -> list[ConsultaLogRead]:
     logs = list_recent_consulta_logs(db)
     return [ConsultaLogRead.model_validate(log) for log in logs]
-
-
-@router.post(
-    "/feedback",
-    response_model=CitizenFeedbackRead,
-    status_code=201,
-    tags=["feedback"],
-)
-def create_citizen_feedback(
-    payload: CitizenFeedbackCreate,
-    db: DbSession,
-) -> CitizenFeedbackRead:
-    feedback = CitizenFeedback(**payload.model_dump())
-
-    try:
-        db.add(feedback)
-        db.commit()
-        db.refresh(feedback)
-    except SQLAlchemyError as exc:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="No fue posible registrar la evaluacion ciudadana.",
-        ) from exc
-
-    return _serialize_feedback(feedback)
-
-
-@router.get(
-    "/admin/feedback",
-    response_model=list[CitizenFeedbackRead],
-    tags=["admin-feedback"],
-)
-def list_citizen_feedback(
-    db: DbSession,
-    _: AdminSession,
-) -> list[CitizenFeedbackRead]:
-    try:
-        query = select(CitizenFeedback).order_by(
-            CitizenFeedback.created_at.desc(),
-            CitizenFeedback.id.desc(),
-        ).limit(100)
-        feedback_items = db.scalars(query).all()
-    except SQLAlchemyError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail="No fue posible consultar las evaluaciones ciudadanas.",
-        ) from exc
-
-    return [_serialize_feedback(feedback) for feedback in feedback_items]
 
 
 @router.post(

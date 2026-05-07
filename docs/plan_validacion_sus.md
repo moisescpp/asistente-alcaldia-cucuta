@@ -57,21 +57,30 @@ Cada afirmacion debe puntuarse de `1` a `5`, donde:
 
 ## Formato de captura sugerido
 
-La aplicacion ya incluye un formulario de evaluacion ciudadana en la interfaz publica. Cada registro se guarda en backend, calcula el puntaje SUS y queda disponible para revision desde el panel administrativo.
+La recoleccion de respuestas se realizara de forma externa al sistema, preferiblemente con un formulario de Google Forms. Eso ayuda a que la experiencia del ciudadano dentro de la aplicacion siga limpia, institucional y centrada en consultar tramites.
 
-Endpoints asociados:
+### Estructura recomendada del formulario
 
-- `POST /api/feedback`: registra una evaluacion ciudadana.
-- `GET /api/admin/feedback`: lista evaluaciones para el administrador.
+1. Datos basicos del participante
+- nombre o iniciales
+- perfil general: estudiante, comerciante, ciudadano, funcionario, otro
+- fecha de prueba
 
-Campos principales:
+2. Escenario de uso
+- pregunta o consulta que intento realizar
+- logro encontrar una respuesta util: si / no / parcialmente
+- tipo de caso probado: coincidencia clara / consulta ambigua / sin coincidencia
 
-- pregunta probada
-- respuesta encontrada o no encontrada
-- calificacion de claridad, rapidez y visualizacion
-- diez respuestas SUS de `1` a `5`
-- comentario sobre confusion
-- opinion o sugerencia
+3. Escala SUS
+- usar las 10 preguntas SUS con respuestas de `1` a `5`
+
+4. Preguntas complementarias de evaluacion
+- que tan clara fue la respuesta del asistente
+- que tan rapido sintio el sistema
+- que tan ordenada y formal se vio la interfaz
+- que fue lo mas util del sistema
+- que fue lo que mas le confundio
+- que mejoraria o que sugerencia dejaria
 
 | Participante | Tarea 1 | Tarea 2 | Tarea 3 | SUS total | Observaciones |
 |---|---:|---:|---:|---:|---|
