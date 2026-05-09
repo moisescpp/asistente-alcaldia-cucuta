@@ -72,7 +72,6 @@ function App() {
   const [question, setQuestion] = useState(DEFAULT_QUESTION)
   const [consulta, setConsulta] = useState(null)
   const [consultaError, setConsultaError] = useState('')
-  const [consultaDurationMs, setConsultaDurationMs] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState(storedAdminWorkspace.formData)
   const [editingId, setEditingId] = useState(storedAdminWorkspace.editingId)
@@ -530,9 +529,7 @@ function App() {
     }
 
     setConsultaError('')
-    setConsultaDurationMs(null)
     setIsSubmitting(true)
-    const startedAt = performance.now()
     try {
       const response = await fetch(`${API_URL}/consulta`, {
         method: 'POST',
@@ -542,7 +539,6 @@ function App() {
       if (!response.ok) throw new Error('No fue posible procesar la consulta.')
       const result = await response.json()
       setConsulta(result)
-      setConsultaDurationMs(Math.round(performance.now() - startedAt))
       setConsultaLogsStale(true)
     } catch (error) {
       setConsultaError(error instanceof Error ? error.message : 'Ocurrio un error al consultar el asistente.')
@@ -925,7 +921,6 @@ function App() {
                 <ConsultaResult
                   consulta={consulta}
                   isSubmitting={isSubmitting}
-                  responseTimeMs={consultaDurationMs}
                   onUseSuggestion={setQuestion}
                   quickQuestions={quickQuestions}
                 />
@@ -1805,16 +1800,12 @@ function formatSelectedDateLabel(dateKey) {
   }).format(date)
 }
 
-function ConsultaResult({ consulta, isSubmitting, responseTimeMs, onUseSuggestion, quickQuestions }) {
+function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestions }) {
   const statusConfig = getConsultaStatusConfig(consulta?.mensaje_estado)
-  const summaryText = consulta ? extractSummaryText(consulta.respuesta) : ''
-  const orientationText = compactOrientationText(summaryText)
   const isNoMatch = consulta?.mensaje_estado === 'Sin coincidencias en la base actual'
   const isTooGeneral = consulta?.mensaje_estado === 'Consulta demasiado general'
+  const resultSectionRef = useRef(null)
   const visibleMatchRef = useRef(null)
-  const effectiveOrientationText = isTooGeneral
-    ? 'Tu consulta sigue siendo amplia. No elegimos un tramite principal todavia; abajo tienes rutas reales para aterrizarla mejor.'
-    : orientationText
   const allMatches = consulta
     ? dedupeTramitesById([
         ...(consulta.tramite_principal ? [consulta.tramite_principal] : []),
@@ -1848,6 +1839,11 @@ function ConsultaResult({ consulta, isSubmitting, responseTimeMs, onUseSuggestio
     : []
 
   useEffect(() => {
+    if (!consulta || isSubmitting || !resultSectionRef.current) return
+    resultSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [consulta, isSubmitting])
+
+  useEffect(() => {
     if (!selectedMatchId || !visibleMatchRef.current) return
     visibleMatchRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [selectedMatchId])
@@ -1857,18 +1853,11 @@ function ConsultaResult({ consulta, isSubmitting, responseTimeMs, onUseSuggestio
   }
 
   return (
-    <section className="rounded-[2rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+    <section ref={resultSectionRef} className="rounded-[2rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Respuesta del asistente</p>
             <h3 className="mt-2 text-2xl font-bold text-slate-950">Resultado de la consulta</h3>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              {isTooGeneral
-                ? 'Te ayudamos a elegir una ruta clara antes de mostrar una ficha completa.'
-                : isNoMatch
-                  ? 'Primero ves la orientacion central y luego caminos cercanos para continuar la consulta.'
-                  : 'Primero ves la orientacion esencial y luego los datos clave del tramite.'}
-            </p>
           </div>
         <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700 shadow-sm">
           Consulta asistida
@@ -1891,7 +1880,7 @@ function ConsultaResult({ consulta, isSubmitting, responseTimeMs, onUseSuggestio
         </div>
       ) : consulta ? (
         <div className="mt-6 space-y-6">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(13rem,0.72fr)_minmax(8rem,0.38fr)_minmax(8rem,0.38fr)]">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(15rem,0.65fr)]">
             <ResultMetricCard label="Pregunta" className="bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_100%)]">
               <p className="text-base font-semibold leading-7 text-slate-950">{consulta.pregunta}</p>
             </ResultMetricCard>
@@ -1902,49 +1891,14 @@ function ConsultaResult({ consulta, isSubmitting, responseTimeMs, onUseSuggestio
               </span>
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 {consulta.mensaje_estado === 'Coincidencias semanticas encontradas'
-                  ? 'La consulta quedo bien encaminada con una coincidencia confiable.'
+                  ? 'Encontramos un tramite relacionado con tu pregunta.'
                   : consulta.mensaje_estado === 'Consulta demasiado general'
-                    ? 'Hay varias rutas plausibles y te mostramos opciones para elegir.'
+                    ? 'Hay varias rutas posibles. Elige una para ver su ficha.'
                     : isNoMatch
-                      ? 'No inventamos una respuesta; preferimos mostrar rutas cercanas.'
-                      : 'Te mostramos caminos cercanos para continuar sin perder el hilo.'}
+                      ? 'No encontramos una coincidencia confiable.'
+                      : 'Te mostramos caminos cercanos para continuar.'}
               </p>
             </ResultMetricCard>
-
-            <ResultMetricCard label={isTooGeneral ? 'Opciones' : 'Resultados'} className="bg-white">
-              <p className="text-4xl font-black tracking-tight text-slate-950">{consulta.total_resultados}</p>
-              <p className="mt-1 text-sm text-slate-500">
-                {isTooGeneral
-                  ? consulta.total_resultados === 1
-                    ? 'opcion para precisar'
-                    : 'opciones para precisar'
-                  : consulta.total_resultados === 1
-                    ? 'resultado util'
-                    : 'resultados detectados'}
-              </p>
-            </ResultMetricCard>
-
-            <ResultMetricCard label="Tiempo" className="bg-white">
-              <p className="text-3xl font-black tracking-tight text-slate-950">
-                {responseTimeMs != null ? `${(responseTimeMs / 1000).toFixed(1)}s` : '--'}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                respuesta medida
-              </p>
-            </ResultMetricCard>
-          </div>
-
-          <div className={`relative overflow-hidden rounded-3xl border p-5 ${statusConfig.panelClassName}`}>
-            <div className="pointer-events-none absolute inset-y-5 left-5 w-1 rounded-full bg-white/75" />
-            <div className="pl-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className={`text-xs uppercase tracking-[0.2em] ${statusConfig.labelClassName}`}>Orientacion inmediata</p>
-                <span className="rounded-full border border-white/70 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                  {isTooGeneral ? 'Elige una ruta' : isNoMatch ? 'Continua desde una opcion cercana' : 'Coincidencia principal'}
-                </span>
-              </div>
-              <p className="mt-3 text-[15px] leading-7 text-slate-800">{effectiveOrientationText}</p>
-            </div>
           </div>
 
           {activeMatch ? (
@@ -1955,7 +1909,7 @@ function ConsultaResult({ consulta, isSubmitting, responseTimeMs, onUseSuggestio
                     {hasExplicitPrincipal
                       ? isViewingAlternative
                         ? 'Coincidencia seleccionada'
-                        : 'Tramite principal'
+                        : 'Tu tramite es el siguiente'
                       : 'Ruta seleccionada'}
                   </p>
                   <h4 className="mt-2 text-2xl font-bold leading-tight text-slate-950">
@@ -1982,24 +1936,34 @@ function ConsultaResult({ consulta, isSubmitting, responseTimeMs, onUseSuggestio
               <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.78fr)]">
                 <div className="grid gap-4">
                   {activeMatch.descripcion ? (
-                    <div className="order-2 lg:order-2">
-                      <DetailCard
-                        label="Descripcion del tramite"
-                        value={activeMatch.descripcion}
-                        tone="slate"
-                      />
+                    <DetailCard
+                      label="Descripcion del tramite"
+                      value={activeMatch.descripcion}
+                      tone="slate"
+                    />
+                  ) : null}
+
+                  {activeMatch.fuente_url ? (
+                    <div className="rounded-3xl border border-emerald-200 bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fffb_100%)] p-5 shadow-sm">
+                      <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Sitio oficial</p>
+                      <a
+                        href={activeMatch.fuente_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex items-center rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50"
+                      >
+                        Abrir sitio oficial
+                      </a>
                     </div>
                   ) : null}
 
                   {activeMatch.requisitos ? (
-                    <div className="order-1 lg:order-1">
-                      <DetailCard
-                        label="Requisitos clave"
-                        value={activeMatch.requisitos}
-                        tone="sky"
-                        asList
-                      />
-                    </div>
+                    <DetailCard
+                      label="Requisitos clave"
+                      value={activeMatch.requisitos}
+                      tone="sky"
+                      asList
+                    />
                   ) : null}
 
                   {!activeMatch.descripcion && !activeMatch.requisitos ? (
@@ -2012,37 +1976,20 @@ function ConsultaResult({ consulta, isSubmitting, responseTimeMs, onUseSuggestio
                 </div>
 
                 <aside className="space-y-4">
-                  {activeMatch.fuente_url ? (
-                    <div className="rounded-3xl border border-emerald-200 bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fffb_100%)] p-5 shadow-sm">
-                      <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Fuente oficial de validacion</p>
-                      <p className="mt-2 text-sm leading-6 text-emerald-900">
-                        Usa este enlace como referencia institucional para confirmar requisitos, soporte documental o el siguiente paso de la gestion.
-                      </p>
-                      <a
-                        href={activeMatch.fuente_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-4 inline-flex items-center rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50"
-                      >
-                        Ir a la fuente oficial
-                      </a>
-                    </div>
-                  ) : null}
-
                   {activeMatch.costo || activeMatch.horario ? (
                     <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 shadow-sm">
-                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Datos de apoyo</p>
+                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Importante</p>
                       <div className="mt-3 space-y-3">
                         {activeMatch.costo ? (
                           <CompactInfoRow
-                            label="Costo"
-                            value={activeMatch.costo}
+                            label="Costo del tramite"
+                            value={formatCostDetail(activeMatch.costo)}
                             accent="amber"
                           />
                         ) : null}
                         {activeMatch.horario ? (
                           <CompactInfoRow
-                            label="Horario"
+                            label="Horario de atencion"
                             value={activeMatch.horario}
                             accent="slate"
                           />
@@ -2324,6 +2271,22 @@ function CompactInfoRow({ label, value, accent = 'slate' }) {
   )
 }
 
+function formatCostDetail(value) {
+  const text = String(value ?? '').trim()
+  if (!text) return 'No hay informacion de costo registrada para este tramite.'
+
+  const normalized = text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+  if (normalized.includes('sin costo') || normalized.includes('gratuito')) {
+    return 'Este tramite esta registrado sin costo para realizar la gestion.'
+  }
+
+  return `Costo registrado para realizar este tramite: ${text}`
+}
+
 function StateActionPanel({ mode }) {
   const content = {
     ambigua: {
@@ -2441,29 +2404,6 @@ function buildNumberedRequirements(value) {
   return segments
     .map((segment, index) => `${index + 1}. ${segment}`)
     .join('\n')
-}
-
-function compactOrientationText(value) {
-  const normalized = String(value ?? '')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-  if (!normalized) {
-    return 'Todavia no hay una orientacion disponible para esta consulta.'
-  }
-
-  const sentences = normalized
-    .split(/(?<=[.!?])\s+/)
-    .map((sentence) => sentence.trim())
-    .filter(Boolean)
-
-  const compact = sentences.slice(0, 2).join(' ')
-
-  if (compact.length <= 220) {
-    return compact
-  }
-
-  return `${compact.slice(0, 217).trimEnd()}...`
 }
 
 function TramitesPanel({ tramites, loadingTramites, tramitesError }) {
@@ -3916,15 +3856,6 @@ function getPatternSeverity(log) {
   if (isNoMatchLogStatus(log.mensaje_estado)) return 4
   if (log.total_resultados > 1) return 2
   return 0
-}
-
-function extractSummaryText(responseText) {
-  if (!responseText) {
-    return 'Todavia no hay una respuesta disponible para esta consulta.'
-  }
-
-  const [summary] = responseText.split('\n\nTramite principal:')
-  return summary.trim() || responseText
 }
 
 function getConsultaStatusConfig(messageStatus) {
