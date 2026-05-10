@@ -1839,11 +1839,11 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
   }
 
   return (
-    <section ref={resultSectionRef} className="rounded-[2rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+    <section ref={resultSectionRef} className="rounded-[1.4rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] p-4 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Respuesta del asistente</p>
-            <h3 className="mt-2 text-2xl font-bold text-slate-950">Resultado de la consulta</h3>
+            <h3 className="mt-2 text-xl font-bold text-slate-950 sm:text-2xl">Resultado de la consulta</h3>
           </div>
       </div>
 
@@ -1870,8 +1870,8 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
           </div>
 
           {activeMatch ? (
-            <article ref={visibleMatchRef} className="rounded-[1.9rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-5 shadow-[0_12px_45px_-35px_rgba(15,23,42,0.35)]">
-              <div className="flex flex-wrap items-start justify-between gap-4 rounded-[1.6rem] border border-slate-100 bg-[linear-gradient(135deg,#f8fafc_0%,#f1f5f9_100%)] px-5 py-5">
+            <article ref={visibleMatchRef} className="rounded-[1.4rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-4 shadow-[0_12px_45px_-35px_rgba(15,23,42,0.35)] sm:rounded-[1.9rem] sm:p-5">
+              <div className="rounded-[1.15rem] border border-slate-100 bg-[linear-gradient(135deg,#f8fafc_0%,#f1f5f9_100%)] px-4 py-4 sm:rounded-[1.6rem] sm:px-5 sm:py-5">
                 <div className="max-w-3xl">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
                     {hasExplicitPrincipal
@@ -1880,10 +1880,10 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                         : 'Tu tramite es el siguiente'
                       : 'Ruta seleccionada'}
                   </p>
-                  <h4 className="mt-2 text-2xl font-bold leading-tight text-slate-950">
+                  <h4 className="mt-2 text-xl font-bold leading-tight text-slate-950 sm:text-2xl">
                     {activeMatch.nombre}
                   </h4>
-                  <p className="mt-3 inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-600 shadow-sm">
+                  <p className="mt-3 inline-flex max-w-full rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium leading-5 text-slate-600 shadow-sm">
                     {cleanDependencyLabel(activeMatch.dependencia)}
                   </p>
                   {isViewingAlternative ? (
@@ -1896,9 +1896,6 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                     </p>
                   ) : null}
                 </div>
-                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-500 shadow-sm">
-                  ID {activeMatch.id}
-                </span>
               </div>
 
               <div className="mt-5 grid gap-4">
@@ -1912,17 +1909,24 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                   ) : null}
 
                   {activeMatch.fuente_url ? (
-                    <div className="rounded-3xl border border-emerald-200 bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fffb_100%)] p-5 shadow-sm">
+                    <div className="rounded-[1.25rem] border border-emerald-200 bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fffb_100%)] p-4 shadow-sm sm:rounded-3xl sm:p-5">
                       <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Sitio oficial</p>
                       <a
                         href={activeMatch.fuente_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="mt-3 inline-flex items-center rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50"
+                        className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50 sm:w-auto"
                       >
                         Abrir sitio oficial
                       </a>
                     </div>
+                  ) : null}
+
+                  {activeMatch.costo || activeMatch.horario ? (
+                    <CitizenProcedureInfo
+                      costo={activeMatch.costo}
+                      horario={activeMatch.horario}
+                    />
                   ) : null}
 
                   {activeMatch.requisitos ? (
@@ -1953,7 +1957,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
           ) : null}
 
           {secondaryMatches.length ? (
-            <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+            <div className="rounded-[1.25rem] border border-slate-200 bg-white/80 p-4 shadow-sm sm:rounded-3xl">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
@@ -1976,7 +1980,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                   return (
                     <div
                       key={match.id}
-                      className="rounded-3xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-left transition"
+                      className="rounded-[1.25rem] border border-slate-200 bg-slate-50/80 px-4 py-4 text-left transition sm:rounded-3xl"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
@@ -2009,7 +2013,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                           <button
                             type="button"
                             onClick={() => handleSelectMatch(match.id)}
-                            className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                            className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 sm:w-auto"
                           >
                             Ver mas informacion
                           </button>
@@ -2143,7 +2147,7 @@ function DetailCardBase({ label, value, tone = 'slate', asList = false }) {
   const segments = formatDetailSegments(value, asList)
 
   return (
-    <div className={`rounded-3xl border p-5 shadow-sm ${tones[tone] ?? tones.slate}`}>
+    <div className={`rounded-[1.25rem] border p-4 shadow-sm sm:rounded-3xl sm:p-5 ${tones[tone] ?? tones.slate}`}>
       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
       {segments.length > 1 ? (
         asList ? (
@@ -2176,9 +2180,32 @@ function DetailCard({ label, value, tone, asList }) {
   return <DetailCardBase label={label} value={value} tone={tone} asList={asList} />
 }
 
+function CitizenProcedureInfo({ costo, horario }) {
+  const items = [
+    costo ? { label: 'Costo del tramite', value: costo } : null,
+    horario ? { label: 'Horario de atencion', value: horario } : null,
+  ].filter(Boolean)
+
+  if (!items.length) return null
+
+  return (
+    <div className="rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Costo y horario</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {items.map((item) => (
+          <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{item.label}</p>
+            <p className="mt-1 text-sm font-medium leading-6 text-slate-800">{item.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ResultMetricCard({ label, children, className = '' }) {
   return (
-    <div className={`flex h-full flex-col justify-between rounded-3xl border border-slate-200 p-4 shadow-sm ${className}`}>
+    <div className={`flex h-full flex-col justify-between rounded-[1.25rem] border border-slate-200 p-4 shadow-sm sm:rounded-3xl ${className}`}>
       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
       <div className="mt-2">{children}</div>
     </div>
