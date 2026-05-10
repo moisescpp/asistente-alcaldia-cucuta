@@ -854,7 +854,7 @@ function App() {
               <p className={`mt-4 text-sm leading-6 ${
                 isDarkTheme ? 'text-slate-300' : 'text-slate-600'
               }`}>
-                La experiencia combina consulta asistida, trazabilidad administrativa y enlaces de validacion para mantener coherencia entre orientacion ciudadana y gestion interna.
+                Consulta tramites institucionales con informacion clara, verificable y organizada desde una base administrable.
               </p>
             </div>
           </div>
@@ -869,10 +869,6 @@ function App() {
                     <div>
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Consulta del asistente</p>
                       <h2 className="mt-2 text-2xl font-bold text-slate-950">Pregunta por un tramite</h2>
-                    </div>
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-right">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Canal ciudadano</p>
-                      <p className="text-sm font-semibold text-emerald-900">Consulta guiada</p>
                     </div>
                   </div>
 
@@ -1801,7 +1797,6 @@ function formatSelectedDateLabel(dateKey) {
 }
 
 function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestions }) {
-  const statusConfig = getConsultaStatusConfig(consulta?.mensaje_estado)
   const isNoMatch = consulta?.mensaje_estado === 'Sin coincidencias en la base actual'
   const isTooGeneral = consulta?.mensaje_estado === 'Consulta demasiado general'
   const resultSectionRef = useRef(null)
@@ -1828,15 +1823,6 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
   const isViewingAlternative =
     Boolean(activeMatch && consulta?.tramite_principal) &&
     activeMatch.id !== consulta.tramite_principal.id
-  const missingFields = activeMatch
-    ? [
-        !activeMatch.descripcion ? 'Descripcion' : null,
-        !activeMatch.requisitos ? 'Requisitos' : null,
-        !activeMatch.costo ? 'Costo' : null,
-        !activeMatch.horario ? 'Horario' : null,
-        !activeMatch.fuente_url ? 'Fuente oficial' : null,
-      ].filter(Boolean)
-    : []
 
   useEffect(() => {
     if (!consulta || isSubmitting || !resultSectionRef.current) return
@@ -1859,9 +1845,6 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Respuesta del asistente</p>
             <h3 className="mt-2 text-2xl font-bold text-slate-950">Resultado de la consulta</h3>
           </div>
-        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700 shadow-sm">
-          Consulta asistida
-        </span>
       </div>
 
       {isSubmitting ? (
@@ -1880,24 +1863,9 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
         </div>
       ) : consulta ? (
         <div className="mt-6 space-y-6">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(15rem,0.65fr)]">
+          <div className="grid gap-3">
             <ResultMetricCard label="Pregunta" className="bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_100%)]">
               <p className="text-base font-semibold leading-7 text-slate-950">{consulta.pregunta}</p>
-            </ResultMetricCard>
-
-            <ResultMetricCard label="Estado" className="bg-white">
-              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
-                {consulta.mensaje_estado}
-              </span>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                {consulta.mensaje_estado === 'Coincidencias semanticas encontradas'
-                  ? 'Encontramos un tramite relacionado con tu pregunta.'
-                  : consulta.mensaje_estado === 'Consulta demasiado general'
-                    ? 'Hay varias rutas posibles. Elige una para ver su ficha.'
-                    : isNoMatch
-                      ? 'No encontramos una coincidencia confiable.'
-                      : 'Te mostramos caminos cercanos para continuar.'}
-              </p>
             </ResultMetricCard>
           </div>
 
@@ -1933,7 +1901,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                 </span>
               </div>
 
-              <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.78fr)]">
+              <div className="mt-5 grid gap-4">
                 <div className="grid gap-4">
                   {activeMatch.descripcion ? (
                     <DetailCard
@@ -1974,39 +1942,6 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                     </div>
                   ) : null}
                 </div>
-
-                <aside className="space-y-4">
-                  {activeMatch.costo || activeMatch.horario ? (
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 shadow-sm">
-                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Importante</p>
-                      <div className="mt-3 space-y-3">
-                        {activeMatch.costo ? (
-                          <CompactInfoRow
-                            label="Costo del tramite"
-                            value={formatCostDetail(activeMatch.costo)}
-                            accent="amber"
-                          />
-                        ) : null}
-                        {activeMatch.horario ? (
-                          <CompactInfoRow
-                            label="Horario de atencion"
-                            value={activeMatch.horario}
-                            accent="slate"
-                          />
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {missingFields.length ? (
-                    <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-amber-700">Informacion que aun conviene completar</p>
-                      <p className="mt-2 text-sm leading-6 text-amber-900">
-                        Aun no hay datos registrados para: {missingFields.join(', ')}.
-                      </p>
-                    </div>
-                  ) : null}
-                </aside>
               </div>
             </article>
           ) : null}
@@ -2248,43 +2183,6 @@ function ResultMetricCard({ label, children, className = '' }) {
       <div className="mt-2">{children}</div>
     </div>
   )
-}
-
-function CompactInfoRow({ label, value, accent = 'slate' }) {
-  const accents = {
-    amber: 'bg-amber-100/80 text-amber-900',
-    slate: 'bg-slate-200/80 text-slate-700',
-  }
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
-          <p className="mt-1 text-sm font-medium leading-6 text-slate-800">{value}</p>
-        </div>
-        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${accents[accent] ?? accents.slate}`}>
-          {label}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function formatCostDetail(value) {
-  const text = String(value ?? '').trim()
-  if (!text) return 'No hay informacion de costo registrada para este tramite.'
-
-  const normalized = text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-
-  if (normalized.includes('sin costo') || normalized.includes('gratuito')) {
-    return 'Este tramite esta registrado sin costo para realizar la gestion.'
-  }
-
-  return `Costo registrado para realizar este tramite: ${text}`
 }
 
 function StateActionPanel({ mode }) {
@@ -3856,33 +3754,6 @@ function getPatternSeverity(log) {
   if (isNoMatchLogStatus(log.mensaje_estado)) return 4
   if (log.total_resultados > 1) return 2
   return 0
-}
-
-function getConsultaStatusConfig(messageStatus) {
-  if (messageStatus === 'Consulta demasiado general') {
-    return {
-      badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700',
-      panelClassName: 'border-amber-200 bg-amber-50',
-      labelClassName: 'text-amber-700',
-      panelLabel: 'Necesitamos mas precision',
-    }
-  }
-
-  if (messageStatus === 'Sin coincidencias en la base actual') {
-    return {
-      badgeClassName: 'border-rose-200 bg-rose-50 text-rose-700',
-      panelClassName: 'border-rose-200 bg-rose-50',
-      labelClassName: 'text-rose-700',
-      panelLabel: 'Sin coincidencia suficiente',
-    }
-  }
-
-  return {
-    badgeClassName: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    panelClassName: 'border-emerald-200 bg-emerald-50',
-    labelClassName: 'text-emerald-700',
-    panelLabel: 'Orientacion del asistente',
-  }
 }
 
 function getConsultaLogStatusConfig(messageStatus) {
