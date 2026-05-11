@@ -832,7 +832,7 @@ function App() {
                     Asistente Institucional de Tramites
                   </h1>
                   <p className={`max-w-3xl text-sm leading-relaxed sm:text-base ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Espacio de consulta y apoyo institucional para orientar a la ciudadania con informacion clara, verificable y facil de gestionar desde el panel administrativo.
+                    Consulta informacion institucional sobre tramites y servicios de forma clara y verificable.
                   </p>
                 </div>
               </div>
@@ -854,7 +854,7 @@ function App() {
               <p className={`mt-4 text-sm leading-6 ${
                 isDarkTheme ? 'text-slate-300' : 'text-slate-600'
               }`}>
-                Consulta tramites institucionales con informacion clara, verificable y organizada desde una base administrable.
+                Seguimiento del catalogo y estado actual del sistema.
               </p>
             </div>
           </div>
@@ -880,7 +880,7 @@ function App() {
                       <textarea
                         className={`min-h-24 w-full resize-none rounded-2xl border px-5 py-4 text-base outline-none transition duration-200 focus:ring-2 sm:min-h-32 ${
                           isDarkTheme
-                            ? 'border-slate-700 bg-slate-900 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20'
+                            ? 'border-slate-600 bg-white text-slate-950 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20'
                             : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20'
                         }`}
                         value={question}
@@ -3153,15 +3153,15 @@ function AdminAccessPanel({
     <section className="mx-auto max-w-3xl rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Acceso administrativo privado</p>
-          <h2 className="mt-2 text-3xl font-bold text-slate-950">Desbloquea el panel interno</h2>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Panel administrativo</p>
+          <h2 className="mt-2 text-3xl font-bold text-slate-950">Acceso privado</h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Este apartado ya no es solo visual: para crear, editar, desactivar tramites o revisar actividad interna necesitamos una sesion privada valida.
+            Ingresa el PIN para gestionar el catalogo y revisar la actividad del asistente.
           </p>
         </div>
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-right">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Proteccion activa</p>
-          <p className="text-sm font-semibold text-emerald-900">PIN + sesion temporal</p>
+          <p className="text-sm font-semibold text-emerald-900">Sesion temporal</p>
         </div>
       </div>
 
@@ -3171,7 +3171,7 @@ function AdminAccessPanel({
             Borrador protegido
           </p>
           <p className="mt-2 text-sm leading-6 text-sky-900">
-            Conservamos tu formulario, filtros y modo de edicion. Cuando abras de nuevo el panel privado retomaras exactamente donde ibas.
+            Hay un borrador administrativo guardado para continuar donde ibas.
           </p>
         </div>
       ) : null}
@@ -3180,7 +3180,6 @@ function AdminAccessPanel({
         <Field
           label="PIN administrativo"
           required
-          hint="Usamos una sesion privada temporal para que el acceso interno no quede expuesto."
           error={error}
         >
           <input
@@ -3202,9 +3201,6 @@ function AdminAccessPanel({
           >
             {isBusy ? 'Validando acceso...' : 'Abrir panel privado'}
           </button>
-          <span className="text-sm text-slate-500">
-            Solo despues de validar el PIN se habilitan los endpoints administrativos.
-          </span>
         </div>
       </form>
     </section>
