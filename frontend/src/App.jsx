@@ -26,6 +26,10 @@ const EMPTY_FORM = {
 
 const inputClassName =
   'w-full rounded-3xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100'
+const citizenPrimaryButtonClassName =
+  'inline-flex w-full items-center justify-center rounded-xl border border-transparent bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto'
+const citizenSecondaryButtonClassName =
+  'inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto'
 const EMPTY_ADMIN_ERRORS = {
   nombre: '',
   slug: '',
@@ -713,13 +717,11 @@ function App() {
 
   return (
     <div
-      className={`min-h-screen transition-colors ${
-        isDarkTheme
-          ? 'bg-[radial-gradient(circle_at_top,#0f172a_0%,#111827_45%,#020617_100%)] text-slate-100'
-          : 'bg-[radial-gradient(circle_at_top,#f8f4ea_0%,#eef5f3_45%,#dfe8ea_100%)] text-slate-900'
+      className={`min-h-screen transition-colors duration-300 ${
+        isDarkTheme ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'
       }`}
     >
-      <div className="mx-auto flex min-h-screen w-full max-w-[1680px] flex-col gap-8 px-4 py-8 lg:px-8 xl:px-10">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1680px] flex-col gap-6 px-4 py-6 lg:gap-8 lg:px-8 lg:py-8 xl:px-10">
         <a
           href="#contenido-principal"
           className="skip-link rounded-full bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-lg"
@@ -728,10 +730,8 @@ function App() {
         </a>
 
         <header
-          className={`overflow-hidden rounded-[2rem] border p-6 shadow-[0_25px_80px_-45px_rgba(15,23,42,0.38)] backdrop-blur transition-colors ${
-            isDarkTheme
-              ? 'border-slate-700/70 bg-[linear-gradient(180deg,rgba(15,23,42,0.92)_0%,rgba(15,23,42,0.82)_100%)]'
-              : 'border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,252,0.88)_100%)]'
+          className={`overflow-hidden rounded-2xl border p-4 shadow-sm backdrop-blur transition-colors duration-300 sm:rounded-3xl sm:p-6 lg:p-8 ${
+            isDarkTheme ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-white/90'
           }`}
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -800,7 +800,7 @@ function App() {
             </button>
           </div>
 
-          <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.8fr)] xl:items-end">
+          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.8fr)] xl:items-end">
             <div className="space-y-5">
               <div className="space-y-3">
                 <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${
@@ -827,11 +827,11 @@ function App() {
                     className="h-14 w-14 object-contain"
                   />
                 </div>
-                <div className="space-y-4">
-                  <h1 className={`max-w-4xl text-3xl font-black tracking-tight sm:text-4xl xl:text-[3.35rem] ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>
-                    Asistente institucional de tramites
+                <div className="space-y-3">
+                  <h1 className={`max-w-4xl text-2xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>
+                    Asistente Institucional de Tramites
                   </h1>
-                  <p className={`max-w-3xl text-base leading-7 md:text-lg ${isDarkTheme ? 'text-slate-300' : 'text-slate-600'}`}>
+                  <p className={`max-w-3xl text-sm leading-relaxed sm:text-base ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>
                     Espacio de consulta y apoyo institucional para orientar a la ciudadania con informacion clara, verificable y facil de gestionar desde el panel administrativo.
                   </p>
                 </div>
@@ -864,30 +864,36 @@ function App() {
           {view === 'ciudadania' ? (
             <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
               <section className="space-y-6">
-                <div className="rounded-[2rem] border border-slate-200/70 bg-white/80 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
+                <div className={`rounded-[1.5rem] border p-4 shadow-sm backdrop-blur sm:rounded-[2rem] sm:p-6 ${
+                  isDarkTheme ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200/70 bg-white/90'
+                }`}>
                   <div className="mb-6 flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Consulta del asistente</p>
-                      <h2 className="mt-2 text-2xl font-bold text-slate-950">Pregunta por un tramite</h2>
+                      <p className={`text-sm font-semibold uppercase tracking-[0.2em] ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>Consulta del asistente</p>
+                      <h2 className={`mt-2 text-xl font-bold sm:text-2xl ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>Pregunta por un tramite</h2>
                     </div>
                   </div>
 
                   <form className="space-y-4" onSubmit={handleSubmit}>
                     <label className="block">
-                      <span className="mb-2 block text-sm font-medium text-slate-700">Escribe tu consulta</span>
+                      <span className={`mb-2 block text-sm font-medium ${isDarkTheme ? 'text-slate-300' : 'text-slate-700'}`}>Escribe tu consulta</span>
                       <textarea
-                        className="min-h-32 w-full rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 text-base text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+                        className={`min-h-24 w-full resize-none rounded-2xl border px-5 py-4 text-base outline-none transition duration-200 focus:ring-2 sm:min-h-32 ${
+                          isDarkTheme
+                            ? 'border-slate-700 bg-slate-900 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20'
+                            : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20'
+                        }`}
                         value={question}
                         onChange={(event) => setQuestion(event.target.value)}
                         placeholder="Ejemplo: Quiero informacion sobre impuesto predial"
                       />
                     </label>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                      <button type="submit" disabled={isSubmitting} className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
+                    <div className="flex flex-col items-center gap-3 sm:flex-row">
+                      <button type="submit" disabled={isSubmitting} className={citizenPrimaryButtonClassName}>
                         {isSubmitting ? 'Consultando...' : 'Consultar asistente'}
                       </button>
-                      <button type="button" onClick={() => setQuestion(DEFAULT_QUESTION)} className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto">
+                      <button type="button" onClick={() => setQuestion(DEFAULT_QUESTION)} className={citizenSecondaryButtonClassName}>
                         Usar ejemplo
                       </button>
                     </div>
