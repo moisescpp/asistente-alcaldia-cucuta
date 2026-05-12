@@ -59,3 +59,12 @@ def ensure_database_schema() -> None:
                 "ADD COLUMN IF NOT EXISTS response_time_ms INTEGER"
             )
         )
+        connection.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS admin_session_state ("
+                "id VARCHAR(50) PRIMARY KEY, "
+                "active_session_id VARCHAR(120) NOT NULL, "
+                "updated_at INTEGER NOT NULL"
+                ")"
+            )
+        )

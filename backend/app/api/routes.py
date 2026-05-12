@@ -1,7 +1,7 @@
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -19,8 +19,10 @@ from app.schemas.consulta import ConsultaRequest, ConsultaResponse
 from app.schemas.tramite import TramiteCreate, TramiteRead, TramiteUpdate
 from app.services import (
     assess_tramite_quality,
+    activate_admin_session,
     create_admin_session_token,
     AdminSessionClaims,
+    ensure_admin_session_is_active,
     get_admin_session_remaining_seconds,
     has_insecure_admin_config,
     list_recent_consulta_logs,
@@ -35,7 +37,18 @@ from app.services import (
 
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db_session)]
-AdminSession = Annotated[AdminSessionClaims, Depends(require_admin_session)]
+
+
+def require_active_admin_session(
+    db: DbSession,
+    authorization: str | None = Header(default=None),
+) -> AdminSessionClaims:
+    claims = require_admin_session(authorization)
+    ensure_admin_session_is_active(db, claims)
+    return claims
+
+
+AdminSession = Annotated[AdminSessionClaims, Depends(require_active_admin_session)]
 
 def _sync_tramite_embedding(db: Session, tramite: Tramite) -> None:
     try:
@@ -108,7 +121,7 @@ def health_check() -> dict[str, str]:
     response_model=AdminSessionRead,
     tags=["admin-auth"],
 )
-def create_admin_session(payload: AdminSessionRequest) -> AdminSessionRead:
+def create_admin_session(payload: AdminSessionRequest, db: DbSession) -> AdminSessionRead:
     if has_insecure_admin_config():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -124,7 +137,8 @@ def create_admin_session(payload: AdminSessionRequest) -> AdminSessionRead:
             detail="El PIN administrativo no es valido.",
         )
 
-    access_token, expires_in_seconds, expires_at = create_admin_session_token()
+    access_token, expires_in_seconds, expires_at, session_id = create_admin_session_token()
+    activate_admin_session(db, session_id)
     return AdminSessionRead(
         access_token=access_token,
         expires_in_seconds=expires_in_seconds,

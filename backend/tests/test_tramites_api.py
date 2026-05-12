@@ -72,11 +72,28 @@ def test_admin_session_status_confirms_active_private_access(client, admin_heade
     assert data["expires_at"] > 0
 
 
+def test_new_admin_session_invalidates_previous_access(client) -> None:
+    first_response = client.post("/api/admin/session", json={"pin": routes_module.settings.admin_access_pin})
+    assert first_response.status_code == 200
+    first_token = first_response.json()["access_token"]
+
+    second_response = client.post("/api/admin/session", json={"pin": routes_module.settings.admin_access_pin})
+    assert second_response.status_code == 200
+
+    stale_response = client.get(
+        "/api/admin/session",
+        headers={"Authorization": f"Bearer {first_token}"},
+    )
+
+    assert stale_response.status_code == 401
+    assert "otro dispositivo" in stale_response.json()["detail"].lower()
+
+
 def test_admin_session_status_rejects_legacy_long_lived_token(client) -> None:
     original_ttl_minutes = routes_module.settings.admin_session_ttl_minutes
     try:
         routes_module.settings.admin_session_ttl_minutes = 600
-        legacy_token, _, _ = create_admin_session_token()
+        legacy_token, _, _, _ = create_admin_session_token()
         routes_module.settings.admin_session_ttl_minutes = 5
 
         response = client.get(

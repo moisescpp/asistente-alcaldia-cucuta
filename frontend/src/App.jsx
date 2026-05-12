@@ -166,8 +166,9 @@ function App() {
         })
 
         if (response.status === 401) {
-          clearAdminSession('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
-          throw new Error('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
+          const message = await resolveAdminUnauthorizedMessage(response)
+          clearAdminSession(message)
+          throw new Error(message)
         }
 
         if (!response.ok) {
@@ -276,8 +277,9 @@ function App() {
         })
 
         if (response.status === 401) {
+          const message = await resolveAdminUnauthorizedMessage(response)
           if (!isCancelled) {
-            clearAdminSession('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
+            clearAdminSession(message)
           }
           return
         }
@@ -316,6 +318,44 @@ function App() {
 
     let isCancelled = false
 
+    async function validateCurrentAdminSession() {
+      try {
+        const response = await fetch(`${API_URL}/admin/session`, {
+          headers: { Authorization: `Bearer ${adminToken}` },
+        })
+
+        if (response.status === 401) {
+          const message = await resolveAdminUnauthorizedMessage(response)
+          if (!isCancelled) {
+            clearAdminSession(message)
+          }
+          return
+        }
+
+        if (!response.ok) return
+
+        const data = await response.json()
+        if (!isCancelled) {
+          setAdminSessionExpiresAt(resolveSessionExpiryTimestamp(data))
+        }
+      } catch {
+        // Conservamos la sesion local si fue un fallo transitorio de red.
+      }
+    }
+
+    const timerId = window.setInterval(validateCurrentAdminSession, 15000)
+
+    return () => {
+      isCancelled = true
+      window.clearInterval(timerId)
+    }
+  }, [view, adminAuthenticated, adminToken])
+
+  useEffect(() => {
+    if (view !== 'admin' || !adminAuthenticated || !adminToken) return
+
+    let isCancelled = false
+
     async function loadInactiveTramites() {
       setLoadingInactiveTramites(true)
       setInactiveTramitesError('')
@@ -325,8 +365,9 @@ function App() {
         })
 
         if (response.status === 401) {
+          const message = await resolveAdminUnauthorizedMessage(response)
           if (!isCancelled) {
-            clearAdminSession('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
+            clearAdminSession(message)
           }
           return
         }
@@ -423,6 +464,16 @@ function App() {
     }
   }
 
+  async function resolveAdminUnauthorizedMessage(response) {
+    const fallbackMessage = 'La sesion administrativa expiro. Vuelve a ingresar tu PIN.'
+    try {
+      const data = await response.clone().json()
+      return data?.detail || fallbackMessage
+    } catch {
+      return fallbackMessage
+    }
+  }
+
   async function fetchAdmin(endpoint, options = {}, tokenOverride = adminToken) {
     if (!tokenOverride) {
       throw new Error('Debes ingresar el PIN administrativo para continuar.')
@@ -439,8 +490,9 @@ function App() {
     })
 
     if (response.status === 401) {
-      clearAdminSession('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
-      throw new Error('La sesion administrativa expiro. Vuelve a ingresar tu PIN.')
+      const message = await resolveAdminUnauthorizedMessage(response)
+      clearAdminSession(message)
+      throw new Error(message)
     }
 
     return response
@@ -2404,7 +2456,7 @@ function TramitesAdminList({
           {emptyDescription ||
             (hasActiveFilters
               ? 'Prueba otra combinacion de busqueda o dependencia para seguir revisando la base administrativa.'
-              : 'Usa el formulario de la izquierda para crear el primer tramite estrella y comenzar a poblar la base administrativa.')}
+              : 'Usa el formulario de la izquierda para crear el primer tramite del catalogo y comenzar a poblar la base administrativa.')}
         </p>
       </div>
     )
@@ -2560,7 +2612,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
       label: 'Preguntas cortas',
       value: questionInsights.shortQuestions,
       tone: 'slate',
-      description: 'Mensajes muy breves que suelen requerir apoyo de sugerencias o desambiguacion.',
+      description: 'Mensajes breves. Pueden resolverse si el termino es claro, pero se revisan porque traen poco contexto.',
       example: questionInsights.examples.shortQuestions,
       referenceExample: 'Predial.',
     },
@@ -2662,7 +2714,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700">
-                Tramites que estas preguntas estan golpeando
+                Tramites con senales de revision
               </p>
               <h4 className="mt-2 text-lg font-semibold text-slate-950">
                 Revisiones sugeridas por actividad real
@@ -2834,9 +2886,11 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
-            <p>Mostrando {filteredLogs.length} consulta(s) para el filtro actual.</p>
-            <p>Despliega una tarjeta para ver la pregunta, el resumen y las opciones sugeridas.</p>
+          <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
+              <p>Mostrando {filteredLogs.length} consulta(s) para el filtro actual.</p>
+              <p>Despliega una tarjeta para ver la pregunta, el resumen y las opciones sugeridas.</p>
+            </div>
           </div>
 
           <div className="space-y-5">
@@ -2858,6 +2912,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                   {group.logs.map((log) => {
                     const statusConfig = getConsultaLogStatusConfig(log.mensaje_estado)
                     const isExpanded = expandedLogId === log.id
+                    const reviewNote = getLogReviewNote(log)
                     return (
                       <article key={log.id} className="rounded-3xl border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#f8fafc_55%,#f1f5f9_100%)] px-5 py-5">
                         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -2892,7 +2947,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                           </div>
                         </div>
 
-                        <div className="mt-5 flex flex-wrap gap-3">
+                        <div className="mt-5 grid gap-3 sm:grid-cols-2">
                           <LogPill label="Resultados" value={String(log.total_resultados)} />
                           <LogPill
                             label="Tiempo"
@@ -2917,6 +2972,15 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                                 {log.pregunta}
                               </p>
                             </div>
+
+                            {reviewNote ? (
+                              <div className={`rounded-2xl border px-4 py-4 ${reviewNote.className}`}>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em]">
+                                  {reviewNote.title}
+                                </p>
+                                <p className="mt-2 text-sm leading-6">{reviewNote.description}</p>
+                              </div>
+                            ) : null}
 
                             {log.resumen_respuesta ? (
                               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
@@ -3020,12 +3084,45 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
 
 function LogPill({ label, value, hint = '', toneClassName = '' }) {
   return (
-    <div className={`min-w-[11rem] rounded-2xl border border-slate-200 bg-white px-4 py-3 ${toneClassName}`}>
+    <div className={`rounded-2xl border border-slate-200 bg-white px-4 py-3 ${toneClassName}`}>
       <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</p>
       <p className="mt-2 text-sm font-medium leading-6 text-slate-800">{value}</p>
       {hint ? <p className="mt-1 text-xs leading-5 text-slate-500">{hint}</p> : null}
     </div>
   )
+}
+
+function getLogReviewNote(log) {
+  const isShortQuestion = countQuestionWords(log.pregunta) <= 2
+
+  if (isPositiveLogStatus(log.mensaje_estado) && isShortQuestion) {
+    return {
+      title: 'Consulta corta resuelta',
+      description:
+        'La pregunta tiene poco contexto, pero encontro un tramite suficientemente claro. Se cuenta como pregunta corta para seguimiento, no como error.',
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    }
+  }
+
+  if (isAmbiguousLogStatus(log.mensaje_estado)) {
+    return {
+      title: 'Requiere precision del ciudadano',
+      description:
+        'La consulta puede apuntar a varias rutas. Conviene revisar si las sugerencias ayudan a elegir mejor el tramite.',
+      className: 'border-amber-200 bg-amber-50 text-amber-900',
+    }
+  }
+
+  if (isNoMatchLogStatus(log.mensaje_estado)) {
+    return {
+      title: 'Sin ruta suficiente',
+      description:
+        'No hubo coincidencia confiable. Si la pregunta era razonable, puede indicar una ficha faltante o una descripcion debil en el catalogo.',
+      className: 'border-rose-200 bg-rose-50 text-rose-900',
+    }
+  }
+
+  return null
 }
 
 function QuestionInsightChart({ title, description, items, total, compact = false }) {

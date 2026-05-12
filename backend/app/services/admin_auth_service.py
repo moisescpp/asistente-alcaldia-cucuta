@@ -2,10 +2,13 @@ import base64
 import hashlib
 import hmac
 import json
+import secrets
 import time
 from dataclasses import dataclass
 
 from fastapi import Header, HTTPException, status
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 
@@ -20,6 +23,7 @@ class AdminSessionClaims:
     exp: int
     iat: int
     iss: str
+    jti: str = ""
 
 
 def _encode_segment(raw: bytes) -> str:
@@ -70,10 +74,11 @@ def get_admin_session_ttl_seconds() -> int:
     return max(settings.admin_session_ttl_minutes, 1) * 60
 
 
-def create_admin_session_token() -> tuple[str, int, int]:
+def create_admin_session_token() -> tuple[str, int, int, str]:
     ttl_seconds = get_admin_session_ttl_seconds()
     issued_at = int(time.time())
     expires_at = issued_at + ttl_seconds
+    session_id = secrets.token_urlsafe(24)
     header = {
         "alg": "HS256",
         "typ": "JWT",
@@ -83,6 +88,7 @@ def create_admin_session_token() -> tuple[str, int, int]:
         "iss": JWT_ISSUER,
         "iat": issued_at,
         "exp": expires_at,
+        "jti": session_id,
     }
     header_segment = _encode_segment(
         json.dumps(header, separators=(",", ":"), sort_keys=True).encode("utf-8")
@@ -92,7 +98,61 @@ def create_admin_session_token() -> tuple[str, int, int]:
     )
     signing_input = f"{header_segment}.{payload_segment}"
     signature = _build_signature(signing_input)
-    return f"{signing_input}.{signature}", ttl_seconds, expires_at
+    return f"{signing_input}.{signature}", ttl_seconds, expires_at, session_id
+
+
+def _ensure_admin_session_state_table(db: Session) -> None:
+    db.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS admin_session_state ("
+            "id VARCHAR(50) PRIMARY KEY, "
+            "active_session_id VARCHAR(120) NOT NULL, "
+            "updated_at INTEGER NOT NULL"
+            ")"
+        )
+    )
+
+
+def activate_admin_session(db: Session, session_id: str) -> None:
+    _ensure_admin_session_state_table(db)
+    db.execute(
+        text(
+            "INSERT INTO admin_session_state (id, active_session_id, updated_at) "
+            "VALUES (:id, :active_session_id, :updated_at) "
+            "ON CONFLICT (id) DO UPDATE SET "
+            "active_session_id = EXCLUDED.active_session_id, "
+            "updated_at = EXCLUDED.updated_at"
+        ),
+        {
+            "id": "admin",
+            "active_session_id": session_id,
+            "updated_at": int(time.time()),
+        },
+    )
+    db.commit()
+
+
+def ensure_admin_session_is_active(db: Session, claims: AdminSessionClaims) -> None:
+    if not claims.jti:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="La sesion administrativa fue cerrada porque se inicio en otro dispositivo.",
+        )
+
+    _ensure_admin_session_state_table(db)
+    active_session_id = db.execute(
+        text(
+            "SELECT active_session_id FROM admin_session_state "
+            "WHERE id = :id"
+        ),
+        {"id": "admin"},
+    ).scalar_one_or_none()
+
+    if active_session_id != claims.jti:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="La sesion administrativa fue cerrada porque se inicio en otro dispositivo.",
+        )
 
 
 def _decode_legacy_admin_session_token(token: str) -> AdminSessionClaims:
@@ -124,6 +184,7 @@ def _decode_legacy_admin_session_token(token: str) -> AdminSessionClaims:
         exp=int(payload.get("exp") or 0),
         iat=int(payload.get("iat") or 0),
         iss=str(payload.get("iss") or ""),
+        jti=str(payload.get("jti") or ""),
     )
 
 
@@ -160,6 +221,7 @@ def decode_admin_session_token(token: str) -> AdminSessionClaims:
             exp=int(payload.get("exp") or 0),
             iat=int(payload.get("iat") or 0),
             iss=str(payload.get("iss") or ""),
+            jti=str(payload.get("jti") or ""),
         )
     else:
         raise HTTPException(
