@@ -102,7 +102,6 @@ function App() {
   const [adminAuthError, setAdminAuthError] = useState('')
   const [adminAuthBusy, setAdminAuthBusy] = useState(false)
   const [adminAuthenticated, setAdminAuthenticated] = useState(false)
-  const [citizenClock, setCitizenClock] = useState(() => new Date())
   const [adminSessionChecked, setAdminSessionChecked] = useState(() => {
     if (typeof window === 'undefined') return true
     return !(window.sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? '')
@@ -146,11 +145,6 @@ function App() {
     if (typeof window === 'undefined') return
     window.localStorage.setItem('app-theme', theme)
   }, [theme])
-
-  useEffect(() => {
-    const timerId = window.setInterval(() => setCitizenClock(new Date()), 1000)
-    return () => window.clearInterval(timerId)
-  }, [])
 
   useEffect(() => {
     if (
@@ -800,17 +794,17 @@ function App() {
         </a>
 
         <header
-          className={`overflow-hidden rounded-2xl border p-4 shadow-sm backdrop-blur transition-colors duration-300 sm:rounded-3xl sm:p-6 lg:p-8 ${
+          className={`overflow-hidden rounded-2xl border p-4 shadow-sm backdrop-blur transition-colors duration-300 sm:rounded-3xl sm:p-5 lg:p-6 ${
             isDarkTheme ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-white/90'
           }`}
         >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={openAdminView}
                 aria-label="Abrir panel administrativo"
-                className={`inline-flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+                className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2.5 transition ${
                   isDarkTheme
                     ? 'border-slate-700/80 bg-slate-950/50 hover:border-slate-500 hover:bg-slate-950/70'
                     : 'border-slate-200 bg-white/90 hover:border-slate-300 hover:bg-white'
@@ -818,7 +812,7 @@ function App() {
               >
                 <svg
                   viewBox="0 0 24 24"
-                  className={`h-7 w-7 ${isDarkTheme ? 'text-slate-100' : 'text-slate-700'}`}
+                  className={`h-5 w-5 ${isDarkTheme ? 'text-slate-100' : 'text-slate-700'}`}
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.9"
@@ -860,7 +854,7 @@ function App() {
             <button
               type="button"
               onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
-              className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              className={`inline-flex w-fit items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
                 isDarkTheme
                   ? 'border-slate-600 bg-slate-950/45 text-slate-100 hover:border-slate-400 hover:bg-slate-900'
                   : 'border-slate-300 bg-white/90 text-slate-700 hover:border-slate-400 hover:bg-white'
@@ -870,9 +864,9 @@ function App() {
             </button>
           </div>
 
-          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.8fr)] xl:items-end">
-            <div className="space-y-5">
-              <div className="space-y-3">
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.8fr)] lg:items-center">
+            <div className="space-y-4">
+              <div className="space-y-2">
                 <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${
                   isDarkTheme ? 'text-slate-400' : 'text-slate-500'
                 }`}>
@@ -888,17 +882,17 @@ function App() {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className={`hidden rounded-[1.75rem] border p-3 sm:block ${
+                <div className={`hidden rounded-[1.4rem] border p-2.5 sm:block ${
                   isDarkTheme ? 'border-slate-700/80 bg-slate-950/50' : 'border-slate-200 bg-white/95'
                 }`}>
                   <img
                     src="/logo-alcaldia.png"
                     alt="Logo Alcaldia de Cucuta"
-                    className="h-14 w-14 object-contain"
+                    className="h-12 w-12 object-contain"
                   />
                 </div>
                 <div className="space-y-3">
-                  <h1 className={`max-w-4xl text-2xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>
+                  <h1 className={`max-w-4xl text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>
                     Asistente Institucional de Tramites
                   </h1>
                   <p className={`max-w-3xl text-sm leading-relaxed sm:text-base ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>
@@ -908,7 +902,7 @@ function App() {
               </div>
             </div>
 
-            <div className={`rounded-[1.8rem] border p-4 sm:p-5 ${
+            <div className={`rounded-2xl border p-4 ${
               isDarkTheme ? 'border-slate-700/70 bg-slate-950/45' : 'border-slate-200 bg-white/80'
             }`}>
               <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${
@@ -916,28 +910,12 @@ function App() {
               }`}>
                 Resumen operativo
               </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 <MetricCard label="Catalogo" value={loadingTramites ? '...' : String(tramites.length)} tone="emerald" />
                 <MetricCard label="Cobertura" value="Oficial" tone="amber" />
                 <MetricCard label="Vista actual" value={view === 'ciudadania' ? 'Consulta' : 'Admin'} tone="slate" />
               </div>
-              {view === 'ciudadania' ? (
-                <div className={`mt-4 rounded-2xl border px-4 py-3 ${
-                  isDarkTheme ? 'border-slate-700 bg-slate-950/35' : 'border-slate-200 bg-slate-50'
-                }`}>
-                  <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${
-                    isDarkTheme ? 'text-slate-400' : 'text-slate-500'
-                  }`}>
-                    Fecha y hora local
-                  </p>
-                  <p className={`mt-2 text-sm font-semibold ${
-                    isDarkTheme ? 'text-slate-100' : 'text-slate-800'
-                  }`}>
-                    {formatCitizenDateTime(citizenClock)}
-                  </p>
-                </div>
-              ) : null}
-              <p className={`mt-4 text-sm leading-6 ${
+              <p className={`mt-3 text-sm leading-6 ${
                 isDarkTheme ? 'text-slate-300' : 'text-slate-600'
               }`}>
                 Seguimiento del catalogo y estado actual del sistema.
@@ -1027,21 +1005,20 @@ function App() {
               onSubmit={handleAdminUnlock}
               isBusy={adminAuthBusy}
               error={adminAuthError}
-              hasRestorableWorkspace={hasRestorableAdminWorkspace}
             />
           ) : (
-            <div className="grid gap-8 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)]">
-              <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-                <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)]">
+              <section className="rounded-2xl border border-slate-200/70 bg-white/85 p-4 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Panel administrativo</p>
-                    <h2 className="mt-2 text-3xl font-bold text-slate-950">Gestion administrativa de tramites</h2>
+                    <h2 className="mt-2 text-2xl font-bold text-slate-950 sm:text-3xl">Gestion administrativa de tramites</h2>
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
                       Administra el catalogo institucional, valida la calidad de cada ficha y revisa la actividad ciudadana desde un entorno privado.
                     </p>
                   </div>
-                  <div className="flex flex-col items-end gap-3">
-                    <div className={`rounded-2xl border px-4 py-3 text-right ${getSessionToneClassName(adminTimeRemainingSeconds).panel}`}>
+                  <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
+                    <div className={`w-full rounded-2xl border px-4 py-3 text-left sm:text-right lg:max-w-sm ${getSessionToneClassName(adminTimeRemainingSeconds).panel}`}>
                       <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${getSessionToneClassName(adminTimeRemainingSeconds).eyebrow}`}>
                         Sesion privada
                       </p>
@@ -1061,7 +1038,7 @@ function App() {
                     <button
                       type="button"
                       onClick={handleAdminLogout}
-                      className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                      className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto"
                     >
                       Cerrar acceso privado
                     </button>
@@ -1229,13 +1206,13 @@ function App() {
                 ) : null}
               </section>
 
-              <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-                <div className="mb-6 flex items-center justify-between gap-4">
+              <section className="rounded-2xl border border-slate-200/70 bg-white/85 p-4 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Inventario administrativo</p>
                     <h3 className="mt-2 text-2xl font-bold text-slate-950">Catalogo de tramites</h3>
                   </div>
-                  <button type="button" onClick={handleInventoryRefresh} className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
+                  <button type="button" onClick={handleInventoryRefresh} className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto">
                     Actualizar inventario
                   </button>
                 </div>
@@ -1361,7 +1338,7 @@ function App() {
                       </span>
                     </div>
 
-                    <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                       {weakestTramites.map(({ tramite, report }) => (
                         <article key={`weak-${tramite.id}`} className="rounded-3xl border border-amber-200 bg-white px-4 py-4">
                           {(() => {
@@ -1890,19 +1867,6 @@ function formatSelectedDateLabel(dateKey) {
 
 function getTodayDateKey() {
   return getLogDateKey(new Date())
-}
-
-function formatCitizenDateTime(value) {
-  return new Intl.DateTimeFormat('es-CO', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-  }).format(value)
 }
 
 function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestions }) {
@@ -2681,7 +2645,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
   ]
 
   return (
-    <section className={`rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur ${className}`}>
+    <section className={`rounded-2xl border border-slate-200/70 bg-white/85 p-4 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6 ${className}`}>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Actividad del asistente</p>
@@ -3319,34 +3283,22 @@ function AdminAccessPanel({
   onSubmit,
   isBusy,
   error,
-  hasRestorableWorkspace,
 }) {
   return (
-    <section className="mx-auto max-w-3xl rounded-[2rem] border border-slate-200/70 bg-white/85 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <section className="mx-auto max-w-3xl rounded-2xl border border-slate-200/70 bg-white/85 p-4 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Panel administrativo</p>
-          <h2 className="mt-2 text-3xl font-bold text-slate-950">Acceso privado</h2>
+          <h2 className="mt-2 text-2xl font-bold text-slate-950 sm:text-3xl">Acceso privado</h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
             Ingresa el PIN para gestionar el catalogo y revisar la actividad del asistente.
           </p>
         </div>
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-right">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left sm:text-right">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Proteccion activa</p>
           <p className="text-sm font-semibold text-emerald-900">Sesion temporal</p>
         </div>
       </div>
-
-      {hasRestorableWorkspace ? (
-        <div className="mt-6 rounded-3xl border border-sky-200 bg-sky-50 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
-            Borrador protegido
-          </p>
-          <p className="mt-2 text-sm leading-6 text-sky-900">
-            Hay un borrador administrativo guardado para continuar donde ibas.
-          </p>
-        </div>
-      ) : null}
 
       <form className="mt-8 space-y-4" onSubmit={onSubmit}>
         <Field
@@ -4006,46 +3958,28 @@ function MetricCard({ label, value, tone }) {
   const styles = tones[tone]
 
   return (
-    <div className={`rounded-[1.4rem] border px-4 py-4 ${styles.card}`}>
+    <div className={`rounded-2xl border px-3 py-3 sm:px-4 sm:py-4 ${styles.card}`}>
       <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${styles.label}`}>{label}</p>
-      <p className={`mt-2 text-3xl font-black tracking-tight ${styles.value}`}>{value}</p>
+      <p className={`mt-2 text-2xl font-black tracking-tight sm:text-3xl ${styles.value}`}>{value}</p>
     </div>
   )
 }
 
 function WordMinimumHint({ current, minimum, label }) {
   const isEnough = current >= minimum
-  const progress = Math.min(Math.round((current / minimum) * 100), 100)
 
   return (
-    <div className={`mt-3 rounded-2xl border px-4 py-3 text-xs ${
-      isEnough ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-200 bg-amber-50/70'
-    }`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={isEnough ? 'font-medium text-emerald-900' : 'font-medium text-amber-900'}>
-          {label}
-        </span>
-        <span
-          className={`rounded-full border px-2.5 py-1 font-semibold uppercase tracking-[0.14em] ${
-            isEnough
-              ? 'border-emerald-200 bg-white text-emerald-700'
-              : 'border-amber-200 bg-white text-amber-700'
-          }`}
-        >
-          {current}/{minimum} palabras
-        </span>
-      </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
-        <div
-          className={`h-full rounded-full ${isEnough ? 'bg-emerald-500' : 'bg-amber-500'}`}
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-      <p className={`mt-2 leading-5 ${isEnough ? 'text-emerald-800' : 'text-amber-800'}`}>
-        {isEnough
-          ? 'El texto cumple el minimo recomendado para guardar una ficha clara.'
-          : 'Agrega mas contexto para que el ciudadano reciba una respuesta mas completa.'}
-      </p>
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+      <span className="text-slate-500">{label}</span>
+      <span
+        className={`rounded-full border px-2.5 py-1 font-semibold uppercase tracking-[0.14em] ${
+          isEnough
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            : 'border-amber-200 bg-amber-50 text-amber-700'
+        }`}
+      >
+        {current}/{minimum} palabras
+      </span>
     </div>
   )
 }
