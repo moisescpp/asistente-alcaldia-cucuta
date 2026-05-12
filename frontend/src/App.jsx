@@ -949,9 +949,9 @@ function App() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Panel administrativo</p>
-                    <h2 className="mt-2 text-3xl font-bold text-slate-950">Gestion de tramites estrella</h2>
+                    <h2 className="mt-2 text-3xl font-bold text-slate-950">Gestion administrativa de tramites</h2>
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                      Este formulario ya crea y actualiza tramites reales. En esta fase lo usamos para mantener coherencia entre la base administrativa y la experiencia de consulta ciudadana.
+                      Administra el catalogo institucional, valida la calidad de cada ficha y revisa la actividad ciudadana desde un entorno privado.
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-3">
@@ -1012,6 +1012,33 @@ function App() {
                 </div>
 
                 <form className="mt-8 grid gap-4 md:grid-cols-2" onSubmit={handleAdminSubmit}>
+                  <div className="md:col-span-2 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Revision de calidad del tramite</p>
+                        <p className="mt-2 text-sm text-slate-700">
+                          Nivel actual: <span className={`font-semibold ${qualityToneClassName(draftQualityReport.level)}`}>{humanizeQualityLevel(draftQualityReport.level)}</span>
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                        Score {draftQualityReport.score}
+                      </span>
+                    </div>
+                    {draftQualityReport.alerts.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {draftQualityReport.alerts.slice(0, 4).map((alert) => (
+                          <span key={alert} className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                            {alert}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-emerald-700">El tramite ya tiene una base bastante buena para consultas ciudadanas.</p>
+                    )}
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      Accion sugerida: <span className="font-medium text-slate-800">{draftQualityReport.recommendedAction}</span>
+                    </p>
+                  </div>
                   <Field label="Nombre" required error={adminFieldErrors.nombre}>
                     <input className={fieldClassName(adminFieldErrors.nombre)} name="nombre" value={formData.nombre} onChange={handleInputChange} />
                   </Field>
@@ -1092,33 +1119,6 @@ function App() {
                       </button>
                     </div>
                   </Field>
-                  <div className="md:col-span-2 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Calidad semantica del borrador</p>
-                        <p className="mt-2 text-sm text-slate-700">
-                          Nivel actual: <span className={`font-semibold ${qualityToneClassName(draftQualityReport.level)}`}>{humanizeQualityLevel(draftQualityReport.level)}</span>
-                        </p>
-                      </div>
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                        Score {draftQualityReport.score}
-                      </span>
-                    </div>
-                    {draftQualityReport.alerts.length ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {draftQualityReport.alerts.slice(0, 4).map((alert) => (
-                          <span key={alert} className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                            {alert}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-sm text-emerald-700">El tramite ya tiene una base bastante buena para consultas ciudadanas.</p>
-                    )}
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                      Accion sugerida: <span className="font-medium text-slate-800">{draftQualityReport.recommendedAction}</span>
-                    </p>
-                  </div>
                   <div className="md:col-span-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <button type="submit" disabled={isSaving} className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
@@ -2504,13 +2504,13 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
   const [showAllLogs, setShowAllLogs] = useState(false)
   const [selectedLogDate, setSelectedLogDate] = useState('')
   const availableLogDates = extractAvailableLogDates(logs)
-  const effectiveSelectedLogDate = availableLogDates.some((option) => option.key === selectedLogDate)
-    ? selectedLogDate
-    : availableLogDates[0]?.key ?? ''
+  const latestLogDate = availableLogDates[0]?.key ?? ''
+  const effectiveSelectedLogDate = selectedLogDate || latestLogDate
 
   const dateScopedLogs = effectiveSelectedLogDate
     ? logs.filter((log) => getLogDateKey(log.created_at) === effectiveSelectedLogDate)
     : logs
+  const hasActivityForSelectedDate = dateScopedLogs.length > 0
   const stats = dateScopedLogs.reduce(
     (summary, log) => {
       if (isPositiveLogStatus(log.mensaje_estado)) summary.positivas += 1
@@ -2535,6 +2535,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
       tone: 'emerald',
       description: 'Preguntas con contexto suficiente que el asistente resolvio bien.',
       example: questionInsights.examples.wellDetailed,
+      referenceExample: 'Quiero conocer los requisitos para generar el paz y salvo predial.',
     },
     {
       key: 'tooGeneral',
@@ -2543,6 +2544,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
       tone: 'amber',
       description: 'Consultas amplias que necesitan una pista mas concreta del ciudadano.',
       example: questionInsights.examples.tooGeneral,
+      referenceExample: 'Necesito informacion sobre impuestos.',
     },
     {
       key: 'possibleDescriptionGap',
@@ -2551,6 +2553,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
       tone: 'rose',
       description: 'Preguntas razonables que no lograron una respuesta clara y conviene revisar contra el catalogo.',
       example: questionInsights.examples.possibleDescriptionGap,
+      referenceExample: 'Quiero hacer el tramite de devolucion de pago y no encuentro que documentos piden.',
     },
     {
       key: 'shortQuestions',
@@ -2559,6 +2562,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
       tone: 'slate',
       description: 'Mensajes muy breves que suelen requerir apoyo de sugerencias o desambiguacion.',
       example: questionInsights.examples.shortQuestions,
+      referenceExample: 'Predial.',
     },
   ]
   const statusSeries = [
@@ -2642,7 +2646,18 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
         </div>
       ) : null}
 
-      {!loading && !error && logs.length && catalogAttention.items.length ? (
+      {!loading && !error && logs.length && !hasActivityForSelectedDate ? (
+        <div className="mb-6 rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
+          <p className="text-base font-semibold text-slate-800">
+            Ese dia no hubo consultas registradas.
+          </p>
+          <p className="mt-3 text-sm leading-6 text-slate-500">
+            La fecha se mantiene seleccionada para que puedas confirmar la ausencia de actividad sin saltar automaticamente a otro dia.
+          </p>
+        </div>
+      ) : null}
+
+      {!loading && !error && logs.length && hasActivityForSelectedDate && catalogAttention.items.length ? (
         <div className="mb-6 rounded-3xl border border-rose-200 bg-[linear-gradient(180deg,#fff5f5_0%,#fffdfd_100%)] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -2688,7 +2703,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
         </div>
       ) : null}
 
-      {!loading && !error && logs.length ? (
+      {!loading && !error && logs.length && hasActivityForSelectedDate ? (
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
           <MetricCard label="Positivas" value={String(stats.positivas)} tone="emerald" />
           <MetricCard label="Ambiguas" value={String(stats.ambiguas)} tone="amber" />
@@ -2696,7 +2711,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
         </div>
       ) : null}
 
-      {!loading && !error && logs.length ? (
+      {!loading && !error && logs.length && hasActivityForSelectedDate ? (
         <div className="mb-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -2729,6 +2744,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                   tone={item.tone}
                   description={item.description}
                   example={item.example}
+                  referenceExample={item.referenceExample}
                   total={totalQuestionsInView}
                 />
               ))}
@@ -2758,14 +2774,14 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
         </div>
       ) : null}
 
-      {!loading && !error && logs.length ? (
+      {!loading && !error && logs.length && hasActivityForSelectedDate ? (
         <div className="space-y-5">
           {problematicPatterns.length ? (
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Patrones problematicos
+                    Alertas de seguimiento
                   </p>
                   <h4 className="mt-2 text-lg font-semibold text-slate-950">
                     Consultas que conviene revisar primero
@@ -3060,7 +3076,7 @@ function QuestionInsightChart({ title, description, items, total, compact = fals
   )
 }
 
-function QuestionInsightCard({ title, value, description, example, tone, total }) {
+function QuestionInsightCard({ title, value, description, example, referenceExample, tone, total }) {
   const tones = {
     emerald: {
       card: 'border-emerald-200 bg-white',
@@ -3106,12 +3122,12 @@ function QuestionInsightCard({ title, value, description, example, tone, total }
         />
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
-      {example ? (
+      {example || referenceExample ? (
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Ejemplo reciente
+            {example ? 'Ejemplo reciente' : 'Ejemplo de referencia'}
           </p>
-          <p className="mt-2 text-sm font-medium leading-6 text-slate-800">{example}</p>
+          <p className="mt-2 text-sm font-medium leading-6 text-slate-800">{example || referenceExample}</p>
         </div>
       ) : (
         <p className="mt-4 text-xs leading-5 text-slate-500">
@@ -3446,6 +3462,8 @@ function buildProblematicPatterns(logs) {
   logs.forEach((log) => {
     const normalizedQuestion = normalizePatternQuestion(log.pregunta)
     const severity = getPatternSeverity(log)
+    if (severity <= 0) return
+
     const current = counts.get(normalizedQuestion)
 
     if (current) {
@@ -3465,7 +3483,7 @@ function buildProblematicPatterns(logs) {
   })
 
   return Array.from(counts.values())
-    .filter((pattern) => pattern.severity > 1 || pattern.count > 1)
+    .filter((pattern) => pattern.severity > 0)
     .sort((left, right) => {
       if (right.severity !== left.severity) return right.severity - left.severity
       return right.count - left.count
@@ -3779,9 +3797,8 @@ function groupLogsByDate(logs) {
 }
 
 function getPatternSeverity(log) {
-  if (isAmbiguousLogStatus(log.mensaje_estado)) return 3
   if (isNoMatchLogStatus(log.mensaje_estado)) return 4
-  if (log.total_resultados > 1) return 2
+  if (isAmbiguousLogStatus(log.mensaje_estado)) return 3
   return 0
 }
 
