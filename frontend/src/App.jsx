@@ -102,6 +102,7 @@ function App() {
   const [adminAuthError, setAdminAuthError] = useState('')
   const [adminAuthBusy, setAdminAuthBusy] = useState(false)
   const [adminAuthenticated, setAdminAuthenticated] = useState(false)
+  const [citizenClock, setCitizenClock] = useState(() => new Date())
   const [adminSessionChecked, setAdminSessionChecked] = useState(() => {
     if (typeof window === 'undefined') return true
     return !(window.sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? '')
@@ -145,6 +146,11 @@ function App() {
     if (typeof window === 'undefined') return
     window.localStorage.setItem('app-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => setCitizenClock(new Date()), 1000)
+    return () => window.clearInterval(timerId)
+  }, [])
 
   useEffect(() => {
     if (
@@ -343,11 +349,23 @@ function App() {
       }
     }
 
-    const timerId = window.setInterval(validateCurrentAdminSession, 15000)
+    validateCurrentAdminSession()
+    const timerId = window.setInterval(validateCurrentAdminSession, 3000)
+
+    const validateOnFocus = () => {
+      if (document.visibilityState === 'visible') {
+        validateCurrentAdminSession()
+      }
+    }
+
+    window.addEventListener('focus', validateCurrentAdminSession)
+    document.addEventListener('visibilitychange', validateOnFocus)
 
     return () => {
       isCancelled = true
       window.clearInterval(timerId)
+      window.removeEventListener('focus', validateCurrentAdminSession)
+      document.removeEventListener('visibilitychange', validateOnFocus)
     }
   }, [view, adminAuthenticated, adminToken])
 
@@ -903,6 +921,22 @@ function App() {
                 <MetricCard label="Cobertura" value="Oficial" tone="amber" />
                 <MetricCard label="Vista actual" value={view === 'ciudadania' ? 'Consulta' : 'Admin'} tone="slate" />
               </div>
+              {view === 'ciudadania' ? (
+                <div className={`mt-4 rounded-2xl border px-4 py-3 ${
+                  isDarkTheme ? 'border-slate-700 bg-slate-950/35' : 'border-slate-200 bg-slate-50'
+                }`}>
+                  <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${
+                    isDarkTheme ? 'text-slate-400' : 'text-slate-500'
+                  }`}>
+                    Fecha y hora local
+                  </p>
+                  <p className={`mt-2 text-sm font-semibold ${
+                    isDarkTheme ? 'text-slate-100' : 'text-slate-800'
+                  }`}>
+                    {formatCitizenDateTime(citizenClock)}
+                  </p>
+                </div>
+              ) : null}
               <p className={`mt-4 text-sm leading-6 ${
                 isDarkTheme ? 'text-slate-300' : 'text-slate-600'
               }`}>
@@ -1073,7 +1107,7 @@ function App() {
                         </p>
                       </div>
                       <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                        Score {draftQualityReport.score}
+                        Calidad {draftQualityReport.score}/100
                       </span>
                     </div>
                     {draftQualityReport.alerts.length ? (
@@ -1342,7 +1376,7 @@ function App() {
                                   ? 'border-rose-200 bg-rose-50 text-rose-700'
                                   : 'border-amber-200 bg-amber-50 text-amber-700'
                             }`}>
-                              {humanizeQualityLevel(report.level)} · {report.score}
+                              {humanizeQualityLevel(report.level)} - Calidad {report.score}/100
                             </span>
                             <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                               ID {tramite.id}
@@ -1852,6 +1886,23 @@ function formatSelectedDateLabel(dateKey) {
     month: 'long',
     year: 'numeric',
   }).format(date)
+}
+
+function getTodayDateKey() {
+  return getLogDateKey(new Date())
+}
+
+function formatCitizenDateTime(value) {
+  return new Intl.DateTimeFormat('es-CO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  }).format(value)
 }
 
 function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestions }) {
@@ -2484,7 +2535,7 @@ function TramitesAdminList({
                         ? 'border-amber-200 bg-amber-50 text-amber-700'
                         : 'border-rose-200 bg-rose-50 text-rose-700'
                 }`}>
-                  {humanizeQualityLevel(qualityReport.level)} - {qualityReport.score}
+                  {humanizeQualityLevel(qualityReport.level)} - Calidad {qualityReport.score}/100
                 </span>
                 <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${scopeBadgeClassName(qualityReport.scopeStatus)}`}>
                   {humanizeScopeStatus(qualityReport.scopeStatus)}
@@ -2557,7 +2608,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
   const [selectedLogDate, setSelectedLogDate] = useState('')
   const availableLogDates = extractAvailableLogDates(logs)
   const latestLogDate = availableLogDates[0]?.key ?? ''
-  const effectiveSelectedLogDate = selectedLogDate || latestLogDate
+  const effectiveSelectedLogDate = selectedLogDate || latestLogDate || getTodayDateKey()
 
   const dateScopedLogs = effectiveSelectedLogDate
     ? logs.filter((log) => getLogDateKey(log.created_at) === effectiveSelectedLogDate)
@@ -2649,20 +2700,21 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
           </button>
           <button
             type="button"
+            disabled={!availableLogDates.length}
             onClick={() => {
               setSelectedLogDate(availableLogDates[0]?.key ?? '')
               setStatusFilter('todas')
               setShowAllLogs(false)
               setExpandedLogId(null)
             }}
-            className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+            className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Ir al ultimo dia con actividad
           </button>
         </div>
       </div>
 
-      {!loading && !error && logs.length ? (
+      {!loading && !error ? (
         <div className="mb-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <label className="block">
@@ -2691,8 +2743,15 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 {dateScopedLogs.length
                   ? `Hay ${dateScopedLogs.length} consulta(s) registradas en esta fecha antes de aplicar el filtro por estado.`
-                  : 'No hubo consultas registradas en esta fecha. Puedes elegir otro dia para revisar actividad real.'}
+                  : logs.length
+                    ? 'No hubo consultas registradas en esta fecha. Puedes elegir otro dia para revisar actividad real.'
+                    : 'Aun no hay consultas registradas, pero puedes conservar una fecha seleccionada para revisar actividad futura.'}
               </p>
+              {availableLogDates.length ? (
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  Ultimo dia con actividad: {formatSelectedDateLabel(latestLogDate)}.
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -3956,19 +4015,37 @@ function MetricCard({ label, value, tone }) {
 
 function WordMinimumHint({ current, minimum, label }) {
   const isEnough = current >= minimum
+  const progress = Math.min(Math.round((current / minimum) * 100), 100)
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-      <span className="text-slate-500">{label}</span>
-      <span
-        className={`rounded-full border px-2.5 py-1 font-semibold uppercase tracking-[0.14em] ${
-          isEnough
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            : 'border-amber-200 bg-amber-50 text-amber-700'
-        }`}
-      >
-        {current}/{minimum} palabras
-      </span>
+    <div className={`mt-3 rounded-2xl border px-4 py-3 text-xs ${
+      isEnough ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-200 bg-amber-50/70'
+    }`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className={isEnough ? 'font-medium text-emerald-900' : 'font-medium text-amber-900'}>
+          {label}
+        </span>
+        <span
+          className={`rounded-full border px-2.5 py-1 font-semibold uppercase tracking-[0.14em] ${
+            isEnough
+              ? 'border-emerald-200 bg-white text-emerald-700'
+              : 'border-amber-200 bg-white text-amber-700'
+          }`}
+        >
+          {current}/{minimum} palabras
+        </span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
+        <div
+          className={`h-full rounded-full ${isEnough ? 'bg-emerald-500' : 'bg-amber-500'}`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <p className={`mt-2 leading-5 ${isEnough ? 'text-emerald-800' : 'text-amber-800'}`}>
+        {isEnough
+          ? 'El texto cumple el minimo recomendado para guardar una ficha clara.'
+          : 'Agrega mas contexto para que el ciudadano reciba una respuesta mas completa.'}
+      </p>
     </div>
   )
 }
