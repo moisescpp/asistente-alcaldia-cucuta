@@ -284,6 +284,11 @@ def _build_success_response(
     data_lines: list[str] = []
     missing_fields: list[str] = []
 
+    if tramite_principal.descripcion:
+        data_lines.append(f"- Descripcion: {tramite_principal.descripcion}")
+    else:
+        missing_fields.append("descripcion")
+
     if tramite_principal.requisitos:
         data_lines.append(f"- Requisitos: {tramite_principal.requisitos}")
     else:

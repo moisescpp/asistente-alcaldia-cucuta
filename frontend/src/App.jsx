@@ -13,6 +13,9 @@ const ADMIN_SESSION_EXPIRES_AT_STORAGE_KEY = 'admin-session-expires-at'
 const ADMIN_WORKSPACE_STORAGE_KEY = 'admin-workspace-state'
 const DESCRIPTION_MIN_WORDS = 12
 const REQUIREMENTS_MIN_WORDS = 6
+const AUTHOR_NAME = 'Moises Perez'
+const AUTHOR_GITHUB_URL = 'https://github.com/moisescpp'
+const PROJECT_REPOSITORY_URL = 'https://github.com/moisescpp/asistente-alcaldia-cucuta'
 const EMPTY_FORM = {
   nombre: '',
   slug: '',
@@ -908,32 +911,29 @@ function App() {
               <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${
                 isDarkTheme ? 'text-slate-400' : 'text-slate-500'
               }`}>
-                Guia rapida
+                Informacion de consulta
               </p>
-              <div className="mt-3 grid gap-3">
-                <CitizenGuideStep
-                  number="1"
-                  title="Escribe tu consulta"
-                  body="Usa palabras sencillas, como lo preguntarias en ventanilla."
+              <div className="mt-4 space-y-3">
+                <HeaderInfoRow
+                  label="Catalogo disponible"
+                  value={loadingTramites ? 'Cargando tramites...' : `${tramites.length} tramite(s) activo(s)`}
                   isDarkTheme={isDarkTheme}
                 />
-                <CitizenGuideStep
-                  number="2"
-                  title="Revisa la ruta sugerida"
-                  body="Si hay varias opciones, elige la que mas se parezca a tu caso."
+                <HeaderInfoRow
+                  label="Respuesta guiada"
+                  value="El sistema muestra una ficha o rutas para precisar la consulta."
                   isDarkTheme={isDarkTheme}
                 />
-                <CitizenGuideStep
-                  number="3"
-                  title="Valida la fuente oficial"
-                  body="Antes de iniciar la gestion, confirma el enlace institucional."
+                <HeaderInfoRow
+                  label="Validacion"
+                  value="La informacion debe contrastarse con la fuente oficial registrada."
                   isDarkTheme={isDarkTheme}
                 />
               </div>
               <p className={`mt-3 text-sm leading-6 ${
                 isDarkTheme ? 'text-slate-300' : 'text-slate-600'
               }`}>
-                Catalogo activo: {loadingTramites ? 'cargando...' : `${tramites.length} tramite(s) disponibles`}.
+                Orientacion ciudadana basada en el catalogo administrado.
               </p>
             </div>
           </div>
@@ -1462,6 +1462,7 @@ function App() {
             </div>
           )}
         </main>
+        <ProjectFooter isDarkTheme={isDarkTheme} />
       </div>
     </div>
   )
@@ -3946,21 +3947,63 @@ function getConsultaLogStatusConfig(messageStatus) {
   }
 }
 
-function CitizenGuideStep({ number, title, body, isDarkTheme }) {
+function HeaderInfoRow({ label, value, isDarkTheme }) {
   return (
-    <div className={`flex gap-3 rounded-2xl border p-3 ${
-      isDarkTheme ? 'border-slate-700/70 bg-slate-900/70' : 'border-slate-200 bg-slate-50'
+    <div className={`rounded-2xl border px-4 py-3 ${
+      isDarkTheme ? 'border-slate-700/70 bg-slate-900/60' : 'border-slate-200 bg-slate-50/80'
     }`}>
-      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-        isDarkTheme ? 'bg-emerald-300/15 text-emerald-100' : 'bg-emerald-100 text-emerald-800'
+      <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${
+        isDarkTheme ? 'text-slate-400' : 'text-slate-500'
       }`}>
-        {number}
-      </span>
-      <span>
-        <span className={`block text-sm font-bold ${isDarkTheme ? 'text-slate-100' : 'text-slate-950'}`}>{title}</span>
-        <span className={`mt-1 block text-sm leading-5 ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>{body}</span>
-      </span>
+        {label}
+      </p>
+      <p className={`mt-1 text-sm font-semibold leading-5 ${
+        isDarkTheme ? 'text-slate-100' : 'text-slate-800'
+      }`}>
+        {value}
+      </p>
     </div>
+  )
+}
+
+function ProjectFooter({ isDarkTheme }) {
+  const linkClassName = `inline-flex rounded-full border px-4 py-2 text-sm font-semibold transition ${
+    isDarkTheme
+      ? 'border-slate-700 bg-slate-950/40 text-slate-200 hover:border-slate-500 hover:bg-slate-900'
+      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+  }`
+
+  return (
+    <footer className={`rounded-2xl border px-5 py-5 shadow-sm sm:px-6 ${
+      isDarkTheme ? 'border-slate-800 bg-slate-900/65' : 'border-slate-200 bg-white/85'
+    }`}>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${
+            isDarkTheme ? 'text-slate-400' : 'text-slate-500'
+          }`}>
+            Proyecto academico
+          </p>
+          <h2 className={`mt-2 text-lg font-bold ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>
+            Asistente Institucional de Tramites
+          </h2>
+          <p className={`mt-2 max-w-3xl text-sm leading-6 ${
+            isDarkTheme ? 'text-slate-400' : 'text-slate-600'
+          }`}>
+            Desarrollado por {AUTHOR_NAME} como apoyo a la orientacion ciudadana y gestion administrativa de informacion institucional.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <a href={AUTHOR_GITHUB_URL} target="_blank" rel="noreferrer" className={linkClassName}>
+            GitHub
+          </a>
+          <a href={PROJECT_REPOSITORY_URL} target="_blank" rel="noreferrer" className={linkClassName}>
+            Repositorio
+          </a>
+        </div>
+      </div>
+    </footer>
   )
 }
 

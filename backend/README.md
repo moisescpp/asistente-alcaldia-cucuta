@@ -22,6 +22,17 @@ Backend del asistente de tramites estrella de rentas e impuestos, actualmente en
 3. Instalar dependencias con `pip install -r requirements.txt`.
 4. Ejecutar el servidor con `uvicorn app.main:app --reload`.
 
+## Pruebas locales
+
+Ejecuta las pruebas desde la carpeta `backend` para que se cargue correctamente `backend/.env` y no se use la URL de PostgreSQL por defecto:
+
+```powershell
+cd C:\asistente-alcaldia-cucuta\backend
+& .\.venv\Scripts\python.exe -m pytest -q
+```
+
+Si las pruebas se ejecutan desde la raiz del repositorio, la configuracion puede caer al valor por defecto `postgres/postgres` y fallar por credenciales locales.
+
 ## Entorno validado
 
 - entorno estandar actual: `backend/.venv`
