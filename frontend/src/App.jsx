@@ -13,10 +13,11 @@ const ADMIN_SESSION_EXPIRES_AT_STORAGE_KEY = 'admin-session-expires-at'
 const ADMIN_WORKSPACE_STORAGE_KEY = 'admin-workspace-state'
 const DESCRIPTION_MIN_WORDS = 12
 const REQUIREMENTS_MIN_WORDS = 6
-const AUTHOR_NAME = 'Moises Perez'
+const AUTHOR_NAME = 'Moises Camilo Perez Prieto'
 const AUTHOR_GITHUB_URL = 'https://github.com/moisescpp'
 const PROJECT_REPOSITORY_URL = 'https://github.com/moisescpp/asistente-alcaldia-cucuta'
 const AUTHOR_EMAIL = 'moisescamiloperez623@gmail.com'
+const AUTHOR_PHONE = '+57 311 648 2937'
 const AUTHOR_LINKEDIN_URL = ''
 const AUTHOR_INSTAGRAM_URL = ''
 const EMPTY_FORM = {
@@ -911,7 +912,7 @@ function App() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <HeaderFeatureCard
                 icon="catalog"
-                title="Catalogo inteligente"
+                title="Catalogo disponible"
                 body={loadingTramites ? 'Cargando tramites actualizados.' : `${tramites.length} tramites activos para consulta.`}
                 accent="emerald"
                 isDarkTheme={isDarkTheme}
@@ -3996,42 +3997,61 @@ function ProjectFooter({ isDarkTheme }) {
   ].filter(Boolean)
 
   return (
-    <footer className={`border-t py-8 transition-colors duration-300 sm:py-10 ${
-      isDarkTheme ? 'border-slate-800 bg-slate-900/45 text-slate-400' : 'border-slate-200 bg-white/80 text-slate-600'
+    <footer className={`pt-2 transition-colors duration-300 ${
+      isDarkTheme ? 'text-slate-400' : 'text-slate-600'
     }`}>
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:items-center">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <img src="/logo-alcaldia.png" alt="Logo Alcaldia de Cucuta" className="h-9 w-9 object-contain opacity-75 grayscale" />
-            <span className={`text-sm font-bold tracking-tight ${isDarkTheme ? 'text-slate-200' : 'text-slate-800'}`}>
-              Asistente Institucional
-            </span>
+      <div className={`rounded-2xl border px-5 py-5 shadow-sm sm:px-6 ${
+        isDarkTheme ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-white/85'
+      }`}>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.2fr_1fr_1.05fr] lg:items-center">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <img src="/logo-alcaldia.png" alt="Logo Alcaldia de Cucuta" className="h-10 w-10 object-contain opacity-80 grayscale" />
+              <div>
+                <p className={`text-sm font-bold tracking-tight ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>
+                  Asistente Institucional
+                </p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">
+                  Proyecto academico
+                </p>
+              </div>
+            </div>
+            <p className="max-w-md text-xs leading-relaxed">
+              Plataforma de orientacion ciudadana para apoyar el acceso a tramites y servicios institucionales.
+            </p>
           </div>
-          <p className="max-w-sm text-xs leading-relaxed">
-            Plataforma academica de orientacion ciudadana para optimizar el acceso a tramites y servicios institucionales.
-          </p>
-        </div>
 
-        <div className="flex flex-col items-start gap-4 md:items-center">
-          <div className="flex flex-wrap gap-3">
-            {socialLinks.map((link) => (
-              <SocialLink key={link.label} {...link} isDarkTheme={isDarkTheme} />
-            ))}
+          <div className="flex flex-col gap-3 lg:items-center">
+            <div className="flex flex-wrap gap-3">
+              {socialLinks.map((link) => (
+                <SocialLink key={link.label} {...link} isDarkTheme={isDarkTheme} />
+              ))}
+            </div>
+            <div className="space-y-1 text-sm lg:text-center">
+              <a href={`mailto:${AUTHOR_EMAIL}`} className={`block font-medium hover:underline ${
+                isDarkTheme ? 'text-emerald-300' : 'text-emerald-700'
+              }`}>
+                {AUTHOR_EMAIL}
+              </a>
+              <a href={`tel:${AUTHOR_PHONE.replace(/\s+/g, '')}`} className={`block font-medium hover:underline ${
+                isDarkTheme ? 'text-slate-200' : 'text-slate-700'
+              }`}>
+                {AUTHOR_PHONE}
+              </a>
+            </div>
           </div>
-          <a href={`mailto:${AUTHOR_EMAIL}`} className={`text-xs font-medium hover:underline ${
-            isDarkTheme ? 'text-emerald-400' : 'text-emerald-600'
-          }`}>
-            {AUTHOR_EMAIL}
-          </a>
-        </div>
 
-        <div className="space-y-1 md:text-right">
-          <p className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-200' : 'text-slate-800'}`}>
-            Desarrollado por {AUTHOR_NAME}
-          </p>
-          <p className="text-[10px] uppercase tracking-widest opacity-65">
-            (c) {new Date().getFullYear()} - San Jose de Cucuta, Colombia
-          </p>
+          <div className="space-y-2 lg:text-right">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">
+              Desarrollado por
+            </p>
+            <p className={`text-base font-bold leading-snug ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>
+              {AUTHOR_NAME}
+            </p>
+            <p className="text-[11px] uppercase tracking-widest opacity-65">
+              (c) {new Date().getFullYear()} - San Jose de Cucuta, Colombia
+            </p>
+          </div>
         </div>
       </div>
     </footer>
