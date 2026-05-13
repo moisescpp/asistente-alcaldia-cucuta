@@ -16,6 +16,9 @@ const REQUIREMENTS_MIN_WORDS = 6
 const AUTHOR_NAME = 'Moises Perez'
 const AUTHOR_GITHUB_URL = 'https://github.com/moisescpp'
 const PROJECT_REPOSITORY_URL = 'https://github.com/moisescpp/asistente-alcaldia-cucuta'
+const AUTHOR_EMAIL = 'moisescamiloperez623@gmail.com'
+const AUTHOR_LINKEDIN_URL = ''
+const AUTHOR_INSTAGRAM_URL = ''
 const EMPTY_FORM = {
   nombre: '',
   slug: '',
@@ -867,13 +870,13 @@ function App() {
             </button>
           </div>
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.8fr)] lg:items-center">
+          <div className="mt-4 space-y-5">
             <div className="space-y-4">
               <div className="space-y-2">
                 <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${
                   isDarkTheme ? 'text-slate-400' : 'text-slate-500'
                 }`}>
-                  Plataforma institucional de orientacion · Alcaldia de Cucuta
+                  Plataforma institucional de orientacion - Alcaldia de Cucuta
                 </p>
                 <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] ${
                   isDarkTheme
@@ -905,36 +908,28 @@ function App() {
               </div>
             </div>
 
-            <div className={`rounded-2xl border p-4 ${
-              isDarkTheme ? 'border-slate-700/70 bg-slate-950/45' : 'border-slate-200 bg-white/80'
-            }`}>
-              <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${
-                isDarkTheme ? 'text-slate-400' : 'text-slate-500'
-              }`}>
-                Informacion de consulta
-              </p>
-              <div className="mt-4 space-y-3">
-                <HeaderInfoRow
-                  label="Catalogo disponible"
-                  value={loadingTramites ? 'Cargando tramites...' : `${tramites.length} tramite(s) activo(s)`}
-                  isDarkTheme={isDarkTheme}
-                />
-                <HeaderInfoRow
-                  label="Respuesta guiada"
-                  value="El sistema muestra una ficha o rutas para precisar la consulta."
-                  isDarkTheme={isDarkTheme}
-                />
-                <HeaderInfoRow
-                  label="Validacion"
-                  value="La informacion debe contrastarse con la fuente oficial registrada."
-                  isDarkTheme={isDarkTheme}
-                />
-              </div>
-              <p className={`mt-3 text-sm leading-6 ${
-                isDarkTheme ? 'text-slate-300' : 'text-slate-600'
-              }`}>
-                Orientacion ciudadana basada en el catalogo administrado.
-              </p>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <HeaderFeatureCard
+                icon="catalog"
+                title="Catalogo inteligente"
+                body={loadingTramites ? 'Cargando tramites actualizados.' : `${tramites.length} tramites activos para consulta.`}
+                accent="emerald"
+                isDarkTheme={isDarkTheme}
+              />
+              <HeaderFeatureCard
+                icon="guide"
+                title="Guia paso a paso"
+                body="Te orientamos para encontrar la ruta exacta de tu tramite."
+                accent="blue"
+                isDarkTheme={isDarkTheme}
+              />
+              <HeaderFeatureCard
+                icon="official"
+                title="Informacion oficial"
+                body="Datos contrastados con la fuente institucional registrada."
+                accent="amber"
+                isDarkTheme={isDarkTheme}
+              />
             </div>
           </div>
         </header>
@@ -3947,63 +3942,150 @@ function getConsultaLogStatusConfig(messageStatus) {
   }
 }
 
-function HeaderInfoRow({ label, value, isDarkTheme }) {
+function HeaderFeatureCard({ icon, title, body, accent, isDarkTheme }) {
+  const accents = {
+    emerald: 'bg-emerald-500/10 text-emerald-500',
+    blue: 'bg-sky-500/10 text-sky-500',
+    amber: 'bg-amber-500/10 text-amber-500',
+  }
+
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${
-      isDarkTheme ? 'border-slate-700/70 bg-slate-900/60' : 'border-slate-200 bg-slate-50/80'
+    <div className={`rounded-2xl border p-4 transition ${
+      isDarkTheme ? 'border-slate-800 bg-slate-950/35' : 'border-slate-200 bg-white/70'
     }`}>
-      <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${
-        isDarkTheme ? 'text-slate-400' : 'text-slate-500'
-      }`}>
-        {label}
-      </p>
-      <p className={`mt-1 text-sm font-semibold leading-5 ${
-        isDarkTheme ? 'text-slate-100' : 'text-slate-800'
-      }`}>
-        {value}
-      </p>
+      <div className="flex items-start gap-3">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accents[accent]}`}>
+          <HeaderFeatureIcon type={icon} />
+        </div>
+        <div>
+          <h3 className={`text-sm font-bold ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>{title}</h3>
+          <p className={`mt-1 text-sm leading-5 ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>{body}</p>
+        </div>
+      </div>
     </div>
   )
 }
 
-function ProjectFooter({ isDarkTheme }) {
-  const linkClassName = `inline-flex rounded-full border px-4 py-2 text-sm font-semibold transition ${
-    isDarkTheme
-      ? 'border-slate-700 bg-slate-950/40 text-slate-200 hover:border-slate-500 hover:bg-slate-900'
-      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-  }`
+function HeaderFeatureIcon({ type }) {
+  const paths = {
+    catalog: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
+    ),
+    guide: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+    ),
+    official: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 12 2 2 4-4m5.62-4.02A11.96 11.96 0 0 1 12 2.94a11.96 11.96 0 0 1-8.62 3.04A12 12 0 0 0 3 9c0 5.59 3.82 10.29 9 11.62 5.18-1.33 9-6.03 9-11.62 0-1.04-.13-2.05-.38-3.02z" />
+    ),
+  }
 
   return (
-    <footer className={`rounded-2xl border px-5 py-5 shadow-sm sm:px-6 ${
-      isDarkTheme ? 'border-slate-800 bg-slate-900/65' : 'border-slate-200 bg-white/85'
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+      {paths[type]}
+    </svg>
+  )
+}
+
+function ProjectFooter({ isDarkTheme }) {
+  const socialLinks = [
+    { label: 'GitHub', href: AUTHOR_GITHUB_URL, icon: 'github', tone: 'slate' },
+    { label: 'Repositorio', href: PROJECT_REPOSITORY_URL, icon: 'repository', tone: 'emerald' },
+    { label: 'Correo', href: `mailto:${AUTHOR_EMAIL}`, icon: 'mail', tone: 'amber' },
+    AUTHOR_LINKEDIN_URL ? { label: 'LinkedIn', href: AUTHOR_LINKEDIN_URL, icon: 'linkedin', tone: 'blue' } : null,
+    AUTHOR_INSTAGRAM_URL ? { label: 'Instagram', href: AUTHOR_INSTAGRAM_URL, icon: 'instagram', tone: 'pink' } : null,
+  ].filter(Boolean)
+
+  return (
+    <footer className={`border-t py-8 transition-colors duration-300 sm:py-10 ${
+      isDarkTheme ? 'border-slate-800 bg-slate-900/45 text-slate-400' : 'border-slate-200 bg-white/80 text-slate-600'
     }`}>
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${
-            isDarkTheme ? 'text-slate-400' : 'text-slate-500'
-          }`}>
-            Proyecto academico
-          </p>
-          <h2 className={`mt-2 text-lg font-bold ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>
-            Asistente Institucional de Tramites
-          </h2>
-          <p className={`mt-2 max-w-3xl text-sm leading-6 ${
-            isDarkTheme ? 'text-slate-400' : 'text-slate-600'
-          }`}>
-            Desarrollado por {AUTHOR_NAME} como apoyo a la orientacion ciudadana y gestion administrativa de informacion institucional.
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:items-center">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <img src="/logo-alcaldia.png" alt="Logo Alcaldia de Cucuta" className="h-9 w-9 object-contain opacity-75 grayscale" />
+            <span className={`text-sm font-bold tracking-tight ${isDarkTheme ? 'text-slate-200' : 'text-slate-800'}`}>
+              Asistente Institucional
+            </span>
+          </div>
+          <p className="max-w-sm text-xs leading-relaxed">
+            Plataforma academica de orientacion ciudadana para optimizar el acceso a tramites y servicios institucionales.
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <a href={AUTHOR_GITHUB_URL} target="_blank" rel="noreferrer" className={linkClassName}>
-            GitHub
+        <div className="flex flex-col items-start gap-4 md:items-center">
+          <div className="flex flex-wrap gap-3">
+            {socialLinks.map((link) => (
+              <SocialLink key={link.label} {...link} isDarkTheme={isDarkTheme} />
+            ))}
+          </div>
+          <a href={`mailto:${AUTHOR_EMAIL}`} className={`text-xs font-medium hover:underline ${
+            isDarkTheme ? 'text-emerald-400' : 'text-emerald-600'
+          }`}>
+            {AUTHOR_EMAIL}
           </a>
-          <a href={PROJECT_REPOSITORY_URL} target="_blank" rel="noreferrer" className={linkClassName}>
-            Repositorio
-          </a>
+        </div>
+
+        <div className="space-y-1 md:text-right">
+          <p className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-200' : 'text-slate-800'}`}>
+            Desarrollado por {AUTHOR_NAME}
+          </p>
+          <p className="text-[10px] uppercase tracking-widest opacity-65">
+            (c) {new Date().getFullYear()} - San Jose de Cucuta, Colombia
+          </p>
         </div>
       </div>
     </footer>
+  )
+}
+
+function SocialLink({ label, href, icon, tone, isDarkTheme }) {
+  const tones = {
+    slate: isDarkTheme ? 'text-slate-200' : 'text-slate-800',
+    emerald: isDarkTheme ? 'text-emerald-300' : 'text-emerald-700',
+    amber: isDarkTheme ? 'text-amber-300' : 'text-amber-700',
+    blue: isDarkTheme ? 'text-sky-300' : 'text-sky-700',
+    pink: isDarkTheme ? 'text-pink-300' : 'text-pink-700',
+  }
+
+  return (
+    <a
+      href={href}
+      target={href.startsWith('mailto:') ? undefined : '_blank'}
+      rel={href.startsWith('mailto:') ? undefined : 'noreferrer'}
+      className={`flex h-10 w-10 items-center justify-center rounded-full border transition hover:scale-105 ${
+        isDarkTheme ? 'border-slate-700 bg-slate-800/70 hover:bg-slate-800' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+      } ${tones[tone]}`}
+      aria-label={label}
+      title={label}
+    >
+      <SocialIcon type={icon} />
+    </a>
+  )
+}
+
+function SocialIcon({ type }) {
+  const icons = {
+    github: (
+      <path d="M12 1.5A10.5 10.5 0 0 0 8.68 21.96c.52.1.72-.22.72-.5v-1.85c-2.93.64-3.55-1.25-3.55-1.25-.48-1.22-1.17-1.55-1.17-1.55-.96-.65.07-.64.07-.64 1.06.08 1.62 1.1 1.62 1.1.94 1.61 2.47 1.15 3.08.88.1-.68.37-1.15.67-1.41-2.34-.27-4.8-1.17-4.8-5.2 0-1.15.41-2.08 1.08-2.82-.11-.26-.47-1.33.1-2.78 0 0 .88-.28 2.9 1.08A10 10 0 0 1 12 6.66c.9 0 1.8.12 2.64.36 2.01-1.36 2.9-1.08 2.9-1.08.57 1.45.21 2.52.1 2.78.67.74 1.08 1.67 1.08 2.82 0 4.04-2.47 4.93-4.82 5.2.38.33.72.97.72 1.96v2.76c0 .28.19.6.73.5A10.5 10.5 0 0 0 12 1.5z" />
+    ),
+    repository: (
+      <path d="M5 3.75A2.75 2.75 0 0 1 7.75 1h7.5A2.75 2.75 0 0 1 18 3.75V21l-6-3-6 3V3.75z" />
+    ),
+    mail: (
+      <path d="M4.5 5.25h15A2.25 2.25 0 0 1 21.75 7.5v9a2.25 2.25 0 0 1-2.25 2.25h-15A2.25 2.25 0 0 1 2.25 16.5v-9A2.25 2.25 0 0 1 4.5 5.25zm.45 2.25 7.05 4.7 7.05-4.7" />
+    ),
+    linkedin: (
+      <path d="M5.34 8.73H2.67v8.6h2.67v-8.6zM4 7.56a1.55 1.55 0 1 0 0-3.1 1.55 1.55 0 0 0 0 3.1zm13.33 5.05c0-2.62-1.4-3.84-3.27-3.84a2.82 2.82 0 0 0-2.55 1.4V8.73H8.95v8.6h2.67v-4.25c0-1.12.21-2.2 1.6-2.2 1.36 0 1.38 1.27 1.38 2.27v4.18h2.73v-4.72z" />
+    ),
+    instagram: (
+      <path d="M7.5 2.25h9A5.25 5.25 0 0 1 21.75 7.5v9a5.25 5.25 0 0 1-5.25 5.25h-9A5.25 5.25 0 0 1 2.25 16.5v-9A5.25 5.25 0 0 1 7.5 2.25zm4.5 5.25a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zm5.1-.85h.01" />
+    ),
+  }
+
+  return (
+    <svg className="h-5 w-5" fill={type === 'mail' || type === 'instagram' ? 'none' : 'currentColor'} viewBox="0 0 24 24" stroke={type === 'mail' || type === 'instagram' ? 'currentColor' : 'none'} strokeWidth="1.8" aria-hidden="true">
+      {icons[type]}
+    </svg>
   )
 }
 
