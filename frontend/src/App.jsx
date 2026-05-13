@@ -908,17 +908,32 @@ function App() {
               <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${
                 isDarkTheme ? 'text-slate-400' : 'text-slate-500'
               }`}>
-                Resumen operativo
+                Guia rapida
               </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <MetricCard label="Catalogo" value={loadingTramites ? '...' : String(tramites.length)} tone="emerald" />
-                <MetricCard label="Cobertura" value="Oficial" tone="amber" />
-                <MetricCard label="Vista actual" value={view === 'ciudadania' ? 'Consulta' : 'Admin'} tone="slate" />
+              <div className="mt-3 grid gap-3">
+                <CitizenGuideStep
+                  number="1"
+                  title="Escribe tu consulta"
+                  body="Usa palabras sencillas, como lo preguntarias en ventanilla."
+                  isDarkTheme={isDarkTheme}
+                />
+                <CitizenGuideStep
+                  number="2"
+                  title="Revisa la ruta sugerida"
+                  body="Si hay varias opciones, elige la que mas se parezca a tu caso."
+                  isDarkTheme={isDarkTheme}
+                />
+                <CitizenGuideStep
+                  number="3"
+                  title="Valida la fuente oficial"
+                  body="Antes de iniciar la gestion, confirma el enlace institucional."
+                  isDarkTheme={isDarkTheme}
+                />
               </div>
               <p className={`mt-3 text-sm leading-6 ${
                 isDarkTheme ? 'text-slate-300' : 'text-slate-600'
               }`}>
-                Seguimiento del catalogo y estado actual del sistema.
+                Catalogo activo: {loadingTramites ? 'cargando...' : `${tramites.length} tramite(s) disponibles`}.
               </p>
             </div>
           </div>
@@ -935,6 +950,9 @@ function App() {
                     <div>
                       <p className={`text-sm font-semibold uppercase tracking-[0.2em] ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>Consulta del asistente</p>
                       <h2 className={`mt-2 text-xl font-bold sm:text-2xl ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>Pregunta por un tramite</h2>
+                      <p className={`mt-2 max-w-2xl text-sm leading-6 ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>
+                        El asistente usa el catalogo administrado. Si tu pregunta es amplia, te mostrara rutas para elegir sin inventar una respuesta.
+                      </p>
                     </div>
                   </div>
 
@@ -3926,6 +3944,24 @@ function getConsultaLogStatusConfig(messageStatus) {
   return {
     badgeClassName: 'border-slate-200 bg-slate-100 text-slate-700',
   }
+}
+
+function CitizenGuideStep({ number, title, body, isDarkTheme }) {
+  return (
+    <div className={`flex gap-3 rounded-2xl border p-3 ${
+      isDarkTheme ? 'border-slate-700/70 bg-slate-900/70' : 'border-slate-200 bg-slate-50'
+    }`}>
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+        isDarkTheme ? 'bg-emerald-300/15 text-emerald-100' : 'bg-emerald-100 text-emerald-800'
+      }`}>
+        {number}
+      </span>
+      <span>
+        <span className={`block text-sm font-bold ${isDarkTheme ? 'text-slate-100' : 'text-slate-950'}`}>{title}</span>
+        <span className={`mt-1 block text-sm leading-5 ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>{body}</span>
+      </span>
+    </div>
+  )
 }
 
 function Message({ children, tone }) {

@@ -719,9 +719,13 @@ def process_consulta_textual(
         has_identifier_support = (
             identifier_specific_matches > 0 or identifier_phrase_match
         )
+        has_registered_content_support = (
+            specific_matches >= 2 or (specific_matches >= 1 and phrase_match)
+        )
 
         if total_matches > 0 and (
             has_identifier_support
+            or has_registered_content_support
             or (
                 not specific_tokens
                 and phrase_match

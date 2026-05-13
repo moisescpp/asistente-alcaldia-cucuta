@@ -402,6 +402,40 @@ def test_created_tramite_is_immediately_available_for_consulta(
     assert payload["nombre"] in consulta["respuesta"]
 
 
+def test_created_tramite_can_be_found_by_plain_language_from_registered_content(
+    client,
+    admin_headers,
+    test_slug_prefix,
+) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-consulta-plain-language",
+        nombre=f"Certificado tributario de residencia {test_slug_prefix}",
+        descripcion=(
+            "Orientacion para ciudadanos que necesitan demostrar residencia fiscal "
+            "municipal en una solicitud tributaria."
+        ),
+        requisitos=(
+            "Documento de identidad vigente, recibo de servicio publico del lugar "
+            "de residencia y solicitud firmada por el ciudadano."
+        ),
+    )
+
+    created_response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
+    created = created_response.json()
+
+    consulta_response = client.post(
+        "/api/consulta",
+        json={"pregunta": "necesito demostrar residencia fiscal municipal con un recibo publico"},
+    )
+
+    assert created_response.status_code == 201
+    assert consulta_response.status_code == 200
+    consulta = consulta_response.json()
+    assert consulta["tramite_principal"] is not None
+    assert consulta["tramite_principal"]["id"] == created["id"]
+    assert "residencia fiscal municipal" in consulta["respuesta"].lower()
+
+
 def test_updated_tramite_is_reflected_in_consulta_results(
     client,
     admin_headers,
