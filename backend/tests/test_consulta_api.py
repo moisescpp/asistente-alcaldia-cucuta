@@ -635,6 +635,114 @@ def test_consulta_tolerates_typo_for_predial_query(client) -> None:
     assert "predial" in data["tramite_principal"]["nombre"].lower()
 
 
+def test_consulta_prioritizes_predial_name_over_noisy_related_aliases(
+    client,
+    admin_headers,
+    test_slug_prefix,
+) -> None:
+    predial_payload = build_payload(
+        f"{test_slug_prefix}-predial-noise",
+        nombre=f"Impuesto predial extremo {test_slug_prefix}",
+        descripcion=(
+            "Consulta del impuesto predial municipal para predios, casas y lotes "
+            "registrados en la jurisdiccion local."
+        ),
+        requisitos="Referencia catastral vigente y documento de identidad del propietario.",
+    )
+    refund_payload = build_payload(
+        f"{test_slug_prefix}-refund-noise",
+        nombre=f"Devolucion tributaria extrema {test_slug_prefix}",
+        descripcion=(
+            "Solicitud para revisar pagos en exceso, compensaciones y saldos a favor "
+            "asociados a obligaciones tributarias."
+        ),
+        requisitos="Soporte de pago, solicitud firmada y certificacion bancaria vigente.",
+    )
+
+    client.post("/api/admin/tramites", json=predial_payload, headers=admin_headers)
+    refund = client.post("/api/admin/tramites", json=refund_payload, headers=admin_headers).json()
+
+    db = SessionLocal()
+    try:
+        noisy_record = db.get(Tramite, refund["id"])
+        assert noisy_record is not None
+        noisy_record.alias_ciudadanos = (
+            "predial lo o devolver\n"
+            "a predial y lo\n"
+            "informacion sobre impuesto predial para devoluciones"
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "Necesito informacion sobre impuesto predial"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "predial" in data["tramite_principal"]["nombre"].lower()
+    assert data["tramite_principal"]["id"] != refund["id"]
+
+
+def test_deleted_then_recreated_tramite_is_the_only_consultable_version(
+    client,
+    admin_headers,
+    test_slug_prefix,
+) -> None:
+    slug = f"{test_slug_prefix}-predial-recreate"
+    payload = build_payload(
+        slug,
+        nombre=f"Impuesto predial recreado {test_slug_prefix}",
+        descripcion=(
+            "Consulta del impuesto predial recreado para validar eliminacion logica, "
+            "reactivacion y disponibilidad inmediata al ciudadano."
+        ),
+        requisitos="Referencia catastral, documento de identidad y soporte del predio.",
+    )
+    created = client.post("/api/admin/tramites", json=payload, headers=admin_headers).json()
+
+    delete_response = client.delete(f"/api/admin/tramites/{created['id']}", headers=admin_headers)
+    deleted_query = client.post("/api/consulta", json={"pregunta": payload["nombre"]})
+
+    recreated_payload = {
+        **payload,
+        "descripcion": (
+            "Ficha recreada del impuesto predial con datos vigentes para responder "
+            "la consulta ciudadana despues de una reactivacion administrativa."
+        ),
+    }
+    recreate_response = client.post(
+        "/api/admin/tramites",
+        json=recreated_payload,
+        headers=admin_headers,
+    )
+    recreated_query = client.post("/api/consulta", json={"pregunta": payload["nombre"]})
+
+    assert delete_response.status_code == 200
+    deleted_data = deleted_query.json()
+    deleted_ids = [
+        tramite["id"]
+        for tramite in [
+            *(deleted_data["tramites_relacionados"] or []),
+            *([deleted_data["tramite_principal"]] if deleted_data["tramite_principal"] else []),
+        ]
+    ]
+    assert created["id"] not in deleted_ids
+
+    assert recreate_response.status_code == 201
+    recreated = recreate_response.json()
+    assert recreated["id"] == created["id"]
+    assert recreated["activo"] is True
+
+    recreated_data = recreated_query.json()
+    assert recreated_data["tramite_principal"] is not None
+    assert recreated_data["tramite_principal"]["id"] == created["id"]
+    assert "Ficha recreada" in recreated_data["tramite_principal"]["descripcion"]
+
+
 def test_consulta_tolerates_typo_for_vehicular_query(client, admin_headers, test_slug_prefix) -> None:
     create_test_tramite(
         client,
