@@ -443,7 +443,6 @@ def _identifier_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, bo
         [
             _normalize_text(tramite.nombre),
             _normalize_text(tramite.slug),
-            _normalize_text(" ".join(get_tramite_semantic_aliases(tramite))),
         ]
     )
     identifier_words = set(_tokenize_text(identifier_text))
@@ -706,7 +705,7 @@ def process_consulta_textual(
     tokens = _query_tokens(pregunta)
     generic_phrase_allowed = len(tokens) >= 2
     specific_tokens = _query_specific_tokens(pregunta)
-    scored_tramites: list[tuple[Tramite, int, int, bool]] = []
+    scored_tramites: list[tuple[Tramite, int, int, int, bool]] = []
 
     for tramite in tramites:
         if not tramite.activo:
@@ -724,6 +723,7 @@ def process_consulta_textual(
         has_identifier_support = (
             identifier_specific_matches > 0 or identifier_phrase_match
         )
+        identifier_rank = 2 if identifier_phrase_match else 1 if identifier_specific_matches > 0 else 0
         has_registered_content_support = (
             specific_matches >= 2 or (specific_matches >= 1 and phrase_match)
         )
@@ -740,25 +740,27 @@ def process_consulta_textual(
             scored_tramites.append(
                 (
                     tramite,
+                    identifier_rank,
                     total_matches,
                     max(specific_matches, identifier_specific_matches),
                     phrase_match or identifier_phrase_match,
                 )
             )
 
-    matched_tramites = [tramite for tramite, _, _, _ in scored_tramites]
+    matched_tramites = [tramite for tramite, _, _, _, _ in scored_tramites]
     matched_tramites.sort(
         key=lambda candidate: next(
             (
                 (
+                    identifier_rank,
                     specific_matches,
                     total_matches,
                     1 if phrase_match else 0,
                 )
-                for tramite, total_matches, specific_matches, phrase_match in scored_tramites
+                for tramite, identifier_rank, total_matches, specific_matches, phrase_match in scored_tramites
                 if tramite.id == candidate.id
             ),
-            (0, 0, 0),
+            (0, 0, 0, 0),
         ),
         reverse=True,
     )
