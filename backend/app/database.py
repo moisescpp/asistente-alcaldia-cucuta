@@ -37,6 +37,36 @@ def ensure_database_schema() -> None:
         )
         connection.execute(
             text(
+                "ALTER TABLE tramites "
+                "ADD COLUMN IF NOT EXISTS dirigido_a TEXT"
+            )
+        )
+        connection.execute(
+            text(
+                "ALTER TABLE tramites "
+                "ADD COLUMN IF NOT EXISTS pasos TEXT"
+            )
+        )
+        connection.execute(
+            text(
+                "ALTER TABLE tramites "
+                "ADD COLUMN IF NOT EXISTS tiempo_estimado VARCHAR(160)"
+            )
+        )
+        connection.execute(
+            text(
+                "ALTER TABLE tramites "
+                "ADD COLUMN IF NOT EXISTS medio_seguimiento TEXT"
+            )
+        )
+        connection.execute(
+            text(
+                "ALTER TABLE tramites "
+                "ADD COLUMN IF NOT EXISTS normatividad TEXT"
+            )
+        )
+        connection.execute(
+            text(
                 "ALTER TABLE consulta_logs "
                 "ADD COLUMN IF NOT EXISTS resumen_respuesta TEXT"
             )

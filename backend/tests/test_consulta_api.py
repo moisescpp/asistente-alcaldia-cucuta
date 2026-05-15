@@ -229,6 +229,43 @@ def test_consulta_understands_citizen_synonym_for_house(client) -> None:
     assert "Tambien pueden interesarte:" not in data["respuesta"]
 
 
+def test_consulta_understands_house_context_phrase(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "quiero saber lo de la casa"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "predial" in data["tramite_principal"]["nombre"].lower()
+
+
+@pytest.mark.parametrize(
+    ("question", "expected_terms"),
+    [
+        ("necesito registrar mi negocio", ("industria", "comercio")),
+        ("quiero cambiar datos de industria y comercio", ("modificacion",)),
+        ("voy a hacer un concierto con boletas", ("espect",)),
+        ("me cobraron de mas y quiero devolucion", ("devolucion", "compensacion")),
+        ("necesito sacar paz y salvo", ("paz", "salvo")),
+        ("impuesto sobre iluminacion publica", ("alumbrado",)),
+    ],
+)
+def test_consulta_handles_core_revenue_tax_catalog_intentions(
+    client,
+    question,
+    expected_terms,
+) -> None:
+    response = client.post("/api/consulta", json={"pregunta": question})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    principal_name = normalize_assert_text(data["tramite_principal"]["nombre"])
+    assert any(term in principal_name for term in expected_terms)
+
+
 def test_consulta_understands_citizen_synonym_for_car(client, admin_headers, test_slug_prefix) -> None:
     create_test_tramite(
         client,

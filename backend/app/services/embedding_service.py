@@ -261,8 +261,13 @@ def _extract_topic_phrases(tramite: Tramite) -> list[str]:
 
     topic_candidates.extend(_extract_significant_bigrams(tramite.descripcion, max_items=4))
     topic_candidates.extend(_extract_significant_bigrams(tramite.requisitos, max_items=4))
+    topic_candidates.extend(_extract_significant_bigrams(tramite.pasos, max_items=4))
+    topic_candidates.extend(_extract_significant_bigrams(tramite.dirigido_a, max_items=3))
     topic_candidates.extend(_extract_context_chunks(tramite.descripcion, max_items=3))
     topic_candidates.extend(_extract_context_chunks(tramite.requisitos, max_items=4))
+    topic_candidates.extend(_extract_context_chunks(tramite.pasos, max_items=4))
+    topic_candidates.extend(_extract_context_chunks(tramite.medio_seguimiento, max_items=3))
+    topic_candidates.extend(_extract_context_chunks(tramite.normatividad, max_items=3))
     topic_candidates.extend(_extract_context_chunks(tramite.dependencia, max_items=2))
 
     seen: dict[str, None] = {}
@@ -309,6 +314,10 @@ def _filter_generated_aliases(tramite: Tramite, aliases: list[str]) -> list[str]
                 tramite.slug or "",
                 tramite.descripcion or "",
                 tramite.requisitos or "",
+                tramite.dirigido_a or "",
+                tramite.pasos or "",
+                tramite.medio_seguimiento or "",
+                tramite.normatividad or "",
                 tramite.dependencia or "",
             ]
         )
@@ -346,6 +355,10 @@ def _infer_intent_aliases(tramite: Tramite) -> list[str]:
                 tramite.slug or "",
                 tramite.descripcion or "",
                 tramite.requisitos or "",
+                tramite.dirigido_a or "",
+                tramite.pasos or "",
+                tramite.medio_seguimiento or "",
+                tramite.normatividad or "",
                 tramite.dependencia or "",
             ]
         )
@@ -370,6 +383,8 @@ def _get_domain_rule_aliases(tramite: Tramite) -> list[str]:
                 tramite.nombre or "",
                 tramite.slug or "",
                 tramite.descripcion or "",
+                tramite.dirigido_a or "",
+                tramite.pasos or "",
             ]
         )
     )
@@ -420,6 +435,8 @@ def _build_alias_generation_prompt(tramite: Tramite) -> str:
         "Devuelve solo JSON valido con una clave 'aliases' que contenga una lista de strings, sin explicaciones.\n\n"
         f"Nombre: {tramite.nombre}\n"
         f"Descripcion: {tramite.descripcion or 'Sin descripcion registrada'}\n"
+        f"A quien va dirigido: {tramite.dirigido_a or 'Sin destinatario registrado'}\n"
+        f"Pasos: {tramite.pasos or tramite.requisitos or 'Sin pasos registrados'}\n"
         f"Dependencia: {tramite.dependencia}\n"
     )
 
@@ -607,6 +624,11 @@ def build_tramite_embedding_text(tramite: Tramite) -> str:
         f"Nombre del tramite: {tramite.nombre}",
         f"Descripcion: {tramite.descripcion or 'Sin descripcion.'}",
         f"Requisitos: {tramite.requisitos or 'Sin requisitos registrados.'}",
+        f"A quien va dirigido: {tramite.dirigido_a or 'Sin destinatario registrado.'}",
+        f"Pasos: {tramite.pasos or 'Sin pasos registrados.'}",
+        f"Tiempo estimado: {tramite.tiempo_estimado or 'Sin tiempo estimado registrado.'}",
+        f"Medio de seguimiento: {tramite.medio_seguimiento or 'Sin medio de seguimiento registrado.'}",
+        f"Normatividad: {tramite.normatividad or 'Sin normatividad registrada.'}",
         f"Costo: {tramite.costo or 'Sin costo registrado.'}",
         f"Horario: {tramite.horario or 'Sin horario registrado.'}",
         f"Dependencia: {tramite.dependencia}",

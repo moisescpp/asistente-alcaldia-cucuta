@@ -132,6 +132,35 @@ def test_create_tramite_returns_201_and_persists(client, admin_headers, test_slu
     assert data["semantic_recommended_action"]
 
 
+def test_create_tramite_accepts_extended_procedure_fields(
+    client,
+    admin_headers,
+    test_slug_prefix,
+) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-extended-fields",
+        nombre=f"Test tramite campos extendidos {test_slug_prefix}",
+        dirigido_a="Ciudadanos propietarios o responsables del tramite tributario.",
+        pasos=(
+            "Radicar los documentos en ventanilla unica o por la pagina web. "
+            "Click Aqui para continuar con el seguimiento institucional."
+        ),
+        tiempo_estimado="Cinco dias habiles",
+        medio_seguimiento="Pagina web oficial de la Alcaldia o ventanilla unica.",
+        normatividad="Acuerdo municipal vigente y normas tributarias aplicables.",
+    )
+
+    response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["dirigido_a"] == payload["dirigido_a"]
+    assert data["pasos"] == payload["pasos"]
+    assert data["tiempo_estimado"] == payload["tiempo_estimado"]
+    assert data["medio_seguimiento"] == payload["medio_seguimiento"]
+    assert data["normatividad"] == payload["normatividad"]
+
+
 def test_update_tramite_returns_updated_payload(client, admin_headers, test_slug_prefix) -> None:
     create_payload = build_payload(f"{test_slug_prefix}-update")
     created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()

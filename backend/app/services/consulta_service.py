@@ -174,6 +174,11 @@ def _build_match(tramite: Tramite) -> ConsultaMatch:
         slug=tramite.slug,
         descripcion=tramite.descripcion,
         requisitos=tramite.requisitos,
+        dirigido_a=tramite.dirigido_a,
+        pasos=tramite.pasos,
+        tiempo_estimado=tramite.tiempo_estimado,
+        medio_seguimiento=tramite.medio_seguimiento,
+        normatividad=tramite.normatividad,
         costo=tramite.costo,
         horario=tramite.horario,
         dependencia=tramite.dependencia,
@@ -291,8 +296,23 @@ def _build_success_response(
 
     if tramite_principal.requisitos:
         data_lines.append(f"- Requisitos: {tramite_principal.requisitos}")
-    else:
+    elif not tramite_principal.pasos:
         missing_fields.append("requisitos")
+
+    if tramite_principal.dirigido_a:
+        data_lines.append(f"- A quien va dirigido: {tramite_principal.dirigido_a}")
+
+    if tramite_principal.pasos:
+        data_lines.append(f"- Pasos para realizar el tramite: {tramite_principal.pasos}")
+
+    if tramite_principal.tiempo_estimado:
+        data_lines.append(f"- Tiempo estimado: {tramite_principal.tiempo_estimado}")
+
+    if tramite_principal.medio_seguimiento:
+        data_lines.append(f"- Medio para hacer seguimiento: {tramite_principal.medio_seguimiento}")
+
+    if tramite_principal.normatividad:
+        data_lines.append(f"- Normatividad: {tramite_principal.normatividad}")
 
     if tramite_principal.costo:
         data_lines.append(f"- Costo: {tramite_principal.costo}")
@@ -420,6 +440,11 @@ def _text_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, int, boo
             _normalize_text(tramite.nombre),
             _normalize_text(tramite.descripcion),
             _normalize_text(tramite.requisitos),
+            _normalize_text(tramite.dirigido_a),
+            _normalize_text(tramite.pasos),
+            _normalize_text(tramite.tiempo_estimado),
+            _normalize_text(tramite.medio_seguimiento),
+            _normalize_text(tramite.normatividad),
             _normalize_text(tramite.costo),
             _normalize_text(tramite.horario),
             _normalize_text(tramite.dependencia),
@@ -443,6 +468,7 @@ def _identifier_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, bo
         [
             _normalize_text(tramite.nombre),
             _normalize_text(tramite.slug),
+            _normalize_text(" ".join(_high_confidence_aliases(tramite))),
         ]
     )
     identifier_words = set(_tokenize_text(identifier_text))
@@ -451,6 +477,83 @@ def _identifier_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, bo
     phrase_match = len(normalized_question) >= 5 and normalized_question in identifier_text
 
     return specific_matches, phrase_match
+
+
+def _high_confidence_aliases(tramite: Tramite) -> list[str]:
+    searchable_text = _normalize_text(
+        " ".join([tramite.nombre or "", tramite.slug or ""]),
+    )
+
+    if "predial" in searchable_text:
+        return [
+            "casa",
+            "vivienda",
+            "predio",
+            "inmueble",
+            "terreno",
+            "impuesto de casa",
+            "impuesto de vivienda",
+            "impuesto de predio",
+        ]
+
+    if "modificacion" in searchable_text and "contribuyentes" in searchable_text:
+        return [
+            "modificar registro",
+            "actualizar registro",
+            "cambiar datos",
+            "actualizar datos del negocio",
+            "modificar industria y comercio",
+        ]
+
+    if "industria" in searchable_text and "comercio" in searchable_text:
+        return [
+            "negocio",
+            "comercio",
+            "empresa",
+            "establecimiento",
+            "registro de negocio",
+            "registro de comercio",
+        ]
+
+    if "espectaculos" in searchable_text:
+        return [
+            "concierto",
+            "evento",
+            "evento publico",
+            "evento masivo",
+            "fiesta",
+            "baile",
+            "orquesta",
+            "presentacion musical",
+        ]
+
+    if "alumbrado" in searchable_text:
+        return [
+            "alumbrado publico",
+            "servicio de alumbrado",
+            "impuesto de alumbrado",
+            "iluminacion publica",
+        ]
+
+    if "devolucion" in searchable_text or "compensacion" in searchable_text:
+        return [
+            "devolver dinero",
+            "reembolso",
+            "pago en exceso",
+            "pago por error",
+            "compensar saldo",
+            "devolucion de pago",
+        ]
+
+    if "paz" in searchable_text and "salvo" in searchable_text:
+        return [
+            "paz y salvo",
+            "certificado paz y salvo",
+            "estar al dia",
+            "certificado de impuestos",
+        ]
+
+    return []
 
 
 def _query_specific_tokens(pregunta: str) -> list[str]:

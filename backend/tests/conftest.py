@@ -14,8 +14,11 @@ if str(ROOT_DIR) not in sys.path:
 
 from app.main import app
 from app.core.config import settings
-from app.database import SessionLocal
+from app.database import SessionLocal, ensure_database_schema
 from app.models import ConsultaLog, Tramite
+
+
+ensure_database_schema()
 
 
 @pytest.fixture

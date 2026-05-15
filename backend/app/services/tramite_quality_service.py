@@ -95,6 +95,11 @@ def _coerce_payload(payload_or_tramite: Any) -> dict[str, Any]:
         "slug": getattr(payload_or_tramite, "slug", ""),
         "descripcion": getattr(payload_or_tramite, "descripcion", ""),
         "requisitos": getattr(payload_or_tramite, "requisitos", ""),
+        "dirigido_a": getattr(payload_or_tramite, "dirigido_a", ""),
+        "pasos": getattr(payload_or_tramite, "pasos", ""),
+        "tiempo_estimado": getattr(payload_or_tramite, "tiempo_estimado", ""),
+        "medio_seguimiento": getattr(payload_or_tramite, "medio_seguimiento", ""),
+        "normatividad": getattr(payload_or_tramite, "normatividad", ""),
         "costo": getattr(payload_or_tramite, "costo", ""),
         "horario": getattr(payload_or_tramite, "horario", ""),
         "dependencia": getattr(payload_or_tramite, "dependencia", ""),
@@ -111,7 +116,7 @@ def assess_tramite_quality(payload_or_tramite: Any) -> TramiteQualityReport:
     blocking_issues: list[str] = []
 
     description = str(payload.get("descripcion") or "")
-    requirements = str(payload.get("requisitos") or "")
+    requirements = str(payload.get("pasos") or payload.get("requisitos") or "")
     source_url = str(payload.get("fuente_url") or "")
     dependency = str(payload.get("dependencia") or "")
     embedding_vector = payload.get("embedding_vector")
@@ -147,12 +152,12 @@ def assess_tramite_quality(payload_or_tramite: Any) -> TramiteQualityReport:
 
     if requirement_words == 0:
         score -= 14
-        message = "Agrega requisitos reales del tramite."
+        message = "Agrega pasos o requisitos reales del tramite."
         alerts.append(message)
         blocking_issues.append(message)
     elif requirement_words < 6:
         score -= 8
-        message = "Los requisitos son muy cortos y pueden quedarse sin contexto."
+        message = "Los pasos o requisitos son muy cortos y pueden quedarse sin contexto."
         alerts.append(message)
         blocking_issues.append(message)
 

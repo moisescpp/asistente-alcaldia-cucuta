@@ -11,6 +11,11 @@ class ConsultaMatch(BaseModel):
     slug: str
     descripcion: str | None = None
     requisitos: str | None = None
+    dirigido_a: str | None = None
+    pasos: str | None = None
+    tiempo_estimado: str | None = None
+    medio_seguimiento: str | None = None
+    normatividad: str | None = None
     costo: str | None = None
     horario: str | None = None
     dependencia: str

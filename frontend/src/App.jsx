@@ -26,6 +26,11 @@ const EMPTY_FORM = {
   slug: '',
   descripcion: '',
   requisitos: '',
+  dirigido_a: '',
+  pasos: '',
+  tiempo_estimado: '',
+  medio_seguimiento: '',
+  normatividad: '',
   costo: '',
   horario: '',
   dependencia: '',
@@ -43,7 +48,7 @@ const EMPTY_ADMIN_ERRORS = {
   slug: '',
   dependencia: '',
   descripcion: '',
-  requisitos: '',
+  pasos: '',
   fuente_url: '',
 }
 const FRONTEND_GENERIC_DESCRIPTION_PATTERNS = [
@@ -143,7 +148,7 @@ function App() {
     dependencia: normalizeDependencySelection(formData.dependencia, dependencyOptions),
   })
   const descripcionWordCount = frontendWordCount(formData.descripcion)
-  const requisitosWordCount = frontendWordCount(formData.requisitos)
+  const pasosWordCount = frontendWordCount(formData.pasos || formData.requisitos)
 
   useEffect(() => {
     refreshTramites()
@@ -668,6 +673,11 @@ function App() {
       slug: tramite.slug ?? '',
       descripcion: tramite.descripcion ?? '',
       requisitos: tramite.requisitos ?? '',
+      dirigido_a: tramite.dirigido_a ?? '',
+      pasos: tramite.pasos ?? tramite.requisitos ?? '',
+      tiempo_estimado: tramite.tiempo_estimado ?? '',
+      medio_seguimiento: tramite.medio_seguimiento ?? '',
+      normatividad: tramite.normatividad ?? '',
       costo: tramite.costo ?? '',
       horario: tramite.horario ?? '',
       dependencia: tramite.dependencia ?? '',
@@ -687,11 +697,11 @@ function App() {
   function handleEnumerateRequirements() {
     setFormData((current) => ({
       ...current,
-      requisitos: buildNumberedRequirements(current.requisitos),
+      pasos: buildNumberedRequirements(current.pasos || current.requisitos),
     }))
     setAdminFieldErrors((current) => ({
       ...current,
-      requisitos: '',
+      pasos: '',
     }))
   }
 
@@ -1145,11 +1155,13 @@ function App() {
                   <Field label="Fuente oficial" hint="Opcional. Usa una URL completa con http o https." error={adminFieldErrors.fuente_url}>
                     <input className={fieldClassName(adminFieldErrors.fuente_url)} name="fuente_url" value={formData.fuente_url} onChange={handleInputChange} />
                   </Field>
-                  <Field label="Costo"><input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} /></Field>
-                  <Field label="Horario"><input className={inputClassName} name="horario" value={formData.horario} onChange={handleInputChange} /></Field>
+                  <Field label="Tiempo estimado"><input className={inputClassName} name="tiempo_estimado" value={formData.tiempo_estimado} onChange={handleInputChange} /></Field>
+                  <Field label="Medio para hacer seguimiento"><input className={inputClassName} name="medio_seguimiento" value={formData.medio_seguimiento} onChange={handleInputChange} /></Field>
+                  <Field label="Costo" hint="Opcional. Se conserva por si el tramite lo requiere en el futuro."><input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} /></Field>
+                  <Field label="Horario" hint="Opcional. Se conserva por si el tramite lo requiere en el futuro."><input className={inputClassName} name="horario" value={formData.horario} onChange={handleInputChange} /></Field>
                   <Field
                     className="md:col-span-2"
-                    label="Descripcion"
+                    label="Descripcion del tramite"
                     hint={
                       <WordMinimumHint
                         current={descripcionWordCount}
@@ -1168,34 +1180,56 @@ function App() {
                   </Field>
                   <Field
                     className="md:col-span-2"
-                    label="Requisitos"
+                    label="A quien va dirigido"
+                  >
+                    <textarea
+                      className={inputClassName + ' min-h-24'}
+                      name="dirigido_a"
+                      value={formData.dirigido_a}
+                      onChange={handleInputChange}
+                    />
+                  </Field>
+                  <Field
+                    className="md:col-span-2"
+                    label="Pasos para realizar el tramite"
                     hint={
                       <WordMinimumHint
-                        current={requisitosWordCount}
+                        current={pasosWordCount}
                         minimum={REQUIREMENTS_MIN_WORDS}
                         label="Minimo recomendado para aceptar el tramite"
                       />
                     }
-                    error={adminFieldErrors.requisitos}
+                    error={adminFieldErrors.pasos}
                   >
                     <textarea
-                      className={fieldClassName(adminFieldErrors.requisitos) + ' min-h-28'}
-                      name="requisitos"
-                      value={formData.requisitos}
+                      className={fieldClassName(adminFieldErrors.pasos) + ' min-h-28'}
+                      name="pasos"
+                      value={formData.pasos}
                       onChange={handleInputChange}
                     />
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                       <p className="text-xs leading-5 text-slate-500">
-                        Escribe un requisito por linea o usa el boton para ordenarlos automaticamente.
+                        Escribe un paso por linea o usa el boton para ordenarlos automaticamente.
                       </p>
                       <button
                         type="button"
                         onClick={handleEnumerateRequirements}
                         className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
                       >
-                        Enumerar requisitos
+                        Enumerar pasos
                       </button>
                     </div>
+                  </Field>
+                  <Field
+                    className="md:col-span-2"
+                    label="Normatividad"
+                  >
+                    <textarea
+                      className={inputClassName + ' min-h-24'}
+                      name="normatividad"
+                      value={formData.normatividad}
+                      onChange={handleInputChange}
+                    />
                   </Field>
                   <div className="md:col-span-2">
                     <div className="flex flex-wrap items-center gap-3">
@@ -1466,12 +1500,18 @@ function App() {
 }
 
 function normalizePayload(data) {
-  return Object.fromEntries(
+  const payload = Object.fromEntries(
     Object.entries({ ...data, activo: true }).map(([key, value]) => [
       key,
       typeof value === 'string' ? value.trim() : value,
     ]),
   )
+
+  if (!payload.requisitos && payload.pasos) {
+    payload.requisitos = payload.pasos
+  }
+
+  return payload
 }
 
 function validateAdminForm(payload) {
@@ -1497,7 +1537,7 @@ function validateAdminForm(payload) {
   }
 
   if (qualityReport.blockingIssues.some((issue) => issue.includes('requisitos'))) {
-    errors.requisitos = `Detalla requisitos reales con al menos ${REQUIREMENTS_MIN_WORDS} palabras.`
+    errors.pasos = `Detalla pasos reales con al menos ${REQUIREMENTS_MIN_WORDS} palabras.`
   }
 
   if (payload.fuente_url && !isValidUrl(payload.fuente_url)) {
@@ -1534,7 +1574,15 @@ function matchesAdminInventoryFilters(
 ) {
   const dependencyLabel = getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)
   const searchableText = normalizeLooseText(
-    [tramite.nombre, tramite.descripcion, dependencyLabel].filter(Boolean).join(' '),
+    [
+      tramite.nombre,
+      tramite.descripcion,
+      tramite.dirigido_a,
+      tramite.pasos,
+      tramite.requisitos,
+      tramite.normatividad,
+      dependencyLabel,
+    ].filter(Boolean).join(' '),
   )
   const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch)
   const matchesDependency = dependencyFilter === 'todas' || dependencyLabel === dependencyFilter
@@ -1543,7 +1591,7 @@ function matchesAdminInventoryFilters(
 
 function assessFrontendTramiteQuality(tramite) {
   const description = String(tramite.descripcion ?? '')
-  const requirements = String(tramite.requisitos ?? '')
+  const requirements = String(tramite.pasos || tramite.requisitos || '')
   const sourceUrl = String(tramite.fuente_url ?? '')
   const dependency = String(tramite.dependencia ?? '')
   const normalizedDescription = normalizeLooseText(description)
@@ -1587,11 +1635,11 @@ function assessFrontendTramiteQuality(tramite) {
 
   if (requirementWords === 0) {
     score -= 14
-    alerts.push('Faltan requisitos del tramite.')
+    alerts.push('Faltan pasos o requisitos del tramite.')
     blockingIssues.push('requisitos vacios')
   } else if (requirementWords < REQUIREMENTS_MIN_WORDS) {
     score -= 8
-    alerts.push('Los requisitos son muy cortos y pueden perder contexto.')
+    alerts.push('Los pasos son muy cortos y pueden perder contexto.')
     blockingIssues.push('requisitos cortos')
   }
 
@@ -1997,6 +2045,14 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                     />
                   ) : null}
 
+                  {activeMatch.dirigido_a ? (
+                    <DetailCard
+                      label="A quien va dirigido"
+                      value={activeMatch.dirigido_a}
+                      tone="slate"
+                    />
+                  ) : null}
+
                   {activeMatch.fuente_url ? (
                     <div className="rounded-[1.25rem] border border-emerald-200 bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fffb_100%)] p-4 shadow-sm sm:rounded-3xl sm:p-5">
                       <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Sitio oficial</p>
@@ -2018,16 +2074,34 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                     />
                   ) : null}
 
-                  {activeMatch.requisitos ? (
+                  {activeMatch.pasos || activeMatch.requisitos ? (
                     <DetailCard
-                      label="Requisitos clave"
-                      value={activeMatch.requisitos}
+                      label="Pasos para realizar el tramite"
+                      value={activeMatch.pasos || activeMatch.requisitos}
                       tone="sky"
                       asList
+                      linkUrl={activeMatch.fuente_url}
                     />
                   ) : null}
 
-                  {!activeMatch.descripcion && !activeMatch.requisitos ? (
+                  {activeMatch.tiempo_estimado || activeMatch.medio_seguimiento ? (
+                    <CitizenTrackingInfo
+                      tiempoEstimado={activeMatch.tiempo_estimado}
+                      medioSeguimiento={activeMatch.medio_seguimiento}
+                      linkUrl={activeMatch.fuente_url}
+                    />
+                  ) : null}
+
+                  {activeMatch.normatividad ? (
+                    <DetailCard
+                      label="Normatividad"
+                      value={activeMatch.normatividad}
+                      tone="slate"
+                      linkUrl={activeMatch.fuente_url}
+                    />
+                  ) : null}
+
+                  {!activeMatch.descripcion && !activeMatch.requisitos && !activeMatch.pasos ? (
                     <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5">
                       <p className="text-sm leading-6 text-slate-600">
                         Este tramite existe en la base, pero todavia no tiene detalle suficiente para mostrar una ficha mas completa.
@@ -2227,7 +2301,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
   )
 }
 
-function DetailCardBase({ label, value, tone = 'slate', asList = false }) {
+function DetailCardBase({ label, value, tone = 'slate', asList = false, linkUrl = '' }) {
   const tones = {
     slate: 'border-slate-200 bg-white',
     sky: 'border-sky-200 bg-sky-50/55',
@@ -2244,7 +2318,7 @@ function DetailCardBase({ label, value, tone = 'slate', asList = false }) {
             {segments.map((segment) => (
               <li key={`${label}-${segment.slice(0, 24)}`} className="flex items-start gap-3 text-sm leading-6 text-slate-800">
                 <span className="mt-2 h-2.5 w-2.5 flex-none rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.14)]" />
-                <span>{segment}</span>
+                <RichTextWithLinks value={segment} fallbackUrl={linkUrl} />
               </li>
             ))}
           </ul>
@@ -2253,20 +2327,89 @@ function DetailCardBase({ label, value, tone = 'slate', asList = false }) {
           {segments.map((segment) => (
             <li key={`${label}-${segment.slice(0, 24)}`} className="flex items-start gap-3 text-sm leading-6 text-slate-800">
               <span className="mt-2 h-2 w-2 flex-none rounded-full bg-emerald-500" />
-              <span>{segment}</span>
+              <RichTextWithLinks value={segment} fallbackUrl={linkUrl} />
             </li>
           ))}
         </ul>
         )
       ) : (
-        <p className="mt-3 text-sm leading-7 text-slate-800">{segments[0] ?? value}</p>
+        <p className="mt-3 text-sm leading-7 text-slate-800">
+          <RichTextWithLinks value={segments[0] ?? value} fallbackUrl={linkUrl} />
+        </p>
       )}
     </div>
   )
 }
 
-function DetailCard({ label, value, tone, asList }) {
-  return <DetailCardBase label={label} value={value} tone={tone} asList={asList} />
+function DetailCard({ label, value, tone, asList, linkUrl }) {
+  return <DetailCardBase label={label} value={value} tone={tone} asList={asList} linkUrl={linkUrl} />
+}
+
+function RichTextWithLinks({ value, fallbackUrl = '' }) {
+  const parts = buildLinkedTextParts(String(value ?? ''), fallbackUrl)
+
+  return (
+    <span>
+      {parts.map((part, index) =>
+        part.href ? (
+          <a
+            key={`${part.text}-${index}`}
+            href={part.href}
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
+          >
+            {part.text}
+          </a>
+        ) : (
+          <span key={`${part.text}-${index}`}>{part.text}</span>
+        ),
+      )}
+    </span>
+  )
+}
+
+function buildLinkedTextParts(value, fallbackUrl = '') {
+  const text = String(value ?? '')
+  const urlPattern = /(https?:\/\/[^\s)]+)/gi
+  const parts = []
+  let lastIndex = 0
+
+  for (const match of text.matchAll(urlPattern)) {
+    if (match.index > lastIndex) {
+      parts.push(...splitClickHereText(text.slice(lastIndex, match.index), fallbackUrl))
+    }
+    parts.push({ text: match[0], href: match[0] })
+    lastIndex = match.index + match[0].length
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(...splitClickHereText(text.slice(lastIndex), fallbackUrl))
+  }
+
+  return parts.length ? parts : [{ text, href: '' }]
+}
+
+function splitClickHereText(value, fallbackUrl = '') {
+  if (!fallbackUrl) return [{ text: value, href: '' }]
+
+  const clickPattern = /(click\s+aqu[ií]|clic\s+aqu[ií]|haz\s+clic\s+aqu[ií])/gi
+  const parts = []
+  let lastIndex = 0
+
+  for (const match of value.matchAll(clickPattern)) {
+    if (match.index > lastIndex) {
+      parts.push({ text: value.slice(lastIndex, match.index), href: '' })
+    }
+    parts.push({ text: match[0], href: fallbackUrl })
+    lastIndex = match.index + match[0].length
+  }
+
+  if (lastIndex < value.length) {
+    parts.push({ text: value.slice(lastIndex), href: '' })
+  }
+
+  return parts.length ? parts : [{ text: value, href: '' }]
 }
 
 function CitizenProcedureInfo({ costo, horario }) {
@@ -2285,6 +2428,31 @@ function CitizenProcedureInfo({ costo, horario }) {
           <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{item.label}</p>
             <p className="mt-1 text-sm font-medium leading-6 text-slate-800">{item.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CitizenTrackingInfo({ tiempoEstimado, medioSeguimiento, linkUrl }) {
+  const items = [
+    tiempoEstimado ? { label: 'Tiempo estimado', value: tiempoEstimado } : null,
+    medioSeguimiento ? { label: 'Medio de seguimiento', value: medioSeguimiento } : null,
+  ].filter(Boolean)
+
+  if (!items.length) return null
+
+  return (
+    <div className="rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Seguimiento del tramite</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {items.map((item) => (
+          <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{item.label}</p>
+            <p className="mt-1 text-sm font-medium leading-6 text-slate-800">
+              <RichTextWithLinks value={item.value} fallbackUrl={linkUrl} />
+            </p>
           </div>
         ))}
       </div>
@@ -2674,9 +2842,11 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
           <button
             type="button"
             onClick={onRefresh}
-            className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+            disabled={loading}
+            title="Recarga las consultas ciudadanas registradas. Si la sesion expiro, el sistema pedira ingresar nuevamente."
+            className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Actualizar actividad
+            {loading ? 'Actualizando...' : 'Actualizar consultas'}
           </button>
           <button
             type="button"
