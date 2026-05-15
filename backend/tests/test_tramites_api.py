@@ -148,6 +148,7 @@ def test_create_tramite_accepts_extended_procedure_fields(
         tiempo_estimado="Cinco dias habiles",
         medio_seguimiento="Pagina web oficial de la Alcaldia o ventanilla unica.",
         normatividad="Acuerdo municipal vigente y normas tributarias aplicables.",
+        enlace_click_aqui="https://example.com/seguimiento-especifico",
     )
 
     response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
@@ -159,6 +160,7 @@ def test_create_tramite_accepts_extended_procedure_fields(
     assert data["tiempo_estimado"] == payload["tiempo_estimado"]
     assert data["medio_seguimiento"] == payload["medio_seguimiento"]
     assert data["normatividad"] == payload["normatividad"]
+    assert data["enlace_click_aqui"] == payload["enlace_click_aqui"]
 
 
 def test_update_tramite_returns_updated_payload(client, admin_headers, test_slug_prefix) -> None:
@@ -177,6 +179,35 @@ def test_update_tramite_returns_updated_payload(client, admin_headers, test_slug
     assert data["costo"] == update_payload["costo"]
     assert data["horario"] == update_payload["horario"]
     assert data["semantic_scope_status"] == "tributario"
+
+
+def test_update_tramite_accepts_long_estimated_time_and_click_link(
+    client,
+    admin_headers,
+    test_slug_prefix,
+) -> None:
+    create_payload = build_payload(f"{test_slug_prefix}-long-time-update")
+    created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()
+    long_time = (
+        "El tiempo puede variar segun el volumen de solicitudes recibidas por la entidad; "
+        "se recomienda consultar periodicamente el estado de la radicacion por el canal oficial."
+    )
+    click_link = "https://example.com/radicacion-especifica"
+
+    response = client.put(
+        f"/api/admin/tramites/{created['id']}",
+        json={
+            "tiempo_estimado": long_time,
+            "pasos": "Radicar documentos en la plataforma institucional. Click Aqui para abrir el canal de seguimiento.",
+            "enlace_click_aqui": click_link,
+        },
+        headers=admin_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tiempo_estimado"] == long_time
+    assert data["enlace_click_aqui"] == click_link
 
 
 def test_create_tramite_rejects_generic_description(client, admin_headers, test_slug_prefix) -> None:

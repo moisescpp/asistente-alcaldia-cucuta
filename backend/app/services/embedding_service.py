@@ -318,6 +318,7 @@ def _filter_generated_aliases(tramite: Tramite, aliases: list[str]) -> list[str]
                 tramite.pasos or "",
                 tramite.medio_seguimiento or "",
                 tramite.normatividad or "",
+                tramite.enlace_click_aqui or "",
                 tramite.dependencia or "",
             ]
         )
@@ -359,6 +360,7 @@ def _infer_intent_aliases(tramite: Tramite) -> list[str]:
                 tramite.pasos or "",
                 tramite.medio_seguimiento or "",
                 tramite.normatividad or "",
+                tramite.enlace_click_aqui or "",
                 tramite.dependencia or "",
             ]
         )
@@ -629,6 +631,7 @@ def build_tramite_embedding_text(tramite: Tramite) -> str:
         f"Tiempo estimado: {tramite.tiempo_estimado or 'Sin tiempo estimado registrado.'}",
         f"Medio de seguimiento: {tramite.medio_seguimiento or 'Sin medio de seguimiento registrado.'}",
         f"Normatividad: {tramite.normatividad or 'Sin normatividad registrada.'}",
+        f"Enlace Click Aqui: {tramite.enlace_click_aqui or 'Sin enlace especifico registrado.'}",
         f"Costo: {tramite.costo or 'Sin costo registrado.'}",
         f"Horario: {tramite.horario or 'Sin horario registrado.'}",
         f"Dependencia: {tramite.dependencia}",

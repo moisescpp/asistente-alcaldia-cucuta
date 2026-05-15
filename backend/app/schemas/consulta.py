@@ -20,6 +20,7 @@ class ConsultaMatch(BaseModel):
     horario: str | None = None
     dependencia: str
     fuente_url: str | None = None
+    enlace_click_aqui: str | None = None
 
 
 class ConsultaResponse(BaseModel):

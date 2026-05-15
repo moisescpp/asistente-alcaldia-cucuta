@@ -104,6 +104,7 @@ def _coerce_payload(payload_or_tramite: Any) -> dict[str, Any]:
         "horario": getattr(payload_or_tramite, "horario", ""),
         "dependencia": getattr(payload_or_tramite, "dependencia", ""),
         "fuente_url": getattr(payload_or_tramite, "fuente_url", ""),
+        "enlace_click_aqui": getattr(payload_or_tramite, "enlace_click_aqui", ""),
         "embedding_vector": getattr(payload_or_tramite, "embedding_vector", None),
     }
 

@@ -330,6 +330,11 @@ def update_tramite(
         "horario": payload.horario if payload.horario is not None else tramite.horario,
         "dependencia": payload.dependencia if payload.dependencia is not None else tramite.dependencia,
         "fuente_url": payload.fuente_url if payload.fuente_url is not None else tramite.fuente_url,
+        "enlace_click_aqui": (
+            payload.enlace_click_aqui
+            if payload.enlace_click_aqui is not None
+            else tramite.enlace_click_aqui
+        ),
         "embedding_vector": tramite.embedding_vector,
     }
     blocking_issues = validate_tramite_payload(draft_payload)

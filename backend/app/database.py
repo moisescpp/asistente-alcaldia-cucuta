@@ -50,9 +50,16 @@ def ensure_database_schema() -> None:
         connection.execute(
             text(
                 "ALTER TABLE tramites "
-                "ADD COLUMN IF NOT EXISTS tiempo_estimado VARCHAR(160)"
+                "ADD COLUMN IF NOT EXISTS tiempo_estimado TEXT"
             )
         )
+        if engine.dialect.name == "postgresql":
+            connection.execute(
+                text(
+                    "ALTER TABLE tramites "
+                    "ALTER COLUMN tiempo_estimado TYPE TEXT"
+                )
+            )
         connection.execute(
             text(
                 "ALTER TABLE tramites "
@@ -63,6 +70,12 @@ def ensure_database_schema() -> None:
             text(
                 "ALTER TABLE tramites "
                 "ADD COLUMN IF NOT EXISTS normatividad TEXT"
+            )
+        )
+        connection.execute(
+            text(
+                "ALTER TABLE tramites "
+                "ADD COLUMN IF NOT EXISTS enlace_click_aqui VARCHAR(500)"
             )
         )
         connection.execute(

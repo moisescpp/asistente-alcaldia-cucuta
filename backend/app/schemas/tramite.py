@@ -23,6 +23,7 @@ class TramiteBase(BaseModel):
     horario: str | None = None
     dependencia: str
     fuente_url: str | None = None
+    enlace_click_aqui: str | None = None
     activo: bool = True
 
     @field_validator(
@@ -39,6 +40,7 @@ class TramiteBase(BaseModel):
         "horario",
         "dependencia",
         "fuente_url",
+        "enlace_click_aqui",
         mode="before",
     )
     @classmethod
@@ -64,6 +66,7 @@ class TramiteUpdate(BaseModel):
     horario: str | None = None
     dependencia: str | None = None
     fuente_url: str | None = None
+    enlace_click_aqui: str | None = None
     activo: bool | None = None
 
     @field_validator(
@@ -80,6 +83,7 @@ class TramiteUpdate(BaseModel):
         "horario",
         "dependencia",
         "fuente_url",
+        "enlace_click_aqui",
         mode="before",
     )
     @classmethod

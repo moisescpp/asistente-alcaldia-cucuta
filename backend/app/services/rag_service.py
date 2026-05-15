@@ -27,6 +27,7 @@ def build_tramite_context(tramites: list[Tramite]) -> str:
                     f"Costo: {tramite.costo or 'Sin costo registrado.'}",
                     f"Horario: {tramite.horario or 'Sin horario registrado.'}",
                     f"Fuente: {tramite.fuente_url or 'Sin fuente registrada.'}",
+                    f"Enlace Click Aqui: {tramite.enlace_click_aqui or 'Sin enlace especifico registrado.'}",
                 ]
             )
         )

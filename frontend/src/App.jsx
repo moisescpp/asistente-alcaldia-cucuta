@@ -35,6 +35,7 @@ const EMPTY_FORM = {
   horario: '',
   dependencia: '',
   fuente_url: '',
+  enlace_click_aqui: '',
 }
 
 const inputClassName =
@@ -50,6 +51,7 @@ const EMPTY_ADMIN_ERRORS = {
   descripcion: '',
   pasos: '',
   fuente_url: '',
+  enlace_click_aqui: '',
 }
 const FRONTEND_GENERIC_DESCRIPTION_PATTERNS = [
   'consulta orientativa',
@@ -682,6 +684,7 @@ function App() {
       horario: tramite.horario ?? '',
       dependencia: tramite.dependencia ?? '',
       fuente_url: tramite.fuente_url ?? '',
+      enlace_click_aqui: tramite.enlace_click_aqui ?? '',
     })
     setAdminFieldErrors(EMPTY_ADMIN_ERRORS)
     setSlugTouched(true)
@@ -734,7 +737,7 @@ function App() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => null)
         throw new Error(
-          errorData?.detail ||
+          formatApiErrorDetail(errorData?.detail) ||
             (editingId
               ? 'No fue posible actualizar el tramite.'
               : 'No fue posible crear el tramite.'),
@@ -1155,6 +1158,15 @@ function App() {
                   <Field label="Fuente oficial" hint="Opcional. Usa una URL completa con http o https." error={adminFieldErrors.fuente_url}>
                     <input className={fieldClassName(adminFieldErrors.fuente_url)} name="fuente_url" value={formData.fuente_url} onChange={handleInputChange} />
                   </Field>
+                  <Field label="Enlace para Click Aqui" hint="Opcional. Si el texto dice Click Aqui, este enlace se abrira en ese punto." error={adminFieldErrors.enlace_click_aqui}>
+                    <input
+                      className={fieldClassName(adminFieldErrors.enlace_click_aqui)}
+                      name="enlace_click_aqui"
+                      value={formData.enlace_click_aqui}
+                      onChange={handleInputChange}
+                      placeholder="https://..."
+                    />
+                  </Field>
                   <Field label="Tiempo estimado"><input className={inputClassName} name="tiempo_estimado" value={formData.tiempo_estimado} onChange={handleInputChange} /></Field>
                   <Field label="Medio para hacer seguimiento"><input className={inputClassName} name="medio_seguimiento" value={formData.medio_seguimiento} onChange={handleInputChange} /></Field>
                   <Field label="Costo" hint="Opcional. Se conserva por si el tramite lo requiere en el futuro."><input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} /></Field>
@@ -1514,6 +1526,26 @@ function normalizePayload(data) {
   return payload
 }
 
+function formatApiErrorDetail(detail) {
+  if (!detail) return ''
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (typeof item === 'string') return item
+        if (item?.msg) {
+          const field = Array.isArray(item.loc) ? item.loc[item.loc.length - 1] : ''
+          return field ? `${field}: ${item.msg}` : item.msg
+        }
+        return ''
+      })
+      .filter(Boolean)
+      .join(' ')
+  }
+  if (typeof detail === 'object' && detail.msg) return detail.msg
+  return ''
+}
+
 function validateAdminForm(payload) {
   const errors = { ...EMPTY_ADMIN_ERRORS }
 
@@ -1542,6 +1574,10 @@ function validateAdminForm(payload) {
 
   if (payload.fuente_url && !isValidUrl(payload.fuente_url)) {
     errors.fuente_url = 'La fuente oficial debe ser una URL valida con http o https.'
+  }
+
+  if (payload.enlace_click_aqui && !isValidUrl(payload.enlace_click_aqui)) {
+    errors.enlace_click_aqui = 'El enlace de Click Aqui debe ser una URL valida con http o https.'
   }
 
   return errors
@@ -1581,6 +1617,7 @@ function matchesAdminInventoryFilters(
       tramite.pasos,
       tramite.requisitos,
       tramite.normatividad,
+      tramite.enlace_click_aqui,
       dependencyLabel,
     ].filter(Boolean).join(' '),
   )
@@ -1593,6 +1630,7 @@ function assessFrontendTramiteQuality(tramite) {
   const description = String(tramite.descripcion ?? '')
   const requirements = String(tramite.pasos || tramite.requisitos || '')
   const sourceUrl = String(tramite.fuente_url ?? '')
+  const clickHereUrl = String(tramite.enlace_click_aqui ?? '')
   const dependency = String(tramite.dependencia ?? '')
   const normalizedDescription = normalizeLooseText(description)
   const descriptionWords = frontendWordCount(description)
@@ -1646,6 +1684,10 @@ function assessFrontendTramiteQuality(tramite) {
   if (!sourceUrl.trim()) {
     score -= 8
     alerts.push('Falta la fuente oficial.')
+  }
+
+  if (clickHereUrl && !isValidUrl(clickHereUrl)) {
+    alerts.push('El enlace de Click Aqui no parece ser una URL valida.')
   }
 
   if (!dependency.trim()) {
@@ -2080,7 +2122,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                       value={activeMatch.pasos || activeMatch.requisitos}
                       tone="sky"
                       asList
-                      linkUrl={activeMatch.fuente_url}
+                      linkUrl={activeMatch.enlace_click_aqui || activeMatch.fuente_url}
                     />
                   ) : null}
 
@@ -2088,7 +2130,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                     <CitizenTrackingInfo
                       tiempoEstimado={activeMatch.tiempo_estimado}
                       medioSeguimiento={activeMatch.medio_seguimiento}
-                      linkUrl={activeMatch.fuente_url}
+                      linkUrl={activeMatch.enlace_click_aqui || activeMatch.fuente_url}
                     />
                   ) : null}
 
@@ -2097,7 +2139,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                       label="Normatividad"
                       value={activeMatch.normatividad}
                       tone="slate"
-                      linkUrl={activeMatch.fuente_url}
+                      linkUrl={activeMatch.enlace_click_aqui || activeMatch.fuente_url}
                     />
                   ) : null}
 

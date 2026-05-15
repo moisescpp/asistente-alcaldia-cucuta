@@ -183,6 +183,7 @@ def _build_match(tramite: Tramite) -> ConsultaMatch:
         horario=tramite.horario,
         dependencia=tramite.dependencia,
         fuente_url=tramite.fuente_url,
+        enlace_click_aqui=tramite.enlace_click_aqui,
     )
 
 
