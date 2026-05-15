@@ -51,7 +51,6 @@ const EMPTY_ADMIN_ERRORS = {
   descripcion: '',
   pasos: '',
   fuente_url: '',
-  enlace_click_aqui: '',
 }
 const FRONTEND_GENERIC_DESCRIPTION_PATTERNS = [
   'consulta orientativa',
@@ -1158,19 +1157,25 @@ function App() {
                   <Field label="Fuente oficial" hint="Opcional. Usa una URL completa con http o https." error={adminFieldErrors.fuente_url}>
                     <input className={fieldClassName(adminFieldErrors.fuente_url)} name="fuente_url" value={formData.fuente_url} onChange={handleInputChange} />
                   </Field>
-                  <Field label="Enlace para Click Aqui" hint="Opcional. Si el texto dice Click Aqui, este enlace se abrira en ese punto." error={adminFieldErrors.enlace_click_aqui}>
-                    <input
-                      className={fieldClassName(adminFieldErrors.enlace_click_aqui)}
-                      name="enlace_click_aqui"
-                      value={formData.enlace_click_aqui}
+                  <Field label="Tiempo estimado"><input className={inputClassName} name="tiempo_estimado" value={formData.tiempo_estimado} onChange={handleInputChange} /></Field>
+                  <Field
+                    label="Medio para hacer seguimiento"
+                    hint="Si necesitas un enlace puntual, escribe: [Click Aqui](https://...)"
+                  >
+                    <textarea
+                      className={inputClassName + ' min-h-20'}
+                      name="medio_seguimiento"
+                      value={formData.medio_seguimiento}
                       onChange={handleInputChange}
-                      placeholder="https://..."
                     />
                   </Field>
-                  <Field label="Tiempo estimado"><input className={inputClassName} name="tiempo_estimado" value={formData.tiempo_estimado} onChange={handleInputChange} /></Field>
-                  <Field label="Medio para hacer seguimiento"><input className={inputClassName} name="medio_seguimiento" value={formData.medio_seguimiento} onChange={handleInputChange} /></Field>
                   <Field label="Costo" hint="Opcional. Se conserva por si el tramite lo requiere en el futuro."><input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} /></Field>
                   <Field label="Horario" hint="Opcional. Se conserva por si el tramite lo requiere en el futuro."><input className={inputClassName} name="horario" value={formData.horario} onChange={handleInputChange} /></Field>
+                  <div className="md:col-span-2 rounded-[1.25rem] border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-slate-600">
+                    <span className="font-semibold text-slate-800">Enlaces dentro del texto:</span>{' '}
+                    usa el formato <span className="font-mono text-slate-900">[Click Aqui](https://enlace.com)</span>.
+                    Puedes agregar varios enlaces en pasos, seguimiento o normatividad, cada uno con su propio destino.
+                  </div>
                   <Field
                     className="md:col-span-2"
                     label="Descripcion del tramite"
@@ -1221,7 +1226,7 @@ function App() {
                     />
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                       <p className="text-xs leading-5 text-slate-500">
-                        Escribe un paso por linea o usa el boton para ordenarlos automaticamente.
+                        Escribe un paso por linea. Para enlaces puntuales usa [Click Aqui](https://...).
                       </p>
                       <button
                         type="button"
@@ -1574,10 +1579,6 @@ function validateAdminForm(payload) {
 
   if (payload.fuente_url && !isValidUrl(payload.fuente_url)) {
     errors.fuente_url = 'La fuente oficial debe ser una URL valida con http o https.'
-  }
-
-  if (payload.enlace_click_aqui && !isValidUrl(payload.enlace_click_aqui)) {
-    errors.enlace_click_aqui = 'El enlace de Click Aqui debe ser una URL valida con http o https.'
   }
 
   return errors
@@ -2002,6 +2003,9 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
   const isViewingAlternative =
     Boolean(activeMatch && consulta?.tramite_principal) &&
     activeMatch.id !== consulta.tramite_principal.id
+  const embeddedFallbackUrl = activeMatch
+    ? resolveEmbeddedLinkFallback(activeMatch.enlace_click_aqui, activeMatch.fuente_url)
+    : ''
 
   useEffect(() => {
     if (!consulta || isSubmitting || !resultSectionRef.current) return
@@ -2122,7 +2126,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                       value={activeMatch.pasos || activeMatch.requisitos}
                       tone="sky"
                       asList
-                      linkUrl={activeMatch.enlace_click_aqui || activeMatch.fuente_url}
+                      linkUrl={embeddedFallbackUrl}
                     />
                   ) : null}
 
@@ -2130,7 +2134,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                     <CitizenTrackingInfo
                       tiempoEstimado={activeMatch.tiempo_estimado}
                       medioSeguimiento={activeMatch.medio_seguimiento}
-                      linkUrl={activeMatch.enlace_click_aqui || activeMatch.fuente_url}
+                      linkUrl={embeddedFallbackUrl}
                     />
                   ) : null}
 
@@ -2139,7 +2143,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                       label="Normatividad"
                       value={activeMatch.normatividad}
                       tone="slate"
-                      linkUrl={activeMatch.enlace_click_aqui || activeMatch.fuente_url}
+                      linkUrl={embeddedFallbackUrl}
                     />
                   ) : null}
 
@@ -2411,7 +2415,32 @@ function RichTextWithLinks({ value, fallbackUrl = '' }) {
   )
 }
 
+function resolveEmbeddedLinkFallback(...urls) {
+  return urls.find((url) => isValidUrl(String(url ?? ''))) || ''
+}
+
 function buildLinkedTextParts(value, fallbackUrl = '') {
+  const text = String(value ?? '')
+  const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gi
+  const parts = []
+  let lastIndex = 0
+
+  for (const match of text.matchAll(markdownLinkPattern)) {
+    if (match.index > lastIndex) {
+      parts.push(...buildPlainLinkedTextParts(text.slice(lastIndex, match.index), fallbackUrl))
+    }
+    parts.push({ text: match[1], href: match[2] })
+    lastIndex = match.index + match[0].length
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(...buildPlainLinkedTextParts(text.slice(lastIndex), fallbackUrl))
+  }
+
+  return parts.length ? parts : [{ text, href: '' }]
+}
+
+function buildPlainLinkedTextParts(value, fallbackUrl = '') {
   const text = String(value ?? '')
   const urlPattern = /(https?:\/\/[^\s)]+)/gi
   const parts = []
@@ -2435,7 +2464,7 @@ function buildLinkedTextParts(value, fallbackUrl = '') {
 function splitClickHereText(value, fallbackUrl = '') {
   if (!fallbackUrl) return [{ text: value, href: '' }]
 
-  const clickPattern = /(click\s+aqu[ií]|clic\s+aqu[ií]|haz\s+clic\s+aqu[ií])/gi
+  const clickPattern = /(click\s+aqu(?:i|\u00ed)|clic\s+aqu(?:i|\u00ed)|haz\s+clic\s+aqu(?:i|\u00ed))/gi
   const parts = []
   let lastIndex = 0
 
