@@ -2530,7 +2530,7 @@ function splitClickHereText(value, fallbackUrl = '') {
 
 function normalizeInlineClickLinks(value) {
   const clickWithUrlPattern =
-    /(click\s+aqu(?:i|\u00ed)|clic\s+aqu(?:i|\u00ed)|haz\s+clic\s+aqu(?:i|\u00ed))\s*[:.-]?\s*(https?:\/\/[^\s)]+)/gi
+    /\[?\s*(click\s+aqu(?:i|\u00ed)|clic\s+aqu(?:i|\u00ed)|haz\s+clic\s+aqu(?:i|\u00ed))\s*\]?\s*[:.-]?\s*\(?\s*(https?:\/\/[^\s)]+)\s*\)?/gi
 
   return String(value ?? '').replace(clickWithUrlPattern, (_match, label, url) => `[${label}](${url})`)
 }
