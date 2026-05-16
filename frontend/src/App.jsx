@@ -942,6 +942,11 @@ function App() {
                 icon="catalog"
                 title="Catalogo disponible"
                 body={loadingTramites ? 'Cargando tramites actualizados.' : `${tramites.length} tramites activos para consulta.`}
+                detailTitle="Catalogo activo"
+                detailItems={[
+                  loadingTramites ? 'Estamos cargando la informacion registrada.' : `${tramites.length} tramites disponibles para orientar consultas.`,
+                  'Cada ficha puede actualizarse desde el panel administrativo.',
+                ]}
                 accent="emerald"
                 isDarkTheme={isDarkTheme}
               />
@@ -949,6 +954,12 @@ function App() {
                 icon="guide"
                 title="Guia paso a paso"
                 body="Te orientamos para encontrar la ruta exacta de tu tramite."
+                detailTitle="Como funciona"
+                detailItems={[
+                  'Escribes tu consulta en lenguaje natural.',
+                  'El asistente busca coincidencias en el catalogo registrado.',
+                  'Recibes la ficha del tramite con descripcion, pasos y fuente de validacion.',
+                ]}
                 accent="blue"
                 isDarkTheme={isDarkTheme}
               />
@@ -956,6 +967,11 @@ function App() {
                 icon="official"
                 title="Informacion oficial"
                 body="Datos contrastados con la fuente institucional registrada."
+                detailTitle="Origen de la informacion"
+                detailItems={[
+                  'La informacion proviene del catalogo administrado en el sistema.',
+                  'Cada tramite conserva una fuente oficial para validar requisitos.',
+                ]}
                 accent="amber"
                 isDarkTheme={isDarkTheme}
               />
@@ -2474,7 +2490,7 @@ function buildLinkedTextParts(value, fallbackUrl = '') {
     if (match.index > lastIndex) {
       parts.push(...buildPlainLinkedTextParts(text.slice(lastIndex, match.index), fallbackUrl))
     }
-    parts.push({ text: match[1], href: match[2] })
+    parts.push({ text: cleanLinkLabel(match[1]), href: match[2] })
     lastIndex = match.index + match[0].length
   }
 
@@ -2517,7 +2533,7 @@ function splitClickHereText(value, fallbackUrl = '') {
     if (match.index > lastIndex) {
       parts.push({ text: value.slice(lastIndex, match.index), href: '' })
     }
-    parts.push({ text: match[0], href: fallbackUrl })
+    parts.push({ text: cleanLinkLabel(match[0]), href: fallbackUrl })
     lastIndex = match.index + match[0].length
   }
 
@@ -2530,9 +2546,16 @@ function splitClickHereText(value, fallbackUrl = '') {
 
 function normalizeInlineClickLinks(value) {
   const clickWithUrlPattern =
-    /\[?\s*(click\s+aqu(?:i|\u00ed)|clic\s+aqu(?:i|\u00ed)|haz\s+clic\s+aqu(?:i|\u00ed))\s*\]?\s*[:.-]?\s*\(?\s*(https?:\/\/[^\s)]+)\s*\)?/gi
+    /(?:\[\s*)?(click\s+aqu(?:i|\u00ed)|clic\s+aqu(?:i|\u00ed)|haz\s+clic\s+aqu(?:i|\u00ed))[\s.]*\]?\s*[:.-]?\s*\(?\s*(https?:\/\/[^\s)]+)\s*\)?/gi
 
-  return String(value ?? '').replace(clickWithUrlPattern, (_match, label, url) => `[${label}](${url})`)
+  return String(value ?? '').replace(clickWithUrlPattern, (_match, label, url) => `[${cleanLinkLabel(label)}](${url})`)
+}
+
+function cleanLinkLabel(value) {
+  return String(value ?? '')
+    .replace(/^\[+|\]+$/g, '')
+    .replace(/[.:;\s]+$/g, '')
+    .trim()
 }
 
 function CitizenProcedureInfo({ costo, horario }) {
@@ -4237,7 +4260,8 @@ function getConsultaLogStatusConfig(messageStatus) {
   }
 }
 
-function HeaderFeatureCard({ icon, title, body, accent, isDarkTheme }) {
+function HeaderFeatureCard({ icon, title, body, detailTitle, detailItems = [], accent, isDarkTheme }) {
+  const [isOpen, setIsOpen] = useState(false)
   const accents = {
     emerald: 'bg-emerald-500/10 text-emerald-500',
     blue: 'bg-sky-500/10 text-sky-500',
@@ -4252,11 +4276,49 @@ function HeaderFeatureCard({ icon, title, body, accent, isDarkTheme }) {
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accents[accent]}`}>
           <HeaderFeatureIcon type={icon} />
         </div>
-        <div>
-          <h3 className={`text-sm font-bold ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>{title}</h3>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className={`text-sm font-bold ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>{title}</h3>
+            {detailItems.length ? (
+              <button
+                type="button"
+                onClick={() => setIsOpen((current) => !current)}
+                className={`inline-flex h-7 shrink-0 items-center justify-center rounded-full border px-2 text-[11px] font-bold transition ${
+                  isDarkTheme
+                    ? 'border-slate-700 text-slate-300 hover:border-slate-500 hover:bg-slate-900'
+                    : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+                aria-expanded={isOpen}
+                aria-label={`Ver detalle de ${title}`}
+              >
+                {isOpen ? 'X' : '?'}
+              </button>
+            ) : null}
+          </div>
           <p className={`mt-1 text-sm leading-5 ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>{body}</p>
         </div>
       </div>
+      {isOpen && detailItems.length ? (
+        <div className={`mt-4 rounded-2xl border p-3 ${
+          isDarkTheme ? 'border-slate-800 bg-slate-950/70' : 'border-slate-200 bg-white'
+        }`}>
+          <p className={`text-xs font-bold uppercase tracking-[0.16em] ${isDarkTheme ? 'text-slate-300' : 'text-slate-600'}`}>
+            {detailTitle || 'Como funciona'}
+          </p>
+          <ol className="mt-3 space-y-2">
+            {detailItems.map((item, index) => (
+              <li key={`${title}-${item}`} className={`flex gap-2 text-xs leading-5 ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                  isDarkTheme ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {index + 1}
+                </span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
     </div>
   )
 }
