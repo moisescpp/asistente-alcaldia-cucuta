@@ -707,6 +707,21 @@ function App() {
     }))
   }
 
+  function handleEnumerateNormativity() {
+    setFormData((current) => ({
+      ...current,
+      normatividad: buildNumberedRequirements(current.normatividad),
+    }))
+  }
+
+  function handleUseMayorOfficeHours() {
+    setFormData((current) => ({
+      ...current,
+      horario:
+        'Lunes a viernes de 7:00 a. m. a 11:00 a. m. y de 2:00 p. m. a 5:30 p. m. Sabados, domingos y festivos no hay atencion.',
+    }))
+  }
+
   async function handleAdminSubmit(event) {
     event.preventDefault()
     const payload = normalizePayload(formData)
@@ -1170,7 +1185,25 @@ function App() {
                     />
                   </Field>
                   <Field label="Costo" hint="Opcional. Se conserva por si el tramite lo requiere en el futuro."><input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} /></Field>
-                  <Field label="Horario" hint="Opcional. Se conserva por si el tramite lo requiere en el futuro."><input className={inputClassName} name="horario" value={formData.horario} onChange={handleInputChange} /></Field>
+                  <Field
+                    label="Horario de atencion de la Alcaldia"
+                    hint="Usalo cuando el tramite dependa del horario general de atencion presencial."
+                  >
+                    <input
+                      className={inputClassName}
+                      name="horario"
+                      value={formData.horario}
+                      onChange={handleInputChange}
+                      placeholder="Lunes a viernes de 7:00 a. m. a 11:00 a. m. y de 2:00 p. m. a 5:30 p. m."
+                    />
+                    <button
+                      type="button"
+                      onClick={handleUseMayorOfficeHours}
+                      className="mt-3 inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                    >
+                      Usar horario Alcaldia
+                    </button>
+                  </Field>
                   <div className="md:col-span-2 rounded-[1.25rem] border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-slate-600">
                     <span className="font-semibold text-slate-800">Enlaces dentro del texto:</span>{' '}
                     usa el formato <span className="font-mono text-slate-900">[Click Aqui](https://enlace.com)</span>.
@@ -1247,6 +1280,18 @@ function App() {
                       value={formData.normatividad}
                       onChange={handleInputChange}
                     />
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs leading-5 text-slate-500">
+                        Puedes registrar acuerdos, decretos o articulos por linea y ordenarlos automaticamente.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleEnumerateNormativity}
+                        className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                      >
+                        Enumerar normatividad
+                      </button>
+                    </div>
                   </Field>
                   <div className="md:col-span-2">
                     <div className="flex flex-wrap items-center gap-3">
@@ -2420,7 +2465,7 @@ function resolveEmbeddedLinkFallback(...urls) {
 }
 
 function buildLinkedTextParts(value, fallbackUrl = '') {
-  const text = String(value ?? '')
+  const text = normalizeInlineClickLinks(String(value ?? ''))
   const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gi
   const parts = []
   let lastIndex = 0
@@ -2450,7 +2495,7 @@ function buildPlainLinkedTextParts(value, fallbackUrl = '') {
     if (match.index > lastIndex) {
       parts.push(...splitClickHereText(text.slice(lastIndex, match.index), fallbackUrl))
     }
-    parts.push({ text: match[0], href: match[0] })
+    parts.push({ text: 'Abrir enlace', href: match[0] })
     lastIndex = match.index + match[0].length
   }
 
@@ -2481,6 +2526,13 @@ function splitClickHereText(value, fallbackUrl = '') {
   }
 
   return parts.length ? parts : [{ text: value, href: '' }]
+}
+
+function normalizeInlineClickLinks(value) {
+  const clickWithUrlPattern =
+    /(click\s+aqu(?:i|\u00ed)|clic\s+aqu(?:i|\u00ed)|haz\s+clic\s+aqu(?:i|\u00ed))\s*[:.-]?\s*(https?:\/\/[^\s)]+)/gi
+
+  return String(value ?? '').replace(clickWithUrlPattern, (_match, label, url) => `[${label}](${url})`)
 }
 
 function CitizenProcedureInfo({ costo, horario }) {
@@ -2621,7 +2673,7 @@ function StateActionPanel({ mode }) {
 }
 
 function formatDetailSegments(value, asList = false) {
-  const text = String(value ?? '').replace(/\r/g, '').trim()
+  const text = normalizeInlineClickLinks(String(value ?? '').replace(/\r/g, '')).trim()
   if (!text) return []
 
   if (!asList) {
