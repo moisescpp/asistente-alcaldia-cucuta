@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
-const DEFAULT_QUESTION = 'Quiero informacion sobre impuesto predial'
 const FALLBACK_QUICK_QUESTIONS = [
   'Consulta por impuesto predial',
   'Consulta por generacion de paz y salvo',
@@ -42,8 +41,6 @@ const inputClassName =
   'w-full rounded-3xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100'
 const citizenPrimaryButtonClassName =
   'inline-flex w-full items-center justify-center rounded-xl border border-transparent bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto'
-const citizenSecondaryButtonClassName =
-  'inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto'
 const EMPTY_ADMIN_ERRORS = {
   nombre: '',
   slug: '',
@@ -87,7 +84,7 @@ function App() {
   const [consultaLogsError, setConsultaLogsError] = useState('')
   const [hasLoadedConsultaLogs, setHasLoadedConsultaLogs] = useState(false)
   const [consultaLogsStale, setConsultaLogsStale] = useState(false)
-  const [question, setQuestion] = useState(DEFAULT_QUESTION)
+  const [question, setQuestion] = useState('')
   const [consulta, setConsulta] = useState(null)
   const [consultaError, setConsultaError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -1015,9 +1012,6 @@ function App() {
                       <button type="submit" disabled={isSubmitting} className={citizenPrimaryButtonClassName}>
                         {isSubmitting ? 'Consultando...' : 'Consultar asistente'}
                       </button>
-                      <button type="button" onClick={() => setQuestion(DEFAULT_QUESTION)} className={citizenSecondaryButtonClassName}>
-                        Usar ejemplo
-                      </button>
                     </div>
 
                     <div className="space-y-3">
@@ -1160,6 +1154,12 @@ function App() {
                       Accion sugerida: <span className="font-medium text-slate-800">{draftQualityReport.recommendedAction}</span>
                     </p>
                   </div>
+                  <div className="md:col-span-2 rounded-[1.25rem] border border-slate-200 bg-white/70 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Datos de identificacion</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      Informacion administrativa para ubicar el tramite dentro del catalogo.
+                    </p>
+                  </div>
                   <Field label="Nombre" required error={adminFieldErrors.nombre}>
                     <input className={fieldClassName(adminFieldErrors.nombre)} name="nombre" value={formData.nombre} onChange={handleInputChange} />
                   </Field>
@@ -1188,42 +1188,16 @@ function App() {
                   <Field label="Fuente oficial" hint="Opcional. Usa una URL completa con http o https." error={adminFieldErrors.fuente_url}>
                     <input className={fieldClassName(adminFieldErrors.fuente_url)} name="fuente_url" value={formData.fuente_url} onChange={handleInputChange} />
                   </Field>
-                  <Field label="Tiempo estimado"><input className={inputClassName} name="tiempo_estimado" value={formData.tiempo_estimado} onChange={handleInputChange} /></Field>
-                  <Field
-                    label="Medio para hacer seguimiento"
-                    hint="Si necesitas un enlace puntual, escribe: [Click Aqui](https://...)"
-                  >
-                    <textarea
-                      className={inputClassName + ' min-h-20'}
-                      name="medio_seguimiento"
-                      value={formData.medio_seguimiento}
-                      onChange={handleInputChange}
-                    />
-                  </Field>
-                  <Field label="Costo" hint="Opcional. Se conserva por si el tramite lo requiere en el futuro."><input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} /></Field>
-                  <Field
-                    label="Horario de atencion de la Alcaldia"
-                    hint="Usalo cuando el tramite dependa del horario general de atencion presencial."
-                  >
-                    <input
-                      className={inputClassName}
-                      name="horario"
-                      value={formData.horario}
-                      onChange={handleInputChange}
-                      placeholder="Lunes a viernes de 7:00 a. m. a 11:00 a. m. y de 2:00 p. m. a 5:30 p. m."
-                    />
-                    <button
-                      type="button"
-                      onClick={handleUseMayorOfficeHours}
-                      className="mt-3 inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
-                    >
-                      Usar horario Alcaldia
-                    </button>
-                  </Field>
                   <div className="md:col-span-2 rounded-[1.25rem] border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-slate-600">
                     <span className="font-semibold text-slate-800">Enlaces dentro del texto:</span>{' '}
                     usa el formato <span className="font-mono text-slate-900">[Click Aqui](https://enlace.com)</span>.
                     Puedes agregar varios enlaces en pasos, seguimiento o normatividad, cada uno con su propio destino.
+                  </div>
+                  <div className="md:col-span-2 rounded-[1.25rem] border border-emerald-200 bg-emerald-50/70 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Contenido oficial del tramite</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      Orden sugerido segun la ficha institucional: descripcion, destinatarios, pasos, tiempo, seguimiento y normatividad.
+                    </p>
                   </div>
                   <Field
                     className="md:col-span-2"
@@ -1286,6 +1260,20 @@ function App() {
                       </button>
                     </div>
                   </Field>
+                  <Field label="Tiempo estimado">
+                    <input className={inputClassName} name="tiempo_estimado" value={formData.tiempo_estimado} onChange={handleInputChange} />
+                  </Field>
+                  <Field
+                    label="Medio para hacer seguimiento"
+                    hint="Si necesitas un enlace puntual, escribe: [Click Aqui](https://...)"
+                  >
+                    <textarea
+                      className={inputClassName + ' min-h-20'}
+                      name="medio_seguimiento"
+                      value={formData.medio_seguimiento}
+                      onChange={handleInputChange}
+                    />
+                  </Field>
                   <Field
                     className="md:col-span-2"
                     label="Normatividad"
@@ -1308,6 +1296,34 @@ function App() {
                         Enumerar normatividad
                       </button>
                     </div>
+                  </Field>
+                  <div className="md:col-span-2 rounded-[1.25rem] border border-slate-200 bg-white/70 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Datos complementarios</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      Campos adicionales que ayudan cuando el tramite requiere costo, horario o atencion presencial.
+                    </p>
+                  </div>
+                  <Field label="Costo" hint="Opcional. Se conserva por si el tramite lo requiere en el futuro.">
+                    <input className={inputClassName} name="costo" value={formData.costo} onChange={handleInputChange} />
+                  </Field>
+                  <Field
+                    label="Horario de atencion de la Alcaldia"
+                    hint="Usalo cuando el tramite dependa del horario general de atencion presencial."
+                  >
+                    <input
+                      className={inputClassName}
+                      name="horario"
+                      value={formData.horario}
+                      onChange={handleInputChange}
+                      placeholder="Lunes a viernes de 7:00 a. m. a 11:00 a. m. y de 2:00 p. m. a 5:30 p. m."
+                    />
+                    <button
+                      type="button"
+                      onClick={handleUseMayorOfficeHours}
+                      className="mt-3 inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                    >
+                      Usar horario Alcaldia
+                    </button>
                   </Field>
                   <div className="md:col-span-2">
                     <div className="flex flex-wrap items-center gap-3">
