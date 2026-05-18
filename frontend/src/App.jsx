@@ -934,45 +934,47 @@ function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <HeaderFeatureCard
-                icon="catalog"
-                title="Catalogo disponible"
-                body={loadingTramites ? 'Cargando tramites actualizados.' : `${tramites.length} tramites activos para consulta.`}
-                detailTitle="Catalogo activo"
-                detailItems={[
-                  loadingTramites ? 'Estamos cargando la informacion registrada.' : `${tramites.length} tramites disponibles para orientar consultas.`,
-                  'Cada ficha puede actualizarse desde el panel administrativo.',
-                ]}
-                accent="emerald"
-                isDarkTheme={isDarkTheme}
-              />
-              <HeaderFeatureCard
-                icon="guide"
-                title="Guia paso a paso"
-                body="Te orientamos para encontrar la ruta exacta de tu tramite."
-                detailTitle="Como funciona"
-                detailItems={[
-                  'Escribes tu consulta en lenguaje natural.',
-                  'El asistente busca coincidencias en el catalogo registrado.',
-                  'Recibes la ficha del tramite con descripcion, pasos y fuente de validacion.',
-                ]}
-                accent="blue"
-                isDarkTheme={isDarkTheme}
-              />
-              <HeaderFeatureCard
-                icon="official"
-                title="Informacion oficial"
-                body="Datos contrastados con la fuente institucional registrada."
-                detailTitle="Origen de la informacion"
-                detailItems={[
-                  'La informacion proviene del catalogo administrado en el sistema.',
-                  'Cada tramite conserva una fuente oficial para validar requisitos.',
-                ]}
-                accent="amber"
-                isDarkTheme={isDarkTheme}
-              />
-            </div>
+            {view === 'ciudadania' ? (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <HeaderFeatureCard
+                  icon="catalog"
+                  title="Catalogo disponible"
+                  body={loadingTramites ? 'Cargando tramites actualizados.' : `${tramites.length} tramites activos para consulta.`}
+                  detailTitle="Catalogo activo"
+                  detailItems={[
+                    loadingTramites ? 'Estamos cargando la informacion registrada.' : `${tramites.length} tramites disponibles para orientar consultas.`,
+                    'Cada ficha puede actualizarse desde el panel administrativo.',
+                  ]}
+                  accent="emerald"
+                  isDarkTheme={isDarkTheme}
+                />
+                <HeaderFeatureCard
+                  icon="guide"
+                  title="Guia paso a paso"
+                  body="Te orientamos para encontrar la ruta exacta de tu tramite."
+                  detailTitle="Como funciona"
+                  detailItems={[
+                    'Escribes tu consulta en lenguaje natural.',
+                    'El asistente busca coincidencias en el catalogo registrado.',
+                    'Recibes la ficha del tramite con descripcion, pasos y fuente de validacion.',
+                  ]}
+                  accent="blue"
+                  isDarkTheme={isDarkTheme}
+                />
+                <HeaderFeatureCard
+                  icon="official"
+                  title="Informacion oficial"
+                  body="Datos contrastados con la fuente institucional registrada."
+                  detailTitle="Origen de la informacion"
+                  detailItems={[
+                    'La informacion proviene del catalogo administrado en el sistema.',
+                    'Cada tramite conserva una fuente oficial para validar requisitos.',
+                  ]}
+                  accent="amber"
+                  isDarkTheme={isDarkTheme}
+                />
+              </div>
+            ) : null}
           </div>
         </header>
 
@@ -2877,6 +2879,10 @@ function TramitesAdminList({
             {(() => {
             const qualityReport = getTramiteQualitySnapshot(tramite)
             const catalogSignal = catalogAttentionById?.get(tramite.id)
+            const shouldShowRecommendedAction =
+              qualityReport.level !== 'fuerte' ||
+              qualityReport.scopeStatus !== 'tributario' ||
+              qualityReport.alerts.length > 0
               return (
                 <>
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -2949,9 +2955,11 @@ function TramitesAdminList({
               </p>
             </div>
           ) : null}
-          <p className="mt-4 text-sm leading-6 text-slate-600">
-            Accion sugerida: <span className="font-medium text-slate-800">{qualityReport.recommendedAction}</span>
-          </p>
+          {shouldShowRecommendedAction ? (
+            <p className="mt-4 text-sm leading-6 text-slate-600">
+              Accion sugerida: <span className="font-medium text-slate-800">{qualityReport.recommendedAction}</span>
+            </p>
+          ) : null}
               </>
             )
           })()}

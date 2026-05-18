@@ -478,13 +478,10 @@ def test_consulta_prioritizes_predial_for_requirements_question(client) -> None:
     assert "predial" in data["tramite_principal"]["nombre"].lower()
 
 
-def test_consulta_rejects_out_of_scope_transit_license_query(client) -> None:
-    if has_active_catalog_term("licencia"):
-        pytest.skip("La base actual ya contiene tramites activos de licencia.")
-
+def test_consulta_rejects_out_of_scope_unregistered_query(client) -> None:
     response = client.post(
         "/api/consulta",
-        json={"pregunta": "¿Cuanto cuesta el duplicado de la licencia de transito?"},
+        json={"pregunta": "Cuanto cuesta renovar el pasaporte colombiano?"},
     )
 
     assert response.status_code == 200

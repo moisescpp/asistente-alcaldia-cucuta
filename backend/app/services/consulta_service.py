@@ -920,7 +920,10 @@ def process_consulta(
     pregunta: str,
     tramites: list[Tramite],
 ) -> ConsultaResponse:
-    if _is_overly_generic_query(pregunta):
+    if _is_overly_generic_query(pregunta) and not _has_registered_phrase_support(
+        pregunta,
+        tramites,
+    ):
         clarification_candidates = _find_clarification_candidates(db, pregunta, tramites)
         return _build_clarification_response(pregunta, clarification_candidates)
 
@@ -954,3 +957,14 @@ def process_consulta(
             return process_consulta_textual(pregunta, tramites)
 
     return process_consulta_textual(pregunta, tramites)
+
+
+def _has_registered_phrase_support(pregunta: str, tramites: list[Tramite]) -> bool:
+    normalized_question = _normalize_text(pregunta)
+    if len(normalized_question) < 5 or len(_query_tokens(pregunta)) < 2:
+        return False
+
+    return any(
+        tramite.activo and _text_match_metadata(pregunta, tramite)[2]
+        for tramite in tramites
+    )
