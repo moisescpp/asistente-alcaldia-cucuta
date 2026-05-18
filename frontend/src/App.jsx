@@ -2085,7 +2085,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
     : ''
 
   useEffect(() => {
-    if (!consulta || isSubmitting || !resultSectionRef.current) return
+    if ((!consulta && !isSubmitting) || !resultSectionRef.current) return
     resultSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [consulta, isSubmitting])
 
@@ -2109,7 +2109,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
 
       {isSubmitting ? (
         <div className="mt-6 space-y-4">
-          <div className="h-6 w-40 animate-pulse rounded-full bg-slate-200" />
+          <TypingIndicator />
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
             <div className="h-4 w-32 animate-pulse rounded-full bg-slate-200" />
             <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-slate-200" />
@@ -2421,6 +2421,23 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
         </div>
       )}
     </section>
+  )
+}
+
+function TypingIndicator() {
+  return (
+    <div role="status" aria-live="polite" className="inline-flex items-center gap-3 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 shadow-sm">
+      <span className="relative flex h-2.5 w-2.5">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+      </span>
+      <span>Escribiendo respuesta</span>
+      <span className="flex items-center gap-1" aria-hidden="true">
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-600 [animation-delay:-0.2s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-600 [animation-delay:-0.1s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-600" />
+      </span>
+    </div>
   )
 }
 
