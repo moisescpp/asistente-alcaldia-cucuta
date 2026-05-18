@@ -2940,7 +2940,9 @@ function TramitesAdminList({
                 Observacion desde preguntas reales
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-700">
-                Este tramite esta recibiendo consultas ciudadanas relacionadas. No es un error de calidad; sirve para vigilar si conviene agregar sinonimos o ejemplos de busqueda.
+                Aparece porque una consulta ciudadana uso palabras cercanas a este tramite
+                {catalogSignal.matchedTerms?.length ? ` (${catalogSignal.matchedTerms.slice(0, 4).join(', ')})` : ''}.
+                No es un error de calidad; solo ayuda a vigilar si conviene agregar sinonimos o ejemplos de busqueda.
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Ejemplo: "{catalogSignal.example}"
@@ -4079,6 +4081,7 @@ function buildCatalogAttention(logs, tramites) {
         if (isNoMatchLogStatus(log.mensaje_estado)) current.noMatchCount += 1
         if (isAmbiguousLogStatus(log.mensaje_estado)) current.ambiguityCount += 1
         if (countQuestionWords(log.pregunta) >= 5) current.detailedMissCount += 1
+        current.matchedTerms = [...new Set([...(current.matchedTerms ?? []), ...candidate.overlap])]
         return
       }
 
@@ -4090,6 +4093,7 @@ function buildCatalogAttention(logs, tramites) {
         ambiguityCount: isAmbiguousLogStatus(log.mensaje_estado) ? 1 : 0,
         detailedMissCount: countQuestionWords(log.pregunta) >= 5 ? 1 : 0,
         example: log.pregunta,
+        matchedTerms: candidate.overlap,
       })
     })
   })
@@ -4163,7 +4167,9 @@ function findLikelyTramitesForQuestion(question, tramites) {
         tramite.nombre,
         tramite.descripcion,
         tramite.requisitos,
-        tramite.dependencia,
+        tramite.dirigido_a,
+        tramite.pasos,
+        tramite.normatividad,
       ]
         .filter(Boolean)
         .join(' ')
@@ -4174,6 +4180,7 @@ function findLikelyTramitesForQuestion(question, tramites) {
       return {
         tramite,
         score,
+        overlap: [...new Set(overlap)],
       }
     })
     .filter((candidate) => candidate.score > 0)
@@ -4206,7 +4213,10 @@ function extractMeaningfulTokens(value) {
     'este',
     'hay',
     'hoy',
+    'hacienda',
+    'informacion',
     'impuesto',
+    'impuestos',
     'la',
     'las',
     'lo',
@@ -4219,6 +4229,8 @@ function extractMeaningfulTokens(value) {
     'por',
     'que',
     'quiero',
+    'rentas',
+    'secretaria',
     'se',
     'ser',
     'sin',
