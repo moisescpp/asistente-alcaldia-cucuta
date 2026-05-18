@@ -2783,11 +2783,14 @@ function TramitesPanel({ tramites, loadingTramites, tramitesError }) {
     <div className="rounded-[2rem] border border-slate-200/70 bg-white/80 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Tramites activos</p>
       <h2 className="mt-2 text-2xl font-bold text-slate-950">Base de consulta disponible</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-500">
+        Vista rapida del catalogo. El detalle completo aparece cuando realizas una consulta.
+      </p>
       <div className="mt-6 grid gap-4">
         {tramites.map((tramite) => (
-          <article key={tramite.id} className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4">
+          <article key={tramite.id} className="rounded-[1.35rem] border border-slate-200 bg-slate-50 px-4 py-4">
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-base font-semibold text-slate-900">{tramite.nombre}</h3>
                 <p className="mt-2 text-sm text-slate-600">
                   {getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)}
@@ -2795,12 +2798,40 @@ function TramitesPanel({ tramites, loadingTramites, tramitesError }) {
               </div>
               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">ID {tramite.id}</span>
             </div>
-            <p className="mt-4 text-sm leading-6 text-slate-600">{tramite.descripcion || 'Sin descripcion disponible.'}</p>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              {buildCatalogPreview(tramite)}
+            </p>
           </article>
         ))}
       </div>
     </div>
   )
+}
+
+function buildCatalogPreview(tramite) {
+  const source =
+    tramite.dirigido_a ||
+    tramite.tiempo_estimado ||
+    tramite.descripcion ||
+    tramite.pasos ||
+    tramite.requisitos ||
+    ''
+  const cleaned = stripMarkdownLinks(String(source)).replace(/\s+/g, ' ').trim()
+
+  if (!cleaned) return 'Ficha disponible para consulta ciudadana.'
+
+  return truncateText(cleaned, 120)
+}
+
+function stripMarkdownLinks(value) {
+  return String(value ?? '').replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gi, '$1')
+}
+
+function truncateText(value, maxLength) {
+  const text = String(value ?? '').trim()
+  if (text.length <= maxLength) return text
+  const trimmed = text.slice(0, maxLength).replace(/\s+\S*$/, '').trim()
+  return `${trimmed || text.slice(0, maxLength).trim()}...`
 }
 
 function TramitesAdminList({
