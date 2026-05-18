@@ -2899,8 +2899,8 @@ function TramitesAdminList({
                   {humanizeScopeStatus(qualityReport.scopeStatus)}
                 </span>
                 {catalogSignal ? (
-                  <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-rose-700">
-                    Impacto real {catalogSignal.hits}
+                  <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+                    Consultas reales {catalogSignal.hits}
                   </span>
                 ) : null}
               </div>
@@ -2935,14 +2935,14 @@ function TramitesAdminList({
             </div>
           ) : null}
           {catalogSignal ? (
-            <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">
-                Senal desde preguntas reales
+            <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                Observacion desde preguntas reales
               </p>
-              <p className="mt-2 text-sm leading-6 text-rose-900">
-                {catalogSignal.headline}
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                Este tramite esta recibiendo consultas ciudadanas relacionadas. No es un error de calidad; sirve para vigilar si conviene agregar sinonimos o ejemplos de busqueda.
               </p>
-              <p className="mt-2 text-sm leading-6 text-rose-800">
+              <p className="mt-2 text-sm leading-6 text-slate-600">
                 Ejemplo: "{catalogSignal.example}"
               </p>
             </div>
