@@ -126,6 +126,74 @@ def test_success_response_uses_local_intro_by_default(monkeypatch) -> None:
     assert "Tramite principal: Impuesto predial unificado" in response.respuesta
 
 
+def test_clear_textual_query_skips_semantic_embedding(monkeypatch, client, admin_headers, test_slug_prefix) -> None:
+    create_test_tramite(
+        client,
+        admin_headers,
+        f"{test_slug_prefix}-predial-fast",
+        nombre=f"Impuesto predial rapido {test_slug_prefix}",
+        descripcion=(
+            "Consulta del impuesto predial municipal para casas, predios e inmuebles "
+            "registrados dentro de la jurisdiccion local."
+        ),
+        requisitos=(
+            "Documento de identidad vigente, referencia catastral y datos basicos "
+            "del inmueble consultado."
+        ),
+    )
+
+    def fail_if_called(_text):
+        raise AssertionError("La ruta textual confiable no debe generar embeddings.")
+
+    monkeypatch.setattr(consulta_service, "generate_embedding", fail_if_called)
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": f"requisitos impuesto predial rapido {test_slug_prefix}"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "predial rapido" in data["tramite_principal"]["nombre"].lower()
+
+
+def test_generic_clarification_uses_textual_candidates_before_embedding(
+    monkeypatch,
+    client,
+    admin_headers,
+    test_slug_prefix,
+) -> None:
+    for suffix in ("predial", "industria", "alumbrado"):
+        create_test_tramite(
+            client,
+            admin_headers,
+            f"{test_slug_prefix}-impuesto-{suffix}",
+            nombre=f"Impuesto municipal {suffix} {test_slug_prefix}",
+            descripcion=(
+                "Ficha tributaria relacionada con impuestos municipales y gestiones "
+                "de orientacion ciudadana ante la administracion local."
+            ),
+            requisitos=(
+                "Documento de identidad vigente y soporte basico de la solicitud "
+                "ciudadana correspondiente."
+            ),
+        )
+
+    def fail_if_called(_text):
+        raise AssertionError("La aclaracion textual suficiente no debe generar embeddings.")
+
+    monkeypatch.setattr(consulta_service, "generate_embedding", fail_if_called)
+
+    response = client.post("/api/consulta", json={"pregunta": "impuestos"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Consulta demasiado general"
+    assert data["tramite_principal"] is None
+    assert data["total_resultados"] >= 3
+
+
 def test_consulta_returns_suggestions_when_question_is_too_short(client) -> None:
     response = client.post("/api/consulta", json={"pregunta": "hi"})
 
@@ -868,8 +936,11 @@ def test_consulta_persists_log_entry_when_logging_is_enabled(client, admin_heade
         try:
             log_entry = db.query(ConsultaLog).filter(ConsultaLog.pregunta == question).one_or_none()
             assert log_entry is not None
-            assert log_entry.mensaje_estado == "Coincidencias semanticas encontradas"
-            assert log_entry.origen_respuesta == "semantica"
+            assert log_entry.mensaje_estado in {
+                "Coincidencias encontradas",
+                "Coincidencias semanticas encontradas",
+            }
+            assert log_entry.origen_respuesta in {"textual", "semantica"}
             assert log_entry.tramite_principal_nombre is not None
             assert "vehicular" in log_entry.tramite_principal_nombre.lower()
             assert log_entry.resumen_respuesta

@@ -64,3 +64,73 @@ En otras palabras:
 - el requisito funcional de responder correctamente esta bien encaminado;
 - el requisito no funcional de rendimiento **todavia necesita ajuste o una redefinicion de umbral realista** segun el entorno de ejecucion;
 - esta medicion sirve como soporte tecnico para justificar una iteracion posterior de optimizacion o una contextualizacion honesta del rendimiento en ambiente universitario.
+
+---
+
+# Evidencia de optimizacion - Iteracion 6
+
+**Corte:** 19 de mayo de 2026
+
+Durante la Iteracion 6 se aplicaron dos ajustes de rendimiento:
+
+- Se dejo la introduccion RAG generada por OpenAI como opcional mediante `ENABLE_RAG_INTRO=false`, porque la interfaz ciudadana ya muestra la ficha estructurada del tramite.
+- Se agrego una ruta rapida textual para evitar llamadas a embeddings cuando la consulta ya tiene una coincidencia textual confiable o cuando una consulta general puede resolverse con candidatos textuales suficientes.
+
+## Configuracion de la prueba
+
+- Script utilizado: `backend/scripts/report_performance_baseline.py`
+- Casos evaluados: `6`
+- Corridas por caso: `3`
+- Meta local de promedio: `<= 1.50 s`
+- Meta local de maximo: `<= 2.50 s`
+
+## Resultados por caso
+
+### Quiero informacion sobre impuesto predial
+- Promedio: `0.0489 s`
+- Minimo: `0.0466 s`
+- Maximo: `0.0511 s`
+
+### cambios en industria y comercio
+- Promedio: `0.0765 s`
+- Minimo: `0.0520 s`
+- Maximo: `0.0906 s`
+
+### Papeles para hacer un concierto en Cucuta
+- Promedio: `0.0926 s`
+- Minimo: `0.0846 s`
+- Maximo: `0.1034 s`
+
+### impuestos
+- Promedio: `0.0419 s`
+- Minimo: `0.0369 s`
+- Maximo: `0.0489 s`
+
+### paz y salbo
+- Promedio: `0.0446 s`
+- Minimo: `0.0411 s`
+- Maximo: `0.0507 s`
+
+### informacion de impuetos
+- Promedio: `0.0684 s`
+- Minimo: `0.0571 s`
+- Maximo: `0.0747 s`
+
+## Resumen general
+
+- Tiempo promedio global: `0.0622 s`
+- Mediana global: `0.0515 s`
+- Percentil 95 aproximado: `0.0906 s`
+- Maximo global: `0.1034 s`
+- Promedio dentro de objetivo local: `si`
+- Maximo dentro de objetivo local: `si`
+
+## Validacion tecnica ejecutada
+
+- `pytest tests/test_tramites_api.py tests/test_consulta_api.py -q`: `72 passed`
+- `npm run lint`: exitoso
+- `npm run build`: exitoso
+
+## Interpretacion
+
+La optimizacion redujo el tiempo promedio local de `5.2072 s` en la linea base inicial a `0.0622 s` en la medicion de Iteracion 6. Esto fortalece el requisito no funcional de rendimiento y deja evidencia concreta para la validacion del sistema.

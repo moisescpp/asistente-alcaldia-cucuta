@@ -123,6 +123,11 @@ INTENT_QUERY_TOKENS = {
     "quiero",
 }
 
+TECHNICAL_NOISE_TOKENS = {
+    "test",
+    "log",
+}
+
 
 def _matches_token_group(token: str, token_group: set[str]) -> bool:
     return any(_is_fuzzy_token_match(token, candidate) for candidate in token_group)
@@ -657,34 +662,65 @@ def _should_prefer_textual_response(
     return textual_support > semantic_support
 
 
+def _is_textual_fast_path_confident(
+    pregunta: str,
+    textual_response: ConsultaResponse,
+    tramites: list[Tramite],
+) -> bool:
+    if textual_response.total_resultados <= 0 or textual_response.tramite_principal is None:
+        return False
+
+    textual_principal = _find_tramite_by_id(
+        tramites,
+        textual_response.tramite_principal.id,
+    )
+    if textual_principal is None:
+        return False
+
+    (
+        support_rank,
+        identifier_specific_matches,
+        identifier_phrase_match,
+        specific_matches,
+        _total_matches,
+        phrase_match,
+    ) = _candidate_support(pregunta, textual_principal)
+
+    specific_tokens = [
+        token
+        for token in _query_specific_tokens(pregunta)
+        if token not in TECHNICAL_NOISE_TOKENS
+    ]
+    if not specific_tokens:
+        return False
+
+    identifier_text = " ".join(
+        [
+            _normalize_text(textual_principal.nombre),
+            _normalize_text(textual_principal.slug),
+            _normalize_text(" ".join(_high_confidence_aliases(textual_principal))),
+        ]
+    )
+    identifier_words = set(_tokenize_text(identifier_text))
+    has_strong_identifier_token = any(
+        any(_is_fuzzy_token_match(token, word) for word in identifier_words)
+        for token in specific_tokens
+    )
+
+    return (
+        identifier_phrase_match
+        or (support_rank > 0 and has_strong_identifier_token)
+        or (identifier_specific_matches >= 1 and has_strong_identifier_token)
+        or specific_matches >= 2
+        or (specific_matches >= 1 and phrase_match)
+    )
+
+
 def _find_clarification_candidates(
     db: Session,
     pregunta: str,
     tramites: list[Tramite],
 ) -> list[Tramite]:
-    candidate_tramites: list[Tramite] = []
-
-    try:
-        embedding = generate_embedding(pregunta)
-        distance_label = Tramite.embedding_vector.cosine_distance(embedding).label("distance")
-        query = (
-            select(Tramite, distance_label)
-            .where(
-                Tramite.activo.is_(True),
-                Tramite.embedding_vector.is_not(None),
-            )
-            .order_by(distance_label)
-            .limit(SEMANTIC_QUERY_LIMIT)
-        )
-        semantic_results = db.execute(query).all()
-        candidate_tramites.extend(
-            tramite
-            for tramite, distance in semantic_results
-            if distance is not None and distance <= min(0.9, SEMANTIC_DISTANCE_THRESHOLD + 0.12)
-        )
-    except Exception:
-        pass
-
     textual_candidates: list[tuple[Tramite, int, int, bool]] = []
     for tramite in tramites:
         if not tramite.activo:
@@ -717,7 +753,31 @@ def _find_clarification_candidates(
         ),
         reverse=True,
     )
-    candidate_tramites.extend(tramite for tramite, _, _, _ in textual_candidates[:3])
+    candidate_tramites = [tramite for tramite, _, _, _ in textual_candidates[:3]]
+
+    if len(candidate_tramites) >= SEMANTIC_RESULT_LIMIT:
+        return _deduplicate_tramites(candidate_tramites)[:3]
+
+    try:
+        embedding = generate_embedding(pregunta)
+        distance_label = Tramite.embedding_vector.cosine_distance(embedding).label("distance")
+        query = (
+            select(Tramite, distance_label)
+            .where(
+                Tramite.activo.is_(True),
+                Tramite.embedding_vector.is_not(None),
+            )
+            .order_by(distance_label)
+            .limit(SEMANTIC_QUERY_LIMIT)
+        )
+        semantic_results = db.execute(query).all()
+        candidate_tramites.extend(
+            tramite
+            for tramite, distance in semantic_results
+            if distance is not None and distance <= min(0.9, SEMANTIC_DISTANCE_THRESHOLD + 0.12)
+        )
+    except Exception:
+        pass
 
     return _deduplicate_tramites(candidate_tramites)[:3]
 
@@ -930,14 +990,17 @@ def process_consulta(
         clarification_candidates = _find_clarification_candidates(db, pregunta, tramites)
         return _build_clarification_response(pregunta, clarification_candidates)
 
+    textual_response = process_consulta_textual(pregunta, tramites)
     has_semantic_data = any(
         tramite.activo and tramite.embedding_vector is not None for tramite in tramites
     )
 
     if has_semantic_data:
+        if _is_textual_fast_path_confident(pregunta, textual_response, tramites):
+            return textual_response
+
         try:
             semantic_response = process_consulta_semantica(db, pregunta, tramites)
-            textual_response = process_consulta_textual(pregunta, tramites)
 
             if semantic_response.total_resultados > 0 and textual_response.total_resultados > 0:
                 if _should_prefer_textual_response(
@@ -957,9 +1020,9 @@ def process_consulta(
 
             return semantic_response
         except Exception:
-            return process_consulta_textual(pregunta, tramites)
+            return textual_response
 
-    return process_consulta_textual(pregunta, tramites)
+    return textual_response
 
 
 def _has_registered_phrase_support(pregunta: str, tramites: list[Tramite]) -> bool:
