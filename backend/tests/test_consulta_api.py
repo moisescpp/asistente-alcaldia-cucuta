@@ -5,6 +5,7 @@ import pytest
 from app.database import SessionLocal
 from app.main import app
 from app.models import ConsultaLog, Tramite
+from app.services import consulta_service
 from app.services.consulta_service import _build_no_match_suggestions
 
 
@@ -91,6 +92,38 @@ def test_consulta_returns_main_match_and_related_results(client, admin_headers, 
     assert "Tramite principal:" in data["respuesta"]
     assert "Datos registrados:" in data["respuesta"]
     assert "- Fuente oficial:" in data["respuesta"]
+
+
+def test_success_response_uses_local_intro_by_default(monkeypatch) -> None:
+    monkeypatch.setattr(consulta_service.settings, "enable_rag_intro", False)
+
+    def fail_if_called(**_kwargs):
+        raise AssertionError("La introduccion RAG no debe ejecutarse por defecto.")
+
+    monkeypatch.setattr(consulta_service, "generate_rag_response", fail_if_called)
+
+    tramite = Tramite(
+        id=101,
+        nombre="Impuesto predial unificado",
+        slug="impuesto-predial-unificado",
+        descripcion="Consulta del impuesto predial municipal.",
+        requisitos="Documento de identidad y referencia catastral.",
+        costo="Sin costo",
+        horario="Lunes a viernes",
+        dependencia="Secretaria de Hacienda - Rentas e Impuestos",
+        fuente_url="https://example.com/predial",
+        activo=True,
+    )
+
+    response = consulta_service._build_success_response(
+        pregunta="Necesito informacion sobre predial",
+        tramites=[tramite],
+        message_status="Coincidencias encontradas",
+    )
+
+    assert response.tramite_principal is not None
+    assert response.tramite_principal.nombre == "Impuesto predial unificado"
+    assert "Tramite principal: Impuesto predial unificado" in response.respuesta
 
 
 def test_consulta_returns_suggestions_when_question_is_too_short(client) -> None:

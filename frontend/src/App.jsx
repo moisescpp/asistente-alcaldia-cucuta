@@ -816,8 +816,9 @@ function App() {
       className={`min-h-screen transition-colors duration-300 ${
         isDarkTheme ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'
       }`}
+      style={{ minHeight: '100dvh' }}
     >
-      <div className="mx-auto flex min-h-screen w-full max-w-[1680px] flex-col gap-6 px-4 py-6 lg:gap-8 lg:px-8 lg:py-8 xl:px-10">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1680px] flex-col gap-6 px-4 py-6 lg:gap-8 lg:px-8 lg:py-8 xl:px-10" style={{ minHeight: '100dvh' }}>
         <a
           href="#contenido-principal"
           className="skip-link rounded-full bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-lg"

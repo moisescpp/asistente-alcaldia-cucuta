@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     response_max_output_tokens: int = 450
     response_reasoning_effort: str = "minimal"
     response_text_verbosity: str = "low"
+    enable_rag_intro: bool = False
     admin_access_pin: str = "246810"
     admin_session_secret: str = "cucuta-admin-session-secret"
     admin_session_ttl_minutes: int = 5

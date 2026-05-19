@@ -8,6 +8,7 @@ import unicodedata
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models import Tramite
 from app.schemas.consulta import ConsultaMatch, ConsultaResponse
 from app.services.embedding_service import generate_embedding, get_tramite_semantic_aliases
@@ -279,13 +280,15 @@ def _build_success_response(
         "A continuacion te comparto la informacion registrada en el sistema."
     )
 
-    try:
-        intro_text = generate_rag_response(
-            pregunta=pregunta,
-            tramites=tramites,
-        )
-    except Exception:
-        intro_text = fallback_intro
+    intro_text = fallback_intro
+    if settings.enable_rag_intro:
+        try:
+            intro_text = generate_rag_response(
+                pregunta=pregunta,
+                tramites=tramites,
+            )
+        except Exception:
+            intro_text = fallback_intro
 
     data_lines: list[str] = []
     missing_fields: list[str] = []
