@@ -944,7 +944,7 @@ function App() {
                   detailTitle="Catalogo activo"
                   detailItems={[
                     loadingTramites ? 'Estamos cargando la informacion registrada.' : `${tramites.length} tramites disponibles para orientar consultas.`,
-                    'Cada ficha puede actualizarse desde el panel administrativo.',
+                    'El catalogo se usa para orientar consultas ciudadanas con informacion verificable.',
                   ]}
                   accent="emerald"
                   isDarkTheme={isDarkTheme}
@@ -1062,8 +1062,8 @@ function App() {
               error={adminAuthError}
             />
           ) : (
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)]">
-              <section className="rounded-2xl border border-slate-200/70 bg-white/85 p-4 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
+            <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)] xl:gap-6">
+              <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/85 p-3 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Panel administrativo</p>
@@ -1129,7 +1129,7 @@ function App() {
                   ) : null}
                 </div>
 
-                <form className="mt-8 grid gap-4 md:grid-cols-2" onSubmit={handleAdminSubmit}>
+                <form className="mt-8 grid min-w-0 gap-4 md:grid-cols-2" onSubmit={handleAdminSubmit}>
                   <div className="md:col-span-2 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -1257,7 +1257,7 @@ function App() {
                       <button
                         type="button"
                         onClick={handleEnumerateRequirements}
-                        className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                        className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto sm:tracking-[0.16em]"
                       >
                         Enumerar pasos
                       </button>
@@ -1294,7 +1294,7 @@ function App() {
                       <button
                         type="button"
                         onClick={handleEnumerateNormativity}
-                        className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                        className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto sm:tracking-[0.16em]"
                       >
                         Enumerar normatividad
                       </button>
@@ -1323,7 +1323,7 @@ function App() {
                     <button
                       type="button"
                       onClick={handleUseMayorOfficeHours}
-                      className="mt-3 inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                      className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto sm:tracking-[0.16em]"
                     >
                       Usar horario Alcaldia
                     </button>
@@ -1352,7 +1352,7 @@ function App() {
                 ) : null}
               </section>
 
-              <section className="rounded-2xl border border-slate-200/70 bg-white/85 p-4 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
+              <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/85 p-3 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Inventario administrativo</p>
@@ -2874,9 +2874,9 @@ function TramitesAdminList({
     )
   }
   return (
-    <div className="grid gap-4">
+    <div className="grid min-w-0 gap-4">
         {tramites.map((tramite) => (
-          <article key={tramite.id} className={`rounded-3xl border px-5 py-5 ${editingId === tramite.id ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-slate-50'}`}>
+          <article key={tramite.id} className={`min-w-0 rounded-2xl border px-4 py-4 sm:rounded-3xl sm:px-5 sm:py-5 ${editingId === tramite.id ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-slate-50'}`}>
             {(() => {
             const qualityReport = getTramiteQualitySnapshot(tramite)
             const catalogSignal = catalogAttentionById?.get(tramite.id)
@@ -2887,11 +2887,11 @@ function TramitesAdminList({
               return (
                 <>
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <h4 className="text-lg font-semibold text-slate-900">{tramite.nombre}</h4>
-                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">ID {tramite.id}</span>
-                <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
+                <h4 className="min-w-0 break-words text-base font-semibold leading-6 text-slate-900 sm:text-lg">{tramite.nombre}</h4>
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 sm:text-xs sm:tracking-[0.18em]">ID {tramite.id}</span>
+                <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] sm:text-xs sm:tracking-[0.18em] ${
                   qualityReport.level === 'fuerte'
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                     : qualityReport.level === 'estable'
@@ -2902,16 +2902,16 @@ function TramitesAdminList({
                 }`}>
                   {humanizeQualityLevel(qualityReport.level)} - Calidad {qualityReport.score}/100
                 </span>
-                <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${scopeBadgeClassName(qualityReport.scopeStatus)}`}>
+                <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] sm:text-xs sm:tracking-[0.18em] ${scopeBadgeClassName(qualityReport.scopeStatus)}`}>
                   {humanizeScopeStatus(qualityReport.scopeStatus)}
                 </span>
                 {catalogSignal ? (
-                  <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+                  <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700 sm:text-xs sm:tracking-[0.18em]">
                     Consultas reales {catalogSignal.hits}
                   </span>
                 ) : null}
               </div>
-              <p className="text-sm text-slate-600">
+              <p className="break-words text-sm text-slate-600">
                 {getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)}
               </p>
             </div>
@@ -2931,7 +2931,7 @@ function TramitesAdminList({
               </button>
             </div>
           </div>
-          <p className="mt-4 text-sm leading-6 text-slate-600">{tramite.descripcion || 'Sin descripcion disponible.'}</p>
+          <p className="mt-4 break-words text-sm leading-6 text-slate-600">{tramite.descripcion || 'Sin descripcion disponible.'}</p>
           {qualityReport.alerts.length ? (
             <div className="mt-4 flex flex-wrap gap-2">
               {qualityReport.alerts.slice(0, 3).map((alert) => (
@@ -2942,16 +2942,16 @@ function TramitesAdminList({
             </div>
           ) : null}
           {catalogSignal ? (
-            <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+            <div className="mt-4 min-w-0 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700">
                 Observacion desde preguntas reales
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-700">
+              <p className="mt-2 break-words text-sm leading-6 text-slate-700">
                 Aparece porque una consulta ciudadana uso palabras cercanas a este tramite
                 {catalogSignal.matchedTerms?.length ? ` (${catalogSignal.matchedTerms.slice(0, 4).join(', ')})` : ''}.
                 No es un error de calidad; solo ayuda a vigilar si conviene agregar sinonimos o ejemplos de busqueda.
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
+              <p className="mt-2 break-words text-sm leading-6 text-slate-600">
                 Ejemplo: "{catalogSignal.example}"
               </p>
             </div>
@@ -3050,7 +3050,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
   ]
 
   return (
-    <section className={`rounded-2xl border border-slate-200/70 bg-white/85 p-4 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6 ${className}`}>
+    <section className={`min-w-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/85 p-3 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6 ${className}`}>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Actividad del asistente</p>
@@ -3059,13 +3059,13 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
             Esta vista nos ayuda a observar preguntas reales, detectar ambiguedades y confirmar si el sistema esta respondiendo con el tramite correcto.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           <button
             type="button"
             onClick={onRefresh}
             disabled={loading}
             title="Recarga las consultas ciudadanas registradas. Si la sesion expiro, el sistema pedira ingresar nuevamente."
-            className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {loading ? 'Actualizando...' : 'Actualizar consultas'}
           </button>
@@ -3078,7 +3078,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
               setShowAllLogs(false)
               setExpandedLogId(null)
             }}
-            className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             Ir al ultimo dia con actividad
           </button>
@@ -3269,7 +3269,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                     Consultas que conviene revisar primero
                   </h4>
                 </div>
-                <p className="text-sm text-slate-500">
+                <p className="max-w-full break-words text-sm text-slate-500">
                   Priorizamos ambiguedades, no coincidencias y repeticiones con riesgo real.
                 </p>
               </div>
@@ -3294,7 +3294,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
 
           <div className="flex flex-wrap gap-3">
             {filters.map((filter) => (
-              <button
+                <button
                 key={filter.id}
                 type="button"
                 onClick={() => {
@@ -3302,7 +3302,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                   setShowAllLogs(false)
                   setExpandedLogId(null)
                 }}
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                className={`inline-flex flex-1 items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition sm:flex-none ${
                   statusFilter === filter.id
                     ? 'border-slate-950 bg-slate-950 text-white'
                     : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
@@ -3318,8 +3318,8 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
 
           <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
             <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
-              <p>Mostrando {filteredLogs.length} consulta(s) para el filtro actual.</p>
-              <p>Despliega una tarjeta para ver la pregunta, el resumen y las opciones sugeridas.</p>
+              <p className="break-words">Mostrando {filteredLogs.length} consulta(s) para el filtro actual.</p>
+              <p className="break-words">Despliega una tarjeta para ver la pregunta, el resumen y las opciones sugeridas.</p>
             </div>
           </div>
 
@@ -3344,24 +3344,24 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                     const isExpanded = expandedLogId === log.id
                     const reviewNote = getLogReviewNote(log)
                     return (
-                      <article key={log.id} className="rounded-3xl border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#f8fafc_55%,#f1f5f9_100%)] px-5 py-5">
+                      <article key={log.id} className="min-w-0 rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#f8fafc_55%,#f1f5f9_100%)] px-4 py-4 sm:rounded-3xl sm:px-5 sm:py-5">
                         <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div className="space-y-3">
-                            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClassName}`}>
+                          <div className="min-w-0 space-y-3">
+                            <span className={`inline-flex max-w-full rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] sm:text-xs sm:tracking-[0.18em] ${statusConfig.badgeClassName}`}>
                               {log.mensaje_estado}
                             </span>
                             <div>
                               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                                 Tramite principal detectado
                               </p>
-                              <h4 className="mt-2 text-lg font-semibold leading-7 text-slate-950">
+                              <h4 className="mt-2 break-words text-base font-semibold leading-7 text-slate-950 sm:text-lg">
                                 {log.tramite_principal_nombre || 'Sin tramite principal'}
                               </h4>
                             </div>
                           </div>
 
-                          <div className="flex flex-col items-start gap-3 sm:items-end">
-                            <div className="text-right text-xs uppercase tracking-[0.18em] text-slate-500">
+                          <div className="flex w-full flex-col items-start gap-3 sm:w-auto sm:items-end">
+                            <div className="w-full text-left text-xs uppercase tracking-[0.14em] text-slate-500 sm:text-right sm:tracking-[0.18em]">
                               <p>{formatLogTime(log.created_at)}</p>
                               <p className={`mt-2 inline-flex rounded-full border px-3 py-1 ${originBadgeClassName(log.origen_respuesta)}`}>
                                 {humanizeResponseOrigin(log.origen_respuesta)}
@@ -3370,7 +3370,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                             <button
                               type="button"
                               onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                              className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                              className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 sm:w-auto"
                             >
                               {isExpanded ? 'Ocultar detalle' : 'Ver pregunta'}
                             </button>
@@ -3514,10 +3514,10 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
 
 function LogPill({ label, value, hint = '', toneClassName = '' }) {
   return (
-    <div className={`rounded-2xl border border-slate-200 bg-white px-4 py-3 ${toneClassName}`}>
+    <div className={`min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 ${toneClassName}`}>
       <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</p>
-      <p className="mt-2 text-sm font-medium leading-6 text-slate-800">{value}</p>
-      {hint ? <p className="mt-1 text-xs leading-5 text-slate-500">{hint}</p> : null}
+      <p className="mt-2 break-words text-sm font-medium leading-6 text-slate-800">{value}</p>
+      {hint ? <p className="mt-1 break-words text-xs leading-5 text-slate-500">{hint}</p> : null}
     </div>
   )
 }
@@ -4633,7 +4633,7 @@ function Field({
   error = '',
 }) {
   return (
-    <label className={`block ${className}`}>
+    <label className={`block min-w-0 ${className}`}>
       <span className="mb-2 block text-sm font-medium text-slate-700">
         {label} {required ? <span className="text-rose-500">*</span> : null}
       </span>
