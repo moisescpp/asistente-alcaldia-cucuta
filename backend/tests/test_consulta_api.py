@@ -350,7 +350,11 @@ def test_consulta_understands_house_context_phrase(client) -> None:
         ("voy a hacer un concierto con boletas", ("espect",)),
         ("me cobraron de mas y quiero devolucion", ("devolucion", "compensacion")),
         ("necesito sacar paz y salvo", ("paz", "salvo")),
+        ("paz y salbo municipal", ("paz", "salvo")),
         ("impuesto sobre iluminacion publica", ("alumbrado",)),
+        ("necesito saber sobre lo de la luz", ("alumbrado",)),
+        ("quiero actualizar el sisben por cambio de direccion", ("sisben",)),
+        ("se me perdio la tarjeta del carro", ("licencia", "transito")),
     ],
 )
 def test_consulta_handles_core_revenue_tax_catalog_intentions(
@@ -365,6 +369,38 @@ def test_consulta_handles_core_revenue_tax_catalog_intentions(
     assert data["tramite_principal"] is not None
     principal_name = normalize_assert_text(data["tramite_principal"]["nombre"])
     assert any(term in principal_name for term in expected_terms)
+
+
+def test_consulta_understands_business_closure_language(
+    client,
+    admin_headers,
+    test_slug_prefix,
+) -> None:
+    create_test_tramite(
+        client,
+        admin_headers,
+        f"{test_slug_prefix}-cancelacion-contribuyentes",
+        nombre=f"Cancelacion del registro de contribuyentes {test_slug_prefix}",
+        descripcion=(
+            "Tramite para cancelar o cerrar el registro de contribuyentes de "
+            "industria y comercio cuando cesa la actividad economica."
+        ),
+        requisitos=(
+            "Solicitud formal, documento de identidad y soporte del cierre o "
+            "cese de actividades del establecimiento."
+        ),
+    )
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "quiero cerrar mi negocio y cancelar industria y comercio"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    principal_name = normalize_assert_text(data["tramite_principal"]["nombre"])
+    assert "cancelacion" in principal_name
 
 
 def test_consulta_understands_citizen_synonym_for_car(client, admin_headers, test_slug_prefix) -> None:

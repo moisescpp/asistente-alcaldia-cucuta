@@ -1683,6 +1683,13 @@ function frontendWordCount(value) {
     .filter(Boolean).length
 }
 
+function cleanDirectedToText(value) {
+  return String(value ?? '')
+    .replace(/^\s*este\s+tr[aá]mite\s+va\s+dirigido\s+(hacia|a)\s*:?\s*/i, '')
+    .replace(/^\s*a\s+qui[eé]n\s+va\s+dirigido\s*:?\s*/i, '')
+    .trim()
+}
+
 function matchesAdminInventoryFilters(
   tramite,
   normalizedSearch,
@@ -2173,8 +2180,8 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
 
                   {activeMatch.dirigido_a ? (
                     <DetailCard
-                      label="A quien va dirigido"
-                      value={activeMatch.dirigido_a}
+                      label="Dirigido a"
+                      value={cleanDirectedToText(activeMatch.dirigido_a)}
                       tone="slate"
                     />
                   ) : null}

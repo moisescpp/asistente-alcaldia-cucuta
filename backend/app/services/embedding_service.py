@@ -520,6 +520,48 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
 
     inferred_aliases: list[str]
 
+    if "cancelacion" in searchable_text and "contribuyentes" in searchable_text:
+        inferred_aliases = [
+            "cancelar registro",
+            "cerrar registro",
+            "cerrar negocio",
+            "cierre de negocio",
+            "cese de actividades",
+            "retirar industria y comercio",
+            "cancelar industria y comercio",
+            "ya no tengo negocio",
+            "dejar de pagar industria y comercio",
+        ]
+        return _deduplicate_aliases(
+            [
+                *explicit_aliases,
+                *inferred_intent_aliases,
+                *domain_rule_aliases,
+                *inferred_aliases,
+            ]
+        )
+
+    if "sisben" in searchable_text:
+        inferred_aliases = [
+            "sisben",
+            "actualizar sisben",
+            "actualizar el sisben",
+            "cambiar datos del sisben",
+            "cambiar el sisben",
+            "cambio de direccion sisben",
+            "cambio de domicilio sisben",
+            "actualizar datos",
+            "encuesta sisben",
+        ]
+        return _deduplicate_aliases(
+            [
+                *explicit_aliases,
+                *inferred_intent_aliases,
+                *domain_rule_aliases,
+                *inferred_aliases,
+            ]
+        )
+
     if "predial" in searchable_text:
         inferred_aliases = [
             "impuesto de casa",
@@ -532,6 +574,10 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
             "propiedad",
             "inmueble",
             "terreno",
+            "catastro",
+            "ficha catastral",
+            "recibo predial",
+            "lo de la casa",
         ]
         return _deduplicate_aliases(
             [
@@ -594,13 +640,168 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
     if "devolucion" in searchable_text or "compensacion" in searchable_text:
         inferred_aliases = [
             "devolver dinero",
+            "devolver plata",
             "reintegro",
             "reembolso",
             "pago en exceso",
             "pago por error",
+            "pague de mas",
+            "me cobraron de mas",
+            "saldo a favor",
             "compensar saldo",
             "devolucion de pago",
             "recuperar dinero pagado",
+        ]
+        return _deduplicate_aliases(
+            [
+                *explicit_aliases,
+                *inferred_intent_aliases,
+                *domain_rule_aliases,
+                *inferred_aliases,
+            ]
+        )
+
+    if (
+        "registro" in searchable_text
+        and "contribuyentes" in searchable_text
+        and "modificacion" not in searchable_text
+        and "cancelacion" not in searchable_text
+    ):
+        inferred_aliases = [
+            "registrar negocio",
+            "abrir negocio",
+            "inscribir negocio",
+            "inscribir industria y comercio",
+            "registro de negocio",
+            "registro de comercio",
+            "registro ica",
+            "matricula de negocio",
+            "nuevo negocio",
+        ]
+        return _deduplicate_aliases(
+            [
+                *explicit_aliases,
+                *inferred_intent_aliases,
+                *domain_rule_aliases,
+                *inferred_aliases,
+            ]
+        )
+
+    if "modificacion" in searchable_text and "contribuyentes" in searchable_text:
+        inferred_aliases = [
+            "modificar registro",
+            "actualizar registro",
+            "cambiar datos",
+            "actualizar datos del negocio",
+            "cambio de direccion",
+            "cambio de propietario",
+            "cambio de actividad",
+            "modificar industria y comercio",
+        ]
+        return _deduplicate_aliases(
+            [
+                *explicit_aliases,
+                *inferred_intent_aliases,
+                *domain_rule_aliases,
+                *inferred_aliases,
+            ]
+        )
+
+    if "industria" in searchable_text and "comercio" in searchable_text:
+        inferred_aliases = [
+            "negocio",
+            "comercio",
+            "empresa",
+            "establecimiento",
+            "abrir negocio",
+            "registrar negocio",
+            "inscribir negocio",
+            "registro ica",
+            "matricula de negocio",
+            "registro de negocio",
+            "registro de comercio",
+        ]
+        return _deduplicate_aliases(
+            [
+                *explicit_aliases,
+                *inferred_intent_aliases,
+                *domain_rule_aliases,
+                *inferred_aliases,
+            ]
+        )
+
+    if "espectaculos" in searchable_text:
+        inferred_aliases = [
+            "concierto",
+            "evento",
+            "evento publico",
+            "evento masivo",
+            "fiesta",
+            "baile",
+            "orquesta",
+            "presentacion musical",
+            "show",
+            "boletas",
+            "boleteria",
+            "hacer un evento",
+            "evento con entrada",
+        ]
+        return _deduplicate_aliases(
+            [
+                *explicit_aliases,
+                *inferred_intent_aliases,
+                *domain_rule_aliases,
+                *inferred_aliases,
+            ]
+        )
+
+    if "alumbrado" in searchable_text:
+        inferred_aliases = [
+            "alumbrado publico",
+            "servicio de alumbrado",
+            "impuesto de alumbrado",
+            "iluminacion publica",
+            "luz publica",
+            "recibo de luz",
+            "servicio de la luz",
+            "lo de la luz",
+        ]
+        return _deduplicate_aliases(
+            [
+                *explicit_aliases,
+                *inferred_intent_aliases,
+                *domain_rule_aliases,
+                *inferred_aliases,
+            ]
+        )
+
+    if "paz" in searchable_text and "salvo" in searchable_text:
+        inferred_aliases = [
+            "paz y salvo",
+            "certificado paz y salvo",
+            "estar al dia",
+            "certificado de impuestos",
+            "paz y salbo",
+            "certificado de deuda",
+            "debo impuestos",
+            "sacar paz y salvo",
+        ]
+        return _deduplicate_aliases(
+            [
+                *explicit_aliases,
+                *inferred_intent_aliases,
+                *domain_rule_aliases,
+                *inferred_aliases,
+            ]
+        )
+
+    if "licencia" in searchable_text and "transito" in searchable_text:
+        inferred_aliases = [
+            "duplicado licencia",
+            "duplicado de licencia de transito",
+            "tarjeta de propiedad",
+            "se me perdio la licencia",
+            "copia licencia de transito",
         ]
         return _deduplicate_aliases(
             [

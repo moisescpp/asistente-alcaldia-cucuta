@@ -472,6 +472,11 @@ def _text_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, int, boo
 def _identifier_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, bool]:
     normalized_question = _normalize_text(pregunta)
     specific_tokens = _query_specific_tokens(pregunta)
+    normalized_aliases = [
+        _normalize_text(alias)
+        for alias in _high_confidence_aliases(tramite)
+        if len(_normalize_text(alias).split()) >= 2
+    ]
 
     identifier_text = " ".join(
         [
@@ -483,7 +488,10 @@ def _identifier_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, bo
     identifier_words = set(_tokenize_text(identifier_text))
 
     specific_matches = _count_token_matches(specific_tokens, identifier_words)
-    phrase_match = len(normalized_question) >= 5 and normalized_question in identifier_text
+    phrase_match = len(normalized_question) >= 5 and (
+        normalized_question in identifier_text
+        or any(alias in normalized_question for alias in normalized_aliases)
+    )
 
     return specific_matches, phrase_match
 
@@ -493,6 +501,32 @@ def _high_confidence_aliases(tramite: Tramite) -> list[str]:
         " ".join([tramite.nombre or "", tramite.slug or ""]),
     )
 
+    if "cancelacion" in searchable_text and "contribuyentes" in searchable_text:
+        return [
+            "cancelar registro",
+            "cerrar registro",
+            "cerrar negocio",
+            "cierre de negocio",
+            "cese de actividades",
+            "retirar industria y comercio",
+            "cancelar industria y comercio",
+            "ya no tengo negocio",
+            "dejar de pagar industria y comercio",
+        ]
+
+    if "sisben" in searchable_text:
+        return [
+            "sisben",
+            "actualizar sisben",
+            "actualizar el sisben",
+            "cambiar datos del sisben",
+            "cambiar el sisben",
+            "cambio de direccion sisben",
+            "cambio de domicilio sisben",
+            "actualizar datos",
+            "encuesta sisben",
+        ]
+
     if "predial" in searchable_text:
         return [
             "casa",
@@ -500,9 +534,31 @@ def _high_confidence_aliases(tramite: Tramite) -> list[str]:
             "predio",
             "inmueble",
             "terreno",
+            "catastro",
+            "ficha catastral",
+            "recibo predial",
+            "lo de la casa",
             "impuesto de casa",
             "impuesto de vivienda",
             "impuesto de predio",
+        ]
+
+    if (
+        "registro" in searchable_text
+        and "contribuyentes" in searchable_text
+        and "modificacion" not in searchable_text
+        and "cancelacion" not in searchable_text
+    ):
+        return [
+            "registrar negocio",
+            "abrir negocio",
+            "inscribir negocio",
+            "inscribir industria y comercio",
+            "registro de negocio",
+            "registro de comercio",
+            "registro ica",
+            "matricula de negocio",
+            "nuevo negocio",
         ]
 
     if "modificacion" in searchable_text and "contribuyentes" in searchable_text:
@@ -511,6 +567,9 @@ def _high_confidence_aliases(tramite: Tramite) -> list[str]:
             "actualizar registro",
             "cambiar datos",
             "actualizar datos del negocio",
+            "cambio de direccion",
+            "cambio de propietario",
+            "cambio de actividad",
             "modificar industria y comercio",
         ]
 
@@ -520,6 +579,11 @@ def _high_confidence_aliases(tramite: Tramite) -> list[str]:
             "comercio",
             "empresa",
             "establecimiento",
+            "abrir negocio",
+            "registrar negocio",
+            "inscribir negocio",
+            "registro ica",
+            "matricula de negocio",
             "registro de negocio",
             "registro de comercio",
         ]
@@ -534,6 +598,11 @@ def _high_confidence_aliases(tramite: Tramite) -> list[str]:
             "baile",
             "orquesta",
             "presentacion musical",
+            "show",
+            "boletas",
+            "boleteria",
+            "hacer un evento",
+            "evento con entrada",
         ]
 
     if "alumbrado" in searchable_text:
@@ -542,14 +611,23 @@ def _high_confidence_aliases(tramite: Tramite) -> list[str]:
             "servicio de alumbrado",
             "impuesto de alumbrado",
             "iluminacion publica",
+            "luz publica",
+            "recibo de luz",
+            "servicio de la luz",
+            "lo de la luz",
         ]
 
     if "devolucion" in searchable_text or "compensacion" in searchable_text:
         return [
             "devolver dinero",
+            "devolver plata",
             "reembolso",
+            "reintegro",
             "pago en exceso",
             "pago por error",
+            "pague de mas",
+            "me cobraron de mas",
+            "saldo a favor",
             "compensar saldo",
             "devolucion de pago",
         ]
@@ -560,6 +638,21 @@ def _high_confidence_aliases(tramite: Tramite) -> list[str]:
             "certificado paz y salvo",
             "estar al dia",
             "certificado de impuestos",
+            "paz y salbo",
+            "certificado de deuda",
+            "debo impuestos",
+            "sacar paz y salvo",
+        ]
+
+    if "licencia" in searchable_text and "transito" in searchable_text:
+        return [
+            "duplicado licencia",
+            "duplicado de licencia de transito",
+            "tarjeta de propiedad",
+            "se me perdio la licencia",
+            "se me perdio la tarjeta del carro",
+            "papeles del carro",
+            "copia licencia de transito",
         ]
 
     return []
@@ -872,7 +965,7 @@ def process_consulta_textual(
     tokens = _query_tokens(pregunta)
     generic_phrase_allowed = len(tokens) >= 2
     specific_tokens = _query_specific_tokens(pregunta)
-    scored_tramites: list[tuple[Tramite, int, int, int, bool]] = []
+    scored_tramites: list[tuple[Tramite, int, int, int, int, bool]] = []
 
     for tramite in tramites:
         if not tramite.activo:
@@ -908,26 +1001,35 @@ def process_consulta_textual(
                 (
                     tramite,
                     identifier_rank,
-                    total_matches,
+                    identifier_specific_matches,
                     max(specific_matches, identifier_specific_matches),
+                    total_matches,
                     phrase_match or identifier_phrase_match,
                 )
             )
 
-    matched_tramites = [tramite for tramite, _, _, _, _ in scored_tramites]
+    matched_tramites = [tramite for tramite, _, _, _, _, _ in scored_tramites]
     matched_tramites.sort(
         key=lambda candidate: next(
             (
                 (
                     identifier_rank,
+                    identifier_specific_matches,
                     specific_matches,
                     total_matches,
                     1 if phrase_match else 0,
                 )
-                for tramite, identifier_rank, total_matches, specific_matches, phrase_match in scored_tramites
+                for (
+                    tramite,
+                    identifier_rank,
+                    identifier_specific_matches,
+                    specific_matches,
+                    total_matches,
+                    phrase_match,
+                ) in scored_tramites
                 if tramite.id == candidate.id
             ),
-            (0, 0, 0, 0),
+            (0, 0, 0, 0, 0),
         ),
         reverse=True,
     )
@@ -1031,6 +1133,9 @@ def _has_registered_phrase_support(pregunta: str, tramites: list[Tramite]) -> bo
         return False
 
     return any(
-        tramite.activo and _text_match_metadata(pregunta, tramite)[2]
+        tramite.activo and (
+            _text_match_metadata(pregunta, tramite)[2]
+            or _identifier_match_metadata(pregunta, tramite)[1]
+        )
         for tramite in tramites
     )
