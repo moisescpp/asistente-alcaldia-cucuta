@@ -910,7 +910,7 @@ function App() {
                     ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
                     : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                 }`}>
-                  Asistente de tramites y servicios
+                  Asistente de trámites y servicios
                 </span>
               </div>
 
@@ -926,10 +926,10 @@ function App() {
                 </div>
                 <div className="space-y-3">
                   <h1 className={`max-w-4xl text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>
-                    Asistente Institucional de Tramites
+                    Asistente Institucional de Trámites
                   </h1>
                   <p className={`max-w-3xl text-sm leading-relaxed sm:text-base ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Consulta informacion institucional sobre tramites y servicios de forma clara y verificable.
+                    Consulta información institucional clara y verificable.
                   </p>
                 </div>
               </div>
@@ -939,12 +939,12 @@ function App() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <HeaderFeatureCard
                   icon="catalog"
-                  title="Catalogo disponible"
-                  body={loadingTramites ? 'Cargando tramites actualizados.' : `${tramites.length} tramites activos para consulta.`}
-                  detailTitle="Catalogo activo"
+                  title="Catálogo disponible"
+                  body={loadingTramites ? 'Cargando trámites.' : `${tramites.length} trámites disponibles.`}
+                  detailTitle="Catálogo activo"
                   detailItems={[
-                    loadingTramites ? 'Estamos cargando la informacion registrada.' : `${tramites.length} tramites disponibles para orientar consultas.`,
-                    'El catalogo se usa para orientar consultas ciudadanas con informacion verificable.',
+                    loadingTramites ? 'Estamos cargando la información registrada.' : `${tramites.length} trámites disponibles para consulta.`,
+                    'Información registrada para orientar al ciudadano.',
                   ]}
                   accent="emerald"
                   isDarkTheme={isDarkTheme}
@@ -956,20 +956,20 @@ function App() {
                   detailTitle="Como funciona"
                   detailItems={[
                     'Escribes tu consulta en lenguaje natural.',
-                    'El asistente busca coincidencias en el catalogo registrado.',
-                    'Recibes la ficha del tramite con descripcion, pasos y fuente de validacion.',
+                    'El asistente busca coincidencias en el catálogo registrado.',
+                    'Recibes la ficha del trámite con descripción, pasos y fuente de validación.',
                   ]}
                   accent="blue"
                   isDarkTheme={isDarkTheme}
                 />
                 <HeaderFeatureCard
                   icon="official"
-                  title="Informacion oficial"
+                  title="Información oficial"
                   body="Datos contrastados con la fuente institucional registrada."
                   detailTitle="Origen de la informacion"
                   detailItems={[
-                    'La informacion proviene del catalogo administrado en el sistema.',
-                    'Cada tramite conserva una fuente oficial para validar requisitos.',
+                    'La información proviene del catálogo registrado.',
+                    'Cada trámite conserva una fuente oficial para validar requisitos.',
                   ]}
                   accent="amber"
                   isDarkTheme={isDarkTheme}
@@ -989,9 +989,9 @@ function App() {
                   <div className="mb-6 flex items-center justify-between gap-4">
                     <div>
                       <p className={`text-sm font-semibold uppercase tracking-[0.2em] ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>Consulta del asistente</p>
-                      <h2 className={`mt-2 text-xl font-bold sm:text-2xl ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>Pregunta por un tramite</h2>
+                      <h2 className={`mt-2 text-xl font-bold sm:text-2xl ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>Pregunta por un trámite</h2>
                       <p className={`mt-2 max-w-2xl text-sm leading-6 ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>
-                        El asistente usa el catalogo administrado. Si tu pregunta es amplia, te mostrara rutas para elegir sin inventar una respuesta.
+                        Escribe tu consulta y el sistema te guiará al trámite más cercano.
                       </p>
                     </div>
                   </div>
@@ -1584,7 +1584,7 @@ function App() {
                 tramites={tramites}
                 loading={loadingConsultaLogs || (!hasLoadedConsultaLogs && !consultaLogsError)}
                 error={consultaLogsError}
-                onRefresh={refreshConsultaLogs}
+                onRefresh={() => refreshConsultaLogs()}
                 className="xl:col-span-2"
               />
             </div>

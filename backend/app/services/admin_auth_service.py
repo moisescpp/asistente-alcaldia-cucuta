@@ -136,7 +136,7 @@ def ensure_admin_session_is_active(db: Session, claims: AdminSessionClaims) -> N
     if not claims.jti:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="La sesion administrativa fue cerrada porque se inicio en otro dispositivo.",
+            detail="La sesión administrativa fue cerrada porque se inició en otro dispositivo.",
         )
 
     _ensure_admin_session_state_table(db)
@@ -151,7 +151,7 @@ def ensure_admin_session_is_active(db: Session, claims: AdminSessionClaims) -> N
     if active_session_id != claims.jti:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="La sesion administrativa fue cerrada porque se inicio en otro dispositivo.",
+            detail="La sesión administrativa fue cerrada porque se inició en otro dispositivo.",
         )
 
 
@@ -161,14 +161,14 @@ def _decode_legacy_admin_session_token(token: str) -> AdminSessionClaims:
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesion administrativa invalida.",
+            detail="Sesión administrativa inválida.",
         ) from exc
 
     expected_signature = _build_signature(payload_segment)
     if not hmac.compare_digest(signature, expected_signature):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesion administrativa invalida.",
+            detail="Sesión administrativa inválida.",
         )
 
     try:
@@ -176,7 +176,7 @@ def _decode_legacy_admin_session_token(token: str) -> AdminSessionClaims:
     except (ValueError, json.JSONDecodeError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesion administrativa invalida.",
+            detail="Sesión administrativa inválida.",
         ) from exc
 
     return AdminSessionClaims(
@@ -198,7 +198,7 @@ def decode_admin_session_token(token: str) -> AdminSessionClaims:
         if not hmac.compare_digest(signature, expected_signature):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Sesion administrativa invalida.",
+                detail="Sesión administrativa inválida.",
             )
 
         try:
@@ -207,13 +207,13 @@ def decode_admin_session_token(token: str) -> AdminSessionClaims:
         except (ValueError, json.JSONDecodeError) as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Sesion administrativa invalida.",
+                detail="Sesión administrativa inválida.",
             ) from exc
 
         if str(header.get("alg") or "") != "HS256" or str(header.get("typ") or "") != "JWT":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Sesion administrativa invalida.",
+                detail="Sesión administrativa inválida.",
             )
 
         claims = AdminSessionClaims(
@@ -226,7 +226,7 @@ def decode_admin_session_token(token: str) -> AdminSessionClaims:
     else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesion administrativa invalida.",
+            detail="Sesión administrativa inválida.",
         )
 
     if claims.scope != "admin":
