@@ -709,17 +709,9 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
 
     if "industria" in searchable_text and "comercio" in searchable_text:
         inferred_aliases = [
-            "negocio",
-            "comercio",
-            "empresa",
-            "establecimiento",
-            "abrir negocio",
-            "registrar negocio",
-            "inscribir negocio",
-            "registro ica",
-            "matricula de negocio",
-            "registro de negocio",
-            "registro de comercio",
+            "industria y comercio",
+            "impuesto de industria y comercio",
+            "declaracion de industria y comercio",
         ]
         return _deduplicate_aliases(
             [

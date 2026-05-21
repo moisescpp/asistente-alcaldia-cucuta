@@ -677,6 +677,78 @@ def test_consulta_prioritizes_modificacion_for_change_language_in_industria_y_co
     assert "modificacion" in data["tramite_principal"]["nombre"].lower()
 
 
+def test_consulta_prioritizes_common_citizen_intents_over_related_industria_records(
+    client,
+    admin_headers,
+    test_slug_prefix,
+) -> None:
+    create_test_tramite(
+        client,
+        admin_headers,
+        f"{test_slug_prefix}-registro-comercio",
+        nombre=f"Registro de contribuyentes del impuesto de industria y comercio {test_slug_prefix}",
+        descripcion="Inscripcion inicial de personas naturales o juridicas que abren negocio o actividad comercial.",
+    )
+    create_test_tramite(
+        client,
+        admin_headers,
+        f"{test_slug_prefix}-cancelacion-comercio",
+        nombre=f"Cancelacion del registro de contribuyentes del impuesto de industria y comercio {test_slug_prefix}",
+        descripcion=(
+            "Cancelacion o cese de actividades para contribuyentes que cerraron su negocio "
+            "y necesitan retirar el registro de industria y comercio ante la entidad."
+        ),
+    )
+    create_test_tramite(
+        client,
+        admin_headers,
+        f"{test_slug_prefix}-correccion-comercio",
+        nombre=f"Correccion de año y/o periodo gravable en declaraciones de industria y comercio {test_slug_prefix}",
+        descripcion=(
+            "Correccion de errores e inconsistencias en declaraciones de industria y comercio "
+            "cuando el contribuyente necesita ajustar el año o periodo gravable reportado."
+        ),
+    )
+    create_test_tramite(
+        client,
+        admin_headers,
+        f"{test_slug_prefix}-paz-salvo",
+        nombre=f"Generacion de Paz y Salvo {test_slug_prefix}",
+        descripcion="Certificado para consultar si el contribuyente esta al dia con sus obligaciones tributarias.",
+    )
+    create_test_tramite(
+        client,
+        admin_headers,
+        f"{test_slug_prefix}-espectaculos",
+        nombre=f"Impuesto sobre Espectaculos Publicos {test_slug_prefix}",
+        descripcion=(
+            "Impuesto aplicable a eventos, conciertos, actividades con publico, "
+            "fiestas con entrada, espectaculos publicos y venta de boleteria."
+        ),
+    )
+
+    cases = [
+        ("Voy a abrir un negocio.", "registro"),
+        ("Quiero sacar el registro ICA.", "registro"),
+        ("¿Dónde inscribo mi actividad comercial?", "registro"),
+        ("Necesito registrar mi comercio.", "registro"),
+        ("Quiero legalizar mi negocio ante rentas.", "registro"),
+        ("Quiero informacion para una actividad con publico", "espectaculos"),
+        ("Quiero saber si tengo deudas con la Alcaldía", "paz y salvo"),
+        ("Necesito el certificado para vender una casa.", "paz y salvo"),
+        ("Quiero cerrar mi negocio.", "cancelacion"),
+        ("Tengo un error en la declaracion de industria y comercio.", "correccion"),
+    ]
+
+    for pregunta, expected_name in cases:
+        response = client.post("/api/consulta", json={"pregunta": pregunta})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["tramite_principal"] is not None, pregunta
+        assert expected_name in normalize_assert_text(data["tramite_principal"]["nombre"]), pregunta
+
+
 def test_consulta_matches_espectaculos_publicos_for_concert_language(
     client,
     admin_headers,

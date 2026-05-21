@@ -56,6 +56,19 @@ Resultado esperado: cuando la intención sea clara, el sistema debe mostrar el t
 9. Quiero cambiar datos de mi comercio.
 10. Necesito reportar cambios en industria y comercio.
 
+## Corrección de año y/o período gravable en declaraciones de industria y comercio
+
+1. Me equivoqué en la declaración de industria y comercio.
+2. Necesito corregir el año gravable.
+3. Tengo un error en el período declarado.
+4. Quiero corregir una declaración de industria y comercio.
+5. Registré mal el período del impuesto.
+6. Necesito arreglar una inconsistencia en la declaración.
+7. ¿Dónde corrijo una declaración tributaria?
+8. Me quedó mal el año de la declaración.
+9. Quiero ajustar el período gravable.
+10. Necesito corregir datos de una declaración ya presentada.
+
 ## Cancelación del registro de contribuyentes del impuesto de industria y comercio
 
 1. Quiero cerrar mi negocio.

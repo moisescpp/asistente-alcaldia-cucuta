@@ -575,17 +575,9 @@ def _high_confidence_aliases(tramite: Tramite) -> list[str]:
 
     if "industria" in searchable_text and "comercio" in searchable_text:
         return [
-            "negocio",
-            "comercio",
-            "empresa",
-            "establecimiento",
-            "abrir negocio",
-            "registrar negocio",
-            "inscribir negocio",
-            "registro ica",
-            "matricula de negocio",
-            "registro de negocio",
-            "registro de comercio",
+            "industria y comercio",
+            "impuesto de industria y comercio",
+            "declaracion de industria y comercio",
         ]
 
     if "espectaculos" in searchable_text:
@@ -656,6 +648,193 @@ def _high_confidence_aliases(tramite: Tramite) -> list[str]:
         ]
 
     return []
+
+
+def _contains_any_phrase(normalized_question: str, phrases: list[str]) -> bool:
+    return any(_normalize_text(phrase) in normalized_question for phrase in phrases)
+
+
+def _find_active_tramite_by_name(
+    tramites: list[Tramite],
+    *,
+    required_terms: list[str],
+    excluded_terms: list[str] | None = None,
+) -> Tramite | None:
+    excluded_terms = excluded_terms or []
+
+    for tramite in tramites:
+        if not tramite.activo:
+            continue
+
+        searchable_text = _normalize_text(" ".join([tramite.nombre or "", tramite.slug or ""]))
+        if all(term in searchable_text for term in required_terms) and not any(
+            term in searchable_text for term in excluded_terms
+        ):
+            return tramite
+
+    return None
+
+
+def _build_direct_intent_response(
+    pregunta: str,
+    principal: Tramite,
+    tramites: list[Tramite],
+) -> ConsultaResponse:
+    related = [
+        tramite
+        for tramite in tramites
+        if tramite.activo and tramite.id != principal.id
+    ]
+    return _build_success_response(
+        pregunta=pregunta,
+        tramites=[principal, *related[: SEMANTIC_RESULT_LIMIT - 1]],
+        message_status="Coincidencias encontradas",
+    )
+
+
+def _detect_direct_citizen_intent(
+    pregunta: str,
+    tramites: list[Tramite],
+) -> ConsultaResponse | None:
+    normalized_question = _normalize_text(pregunta)
+
+    intent_rules = [
+        (
+            [
+                "cerrar negocio",
+                "cierre de negocio",
+                "cancelar industria y comercio",
+                "cancelar registro",
+                "cese de actividades",
+                "dar de baja",
+                "ya no tengo negocio",
+                "retirar industria y comercio",
+            ],
+            {
+                "required_terms": ["cancelacion", "registro", "contribuyentes"],
+            },
+        ),
+        (
+            [
+                "corregir declaracion",
+                "correccion de declaracion",
+                "correccion de año",
+                "periodo gravable",
+                "error en declaracion",
+                "errores en declaracion",
+                "inconsistencia en declaracion",
+                "declaracion de industria y comercio",
+            ],
+            {
+                "required_terms": ["correccion", "industria", "comercio"],
+            },
+        ),
+        (
+            [
+                "abrir negocio",
+                "abrir un negocio",
+                "registrar negocio",
+                "registrar mi negocio",
+                "registrar comercio",
+                "registrar mi comercio",
+                "inscribir negocio",
+                "inscribir mi negocio",
+                "inscribir industria y comercio",
+                "inscribir actividad comercial",
+                "inscribo mi actividad comercial",
+                "registro ica",
+                "sacar registro ica",
+                "matricula de negocio",
+                "legalizar mi negocio",
+                "abrir local",
+                "registrarme como contribuyente",
+            ],
+            {
+                "required_terms": ["registro", "contribuyentes"],
+                "excluded_terms": ["cancelacion", "modificacion", "correccion"],
+            },
+        ),
+        (
+            [
+                "sisben",
+                "actualizar sisben",
+                "actualizar el sisben",
+                "cambiar datos del sisben",
+                "cambio de direccion sisben",
+                "cambio de domicilio sisben",
+                "encuesta sisben",
+            ],
+            {
+                "required_terms": ["sisben"],
+            },
+        ),
+        (
+            [
+                "cambiar datos",
+                "cambio de direccion",
+                "actualizar datos del negocio",
+                "actualizar industria y comercio",
+                "modificar industria y comercio",
+                "cambio de actividad",
+                "cambiar actividad",
+            ],
+            {
+                "required_terms": ["modificacion", "registro", "contribuyentes"],
+            },
+        ),
+        (
+            [
+                "actividad con publico",
+                "actividad con público",
+                "evento con publico",
+                "evento publico",
+                "espectaculo publico",
+                "espectaculos publicos",
+                "concierto",
+                "boletas",
+                "boleteria",
+                "fiesta con entrada",
+                "orquesta",
+                "show",
+                "presentacion musical",
+            ],
+            {
+                "required_terms": ["espectaculos"],
+            },
+        ),
+        (
+            [
+                "deudas con la alcaldia",
+                "deuda con la alcaldia",
+                "si tengo deudas",
+                "saber si tengo deudas",
+                "estoy al dia",
+                "no debo impuestos",
+                "certificado de deuda",
+                "certificado de impuestos",
+                "certificado para vender casa",
+                "certificado para vender una casa",
+                "vender casa",
+                "vender una casa",
+                "constancia de no deuda",
+                "paz y salvo",
+                "paz y salbo",
+            ],
+            {
+                "required_terms": ["paz", "salvo"],
+            },
+        ),
+    ]
+
+    for phrases, target in intent_rules:
+        if not _contains_any_phrase(normalized_question, phrases):
+            continue
+
+        principal = _find_active_tramite_by_name(tramites, **target)
+        if principal is not None:
+            return _build_direct_intent_response(pregunta, principal, tramites)
+
+    return None
 
 
 def _query_specific_tokens(pregunta: str) -> list[str]:
@@ -1085,6 +1264,10 @@ def process_consulta(
     pregunta: str,
     tramites: list[Tramite],
 ) -> ConsultaResponse:
+    direct_intent_response = _detect_direct_citizen_intent(pregunta, tramites)
+    if direct_intent_response is not None:
+        return direct_intent_response
+
     if _is_overly_generic_query(pregunta) and not _has_registered_phrase_support(
         pregunta,
         tramites,
