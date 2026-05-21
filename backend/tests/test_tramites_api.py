@@ -312,6 +312,42 @@ def test_admin_can_reactivate_inactive_tramite(client, admin_headers, test_slug_
     assert created["id"] in listed_ids
 
 
+def test_admin_can_permanently_delete_inactive_tramite(client, admin_headers, test_slug_prefix) -> None:
+    create_payload = build_payload(f"{test_slug_prefix}-permanent-delete")
+    created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()
+    client.delete(f"/api/admin/tramites/{created['id']}", headers=admin_headers)
+
+    delete_response = client.delete(
+        f"/api/admin/tramites/{created['id']}/permanente",
+        headers=admin_headers,
+    )
+
+    assert delete_response.status_code == 204
+
+    inactive_response = client.get("/api/admin/tramites/desactivados", headers=admin_headers)
+    inactive_ids = [tramite["id"] for tramite in inactive_response.json()]
+    assert created["id"] not in inactive_ids
+
+    detail_response = client.get(f"/api/tramites/{created['id']}")
+    assert detail_response.status_code == 404
+
+
+def test_admin_cannot_permanently_delete_active_tramite(client, admin_headers, test_slug_prefix) -> None:
+    create_payload = build_payload(f"{test_slug_prefix}-blocked-permanent-delete")
+    created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()
+
+    delete_response = client.delete(
+        f"/api/admin/tramites/{created['id']}/permanente",
+        headers=admin_headers,
+    )
+
+    assert delete_response.status_code == 409
+
+    public_list_response = client.get("/api/tramites")
+    listed_ids = [tramite["id"] for tramite in public_list_response.json()]
+    assert created["id"] in listed_ids
+
+
 def test_create_tramite_reactivates_existing_inactive_record(client, admin_headers, test_slug_prefix) -> None:
     slug = f"{test_slug_prefix}-reactivate"
     create_payload = build_payload(slug, nombre=f"Test tramite reactivate {slug}")

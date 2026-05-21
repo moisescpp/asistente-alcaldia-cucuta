@@ -423,6 +423,44 @@ def delete_tramite(
     return _serialize_tramite(tramite)
 
 
+@router.delete(
+    "/admin/tramites/{tramite_id}/permanente",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["admin-tramites"],
+)
+def permanently_delete_inactive_tramite(
+    tramite_id: int,
+    db: DbSession,
+    _: AdminSession,
+) -> None:
+    try:
+        tramite = db.get(Tramite, tramite_id)
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="No fue posible consultar la base de datos.",
+        ) from exc
+
+    if tramite is None:
+        raise HTTPException(status_code=404, detail="Tramite no encontrado.")
+
+    if tramite.activo:
+        raise HTTPException(
+            status_code=409,
+            detail="Primero desactiva el trámite antes de eliminarlo definitivamente.",
+        )
+
+    try:
+        db.delete(tramite)
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="No fue posible eliminar definitivamente el trámite.",
+        ) from exc
+
+
 @router.post(
     "/admin/tramites/{tramite_id}/reactivar",
     response_model=TramiteRead,

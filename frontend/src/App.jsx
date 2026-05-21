@@ -96,6 +96,7 @@ function App() {
   const [isSaving, setIsSaving] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [reactivatingId, setReactivatingId] = useState(null)
+  const [permanentlyDeletingId, setPermanentlyDeletingId] = useState(null)
   const [adminFieldErrors, setAdminFieldErrors] = useState(EMPTY_ADMIN_ERRORS)
   const [slugTouched, setSlugTouched] = useState(storedAdminWorkspace.slugTouched)
   const [adminSearch, setAdminSearch] = useState(storedAdminWorkspace.adminSearch)
@@ -808,6 +809,37 @@ function App() {
       setAdminError(error instanceof Error ? error.message : 'Ocurrio un error al reactivar el tramite.')
     } finally {
       setReactivatingId(null)
+    }
+  }
+
+  async function handlePermanentDelete(tramite) {
+    const confirmed = window.confirm(
+      `Vas a eliminar definitivamente "${tramite.nombre}". Esta acción no se puede deshacer. ¿Deseas continuar?`,
+    )
+
+    if (!confirmed) return
+
+    setPermanentlyDeletingId(tramite.id)
+    setAdminError('')
+    setAdminMessage('')
+    try {
+      const response = await fetchAdmin(`${API_URL}/admin/tramites/${tramite.id}/permanente`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) {
+        const detail = await resolveAdminUnauthorizedMessage(
+          response,
+          'No fue posible eliminar definitivamente el trámite.',
+        )
+        throw new Error(detail)
+      }
+      await Promise.all([refreshTramites(), refreshInactiveTramites()])
+      if (editingId === tramite.id) handleResetForm()
+      setAdminMessage(`Trámite "${tramite.nombre}" eliminado definitivamente.`)
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Ocurrió un error al eliminar el trámite.')
+    } finally {
+      setPermanentlyDeletingId(null)
     }
   }
 
@@ -1572,6 +1604,10 @@ function App() {
                     onSecondaryAction={handleReactivate}
                     secondaryActionLabel="Reactivar"
                     secondaryActionBusyLabel="Reactivando..."
+                    dangerActionBusyId={permanentlyDeletingId}
+                    onDangerAction={handlePermanentDelete}
+                    dangerActionLabel="Eliminar"
+                    dangerActionBusyLabel="Eliminando..."
                     hasActiveFilters={hasActiveAdminFilters}
                     emptyTitle="No hay tramites desactivados registrados."
                     emptyDescription="Cuando desactives un tramite, aparecera aqui para que puedas editarlo con calma o devolverlo al catalogo activo."
@@ -1685,9 +1721,31 @@ function frontendWordCount(value) {
 
 function cleanDirectedToText(value) {
   return String(value ?? '')
+    .replace(/^\s*este\s+tr[aá]mite\s+va\s+dirigido\s+(hacia|a)\s+los\s*:?\s*/i, 'Los ')
     .replace(/^\s*este\s+tr[aá]mite\s+va\s+dirigido\s+(hacia|a)\s*:?\s*/i, '')
     .replace(/^\s*a\s+qui[eé]n\s+va\s+dirigido\s*:?\s*/i, '')
     .trim()
+}
+
+function sentenceCaseFirst(value) {
+  const text = String(value ?? '').trim()
+  if (!text) return ''
+  return `${text.charAt(0).toLowerCase()}${text.slice(1)}`
+}
+
+function formatDirectedToSentence(value) {
+  const cleaned = cleanDirectedToText(value)
+    .replace(/\s+/g, ' ')
+    .replace(/\.+$/, '')
+    .trim()
+
+  if (!cleaned) return ''
+
+  if (/^a\s+(los|las|el|la|personas|ciudadanos|contribuyentes)\b/i.test(cleaned)) {
+    return `Este trámite va dirigido ${sentenceCaseFirst(cleaned)}.`
+  }
+
+  return `Este trámite va dirigido a ${sentenceCaseFirst(cleaned)}.`
 }
 
 function matchesAdminInventoryFilters(
@@ -2180,8 +2238,8 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
 
                   {activeMatch.dirigido_a ? (
                     <DetailCard
-                      label="Dirigido a"
-                      value={cleanDirectedToText(activeMatch.dirigido_a)}
+                      label="Público objetivo"
+                      value={formatDirectedToSentence(activeMatch.dirigido_a)}
                       tone="slate"
                     />
                   ) : null}
@@ -2820,9 +2878,9 @@ function TramitesPanel({ tramites, loadingTramites, tramitesError }) {
 
 function buildCatalogPreview(tramite) {
   const source =
-    tramite.dirigido_a ||
-    tramite.tiempo_estimado ||
     tramite.descripcion ||
+    tramite.tiempo_estimado ||
+    (tramite.dirigido_a ? formatDirectedToSentence(tramite.dirigido_a) : '') ||
     tramite.pasos ||
     tramite.requisitos ||
     ''
@@ -2854,6 +2912,10 @@ function TramitesAdminList({
   onSecondaryAction,
   secondaryActionLabel,
   secondaryActionBusyLabel,
+  dangerActionBusyId,
+  onDangerAction,
+  dangerActionLabel,
+  dangerActionBusyLabel,
   hasActiveFilters = false,
   catalogAttentionById,
   emptyTitle = '',
@@ -2936,6 +2998,16 @@ function TramitesAdminList({
               >
                 {actionBusyId === tramite.id ? secondaryActionBusyLabel : secondaryActionLabel}
               </button>
+              {onDangerAction ? (
+                <button
+                  type="button"
+                  onClick={() => onDangerAction(tramite)}
+                  disabled={dangerActionBusyId === tramite.id}
+                  className="inline-flex flex-1 items-center justify-center rounded-full border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:border-rose-400 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+                >
+                  {dangerActionBusyId === tramite.id ? dangerActionBusyLabel : dangerActionLabel}
+                </button>
+              ) : null}
             </div>
           </div>
           <p className="mt-4 break-words text-sm leading-6 text-slate-600">{tramite.descripcion || 'Sin descripcion disponible.'}</p>
