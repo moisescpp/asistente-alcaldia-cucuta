@@ -38,7 +38,7 @@ const EMPTY_FORM = {
 }
 
 const inputClassName =
-  'w-full rounded-3xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100'
+  'min-w-0 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100 sm:rounded-3xl sm:px-5'
 const citizenPrimaryButtonClassName =
   'inline-flex w-full items-center justify-center rounded-xl border border-transparent bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto'
 const EMPTY_ADMIN_ERRORS = {
@@ -850,7 +850,7 @@ function App() {
       }`}
       style={{ minHeight: '100dvh' }}
     >
-      <div className="mx-auto flex min-h-screen w-full max-w-[1680px] flex-col gap-6 px-4 py-6 lg:gap-8 lg:px-8 lg:py-8 xl:px-10" style={{ minHeight: '100dvh' }}>
+      <div className="mx-auto flex min-h-screen w-full max-w-[1680px] flex-col gap-5 px-3 py-4 sm:gap-6 sm:px-4 sm:py-6 lg:gap-8 lg:px-8 lg:py-8 xl:px-10" style={{ minHeight: '100dvh' }}>
         <a
           href="#contenido-principal"
           className="skip-link rounded-full bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-lg"
@@ -869,7 +869,7 @@ function App() {
                 type="button"
                 onClick={openAdminView}
                 aria-label="Abrir panel administrativo"
-                className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2.5 transition ${
+                className={`inline-flex w-full items-center gap-2 rounded-2xl border px-3 py-2.5 transition sm:w-auto ${
                   isDarkTheme
                     ? 'border-slate-700/80 bg-slate-950/50 hover:border-slate-500 hover:bg-slate-950/70'
                     : 'border-slate-200 bg-white/90 hover:border-slate-300 hover:bg-white'
@@ -919,7 +919,7 @@ function App() {
             <button
               type="button"
               onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
-              className={`inline-flex w-fit items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              className={`inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold transition sm:w-fit ${
                 isDarkTheme
                   ? 'border-slate-600 bg-slate-950/45 text-slate-100 hover:border-slate-400 hover:bg-slate-900'
                   : 'border-slate-300 bg-white/90 text-slate-700 hover:border-slate-400 hover:bg-white'
@@ -932,12 +932,12 @@ function App() {
           <div className="mt-4 space-y-5">
             <div className="space-y-4">
               <div className="space-y-2">
-                <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${
+                <p className={`text-xs font-semibold uppercase tracking-[0.18em] sm:tracking-[0.28em] ${
                   isDarkTheme ? 'text-slate-400' : 'text-slate-500'
                 }`}>
                   Plataforma institucional de orientacion - Alcaldia de Cucuta
                 </p>
-                <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] ${
+                <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] sm:tracking-[0.24em] ${
                   isDarkTheme
                     ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
                     : 'border-emerald-200 bg-emerald-50 text-emerald-700'
@@ -946,7 +946,7 @@ function App() {
                 </span>
               </div>
 
-              <div className="flex items-start gap-4">
+              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div className={`hidden rounded-[1.4rem] border p-2.5 sm:block ${
                   isDarkTheme ? 'border-slate-700/80 bg-slate-950/50' : 'border-slate-200 bg-white/95'
                 }`}>
@@ -956,8 +956,8 @@ function App() {
                     className="h-12 w-12 object-contain"
                   />
                 </div>
-                <div className="space-y-3">
-                  <h1 className={`max-w-4xl text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>
+                <div className="min-w-0 space-y-3">
+                  <h1 className={`max-w-4xl break-words text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>
                     Asistente Institucional de Trámites
                   </h1>
                   <p className={`max-w-3xl text-sm leading-relaxed sm:text-base ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>
@@ -968,7 +968,7 @@ function App() {
             </div>
 
             {view === 'ciudadania' ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
                 <HeaderFeatureCard
                   icon="catalog"
                   title="Catálogo disponible"
@@ -1013,14 +1013,14 @@ function App() {
 
         <main id="contenido-principal" className="flex-1">
           {view === 'ciudadania' ? (
-            <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
-              <section className="space-y-6">
+            <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.85fr)] xl:gap-8">
+              <section className="min-w-0 space-y-5 sm:space-y-6">
                 <div className={`rounded-[1.5rem] border p-4 shadow-sm backdrop-blur sm:rounded-[2rem] sm:p-6 ${
                   isDarkTheme ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200/70 bg-white/90'
                 }`}>
-                  <div className="mb-6 flex items-center justify-between gap-4">
-                    <div>
-                      <p className={`text-sm font-semibold uppercase tracking-[0.2em] ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>Consulta del asistente</p>
+                  <div className="mb-5 flex min-w-0 items-center justify-between gap-4 sm:mb-6">
+                    <div className="min-w-0">
+                      <p className={`text-xs font-semibold uppercase tracking-[0.16em] sm:text-sm sm:tracking-[0.2em] ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>Consulta del asistente</p>
                       <h2 className={`mt-2 text-xl font-bold sm:text-2xl ${isDarkTheme ? 'text-white' : 'text-slate-950'}`}>Pregunta por un trámite</h2>
                       <p className={`mt-2 max-w-2xl text-sm leading-6 ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>
                         Escribe tu consulta y el sistema te guiará al trámite más cercano.
@@ -1032,7 +1032,7 @@ function App() {
                     <label className="block">
                       <span className={`mb-2 block text-sm font-medium ${isDarkTheme ? 'text-slate-300' : 'text-slate-700'}`}>Escribe tu consulta</span>
                       <textarea
-                        className={`min-h-24 w-full resize-none rounded-2xl border px-5 py-4 text-base outline-none transition duration-200 focus:ring-2 sm:min-h-32 ${
+                        className={`min-h-24 w-full resize-none rounded-2xl border px-4 py-4 text-base outline-none transition duration-200 focus:ring-2 sm:min-h-32 sm:px-5 ${
                           isDarkTheme
                             ? 'border-slate-600 bg-white text-slate-950 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20'
                             : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20'
@@ -1053,13 +1053,13 @@ function App() {
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                         Preguntas rapidas
                       </p>
-                      <div className="flex flex-wrap gap-3">
+                      <div className="grid gap-3 sm:flex sm:flex-wrap">
                         {quickQuestions.map((quickQuestion) => (
                           <button
                             key={quickQuestion}
                             type="button"
                             onClick={() => setQuestion(quickQuestion)}
-                            className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
+                            className="w-full rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 sm:w-auto"
                           >
                             {quickQuestion}
                           </button>
@@ -1079,7 +1079,7 @@ function App() {
                 />
               </section>
 
-              <aside className="space-y-6">
+              <aside className="min-w-0 space-y-5 sm:space-y-6">
                 <TramitesPanel tramites={tramites} loadingTramites={loadingTramites} tramitesError={tramitesError} />
               </aside>
             </div>
@@ -1161,8 +1161,8 @@ function App() {
                   ) : null}
                 </div>
 
-                <form className="mt-8 grid min-w-0 gap-4 md:grid-cols-2" onSubmit={handleAdminSubmit}>
-                  <div className="md:col-span-2 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <form className="mt-6 grid min-w-0 gap-4 lg:mt-8 lg:grid-cols-2" onSubmit={handleAdminSubmit}>
+                  <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:rounded-3xl">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Revision de calidad del tramite</p>
@@ -1170,7 +1170,7 @@ function App() {
                           Nivel actual: <span className={`font-semibold ${qualityToneClassName(draftQualityReport.level)}`}>{humanizeQualityLevel(draftQualityReport.level)}</span>
                         </p>
                       </div>
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 sm:tracking-[0.18em]">
                         Calidad {draftQualityReport.score}/100
                       </span>
                     </div>
@@ -1189,8 +1189,8 @@ function App() {
                       Accion sugerida: <span className="font-medium text-slate-800">{draftQualityReport.recommendedAction}</span>
                     </p>
                   </div>
-                  <div className="md:col-span-2 rounded-[1.25rem] border border-slate-200 bg-white/70 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Datos de identificacion</p>
+                  <div className="lg:col-span-2 rounded-[1.25rem] border border-slate-200 bg-white/70 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 sm:tracking-[0.18em]">Datos de identificacion</p>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
                       Informacion administrativa para ubicar el tramite dentro del catalogo.
                     </p>
@@ -1223,19 +1223,19 @@ function App() {
                   <Field label="Fuente oficial" hint="Opcional. Usa una URL completa con http o https." error={adminFieldErrors.fuente_url}>
                     <input className={fieldClassName(adminFieldErrors.fuente_url)} name="fuente_url" value={formData.fuente_url} onChange={handleInputChange} />
                   </Field>
-                  <div className="md:col-span-2 rounded-[1.25rem] border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-slate-600">
+                  <div className="lg:col-span-2 min-w-0 break-words rounded-[1.25rem] border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-slate-600">
                     <span className="font-semibold text-slate-800">Enlaces dentro del texto:</span>{' '}
                     usa el formato <span className="font-mono text-slate-900">[Click Aqui](https://enlace.com)</span>.
                     Puedes agregar varios enlaces en pasos, seguimiento o normatividad, cada uno con su propio destino.
                   </div>
-                  <div className="md:col-span-2 rounded-[1.25rem] border border-emerald-200 bg-emerald-50/70 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Contenido oficial del tramite</p>
+                  <div className="lg:col-span-2 rounded-[1.25rem] border border-emerald-200 bg-emerald-50/70 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 sm:tracking-[0.18em]">Contenido oficial del tramite</p>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
                       Orden sugerido segun la ficha institucional: descripcion, destinatarios, pasos, tiempo, seguimiento y normatividad.
                     </p>
                   </div>
                   <Field
-                    className="md:col-span-2"
+                    className="lg:col-span-2"
                     label="Descripcion del tramite"
                     hint={
                       <WordMinimumHint
@@ -1254,7 +1254,7 @@ function App() {
                     />
                   </Field>
                   <Field
-                    className="md:col-span-2"
+                    className="lg:col-span-2"
                     label="A quien va dirigido"
                   >
                     <textarea
@@ -1265,7 +1265,7 @@ function App() {
                     />
                   </Field>
                   <Field
-                    className="md:col-span-2"
+                    className="lg:col-span-2"
                     label="Pasos para realizar el tramite"
                     hint={
                       <WordMinimumHint
@@ -1282,7 +1282,7 @@ function App() {
                       value={formData.pasos}
                       onChange={handleInputChange}
                     />
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="mt-3 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
                       <p className="text-xs leading-5 text-slate-500">
                         Escribe un paso por linea. Para enlaces puntuales usa [Click Aqui](https://...).
                       </p>
@@ -1310,7 +1310,7 @@ function App() {
                     />
                   </Field>
                   <Field
-                    className="md:col-span-2"
+                    className="lg:col-span-2"
                     label="Normatividad"
                   >
                     <textarea
@@ -1319,7 +1319,7 @@ function App() {
                       value={formData.normatividad}
                       onChange={handleInputChange}
                     />
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="mt-3 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
                       <p className="text-xs leading-5 text-slate-500">
                         Puedes registrar acuerdos, decretos o articulos por linea y ordenarlos automaticamente.
                       </p>
@@ -1332,8 +1332,8 @@ function App() {
                       </button>
                     </div>
                   </Field>
-                  <div className="md:col-span-2 rounded-[1.25rem] border border-slate-200 bg-white/70 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Datos complementarios</p>
+                  <div className="lg:col-span-2 rounded-[1.25rem] border border-slate-200 bg-white/70 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 sm:tracking-[0.18em]">Datos complementarios</p>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
                       Campos adicionales que ayudan cuando el tramite requiere costo, horario o atencion presencial.
                     </p>
@@ -1360,8 +1360,8 @@ function App() {
                       Usar horario Alcaldia
                     </button>
                   </Field>
-                  <div className="md:col-span-2">
-                    <div className="flex flex-wrap items-center gap-3">
+                  <div className="lg:col-span-2">
+                    <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                       <button type="submit" disabled={isSaving} className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
                         {isSaving ? 'Guardando...' : editingId ? 'Actualizar tramite' : 'Crear tramite'}
                       </button>
@@ -1385,17 +1385,17 @@ function App() {
               </section>
 
               <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/85 p-3 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
-                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Inventario administrativo</p>
-                    <h3 className="mt-2 text-2xl font-bold text-slate-950">Catalogo de tramites</h3>
+                <div className="mb-6 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-sm sm:tracking-[0.2em]">Inventario administrativo</p>
+                    <h3 className="mt-2 break-words text-xl font-bold text-slate-950 sm:text-2xl">Catalogo de tramites</h3>
                   </div>
                   <button type="button" onClick={handleInventoryRefresh} className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto">
                     Actualizar inventario
                   </button>
                 </div>
 
-                <div className="mb-6 flex flex-wrap gap-3">
+                <div className="mb-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
                   {[
                     { id: 'activos', label: 'Activos', count: tramites.length },
                     { id: 'desactivados', label: 'Desactivados', count: inactiveTramites.length },
@@ -1406,7 +1406,7 @@ function App() {
                         key={tab.id}
                         type="button"
                         onClick={() => setInventoryTab(tab.id)}
-                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                        className={`inline-flex w-full items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition sm:w-auto ${
                           isSelected
                             ? 'border-slate-900 bg-slate-950 text-white'
                             : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
@@ -1425,7 +1425,7 @@ function App() {
                   })}
                 </div>
 
-                <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                <div className="mb-6 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
                   <label className="block">
                     <span className="mb-2 block text-sm font-medium text-slate-700">Buscar tramite</span>
                     <input
@@ -1453,14 +1453,14 @@ function App() {
                   </label>
                 </div>
 
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
-                  <p>
+                <div className="mb-6 flex min-w-0 flex-col items-stretch justify-between gap-3 text-sm text-slate-500 sm:flex-row sm:flex-wrap sm:items-center">
+                  <p className="break-words">
                     {inventoryTab === 'activos'
                       ? `Mostrando ${filteredTramites.length} de ${tramites.length} tramite(s) activos.`
                       : `Mostrando ${filteredInactiveTramites.length} de ${inactiveTramites.length} tramite(s) desactivados.`}
                   </p>
                   {inventoryTab === 'activos' ? (
-                    <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.16em]">
+                    <div className="flex min-w-0 flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.12em] sm:tracking-[0.16em]">
                       <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-rose-700">
                         Criticos {qualitySummary.critical}
                       </span>
@@ -1490,7 +1490,7 @@ function App() {
                         setAdminDependency('todas')
                         setInventoryTab('activos')
                       }}
-                      className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                      className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:w-auto"
                     >
                       Limpiar filtros
                     </button>
@@ -1498,7 +1498,7 @@ function App() {
                 </div>
 
                 {inventoryTab === 'activos' && weakestTramites.length ? (
-                  <div className="mb-6 rounded-3xl border border-amber-200 bg-[linear-gradient(180deg,#fff8eb_0%,#fffdf8_100%)] p-5 shadow-sm">
+                  <div className="mb-6 min-w-0 rounded-2xl border border-amber-200 bg-[linear-gradient(180deg,#fff8eb_0%,#fffdf8_100%)] p-4 shadow-sm sm:rounded-3xl sm:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
@@ -1516,9 +1516,9 @@ function App() {
                       </span>
                     </div>
 
-                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="mt-4 grid min-w-0 gap-3 lg:grid-cols-2 xl:grid-cols-3">
                       {weakestTramites.map(({ tramite, report }) => (
-                        <article key={`weak-${tramite.id}`} className="rounded-3xl border border-amber-200 bg-white px-4 py-4">
+                        <article key={`weak-${tramite.id}`} className="min-w-0 rounded-2xl border border-amber-200 bg-white px-4 py-4 sm:rounded-3xl">
                           {(() => {
                             const signal = catalogAttention.byId.get(tramite.id)
                             return (
@@ -1537,7 +1537,7 @@ function App() {
                               ID {tramite.id}
                             </span>
                           </div>
-                          <h5 className="mt-3 text-sm font-semibold leading-6 text-slate-950">
+                          <h5 className="mt-3 break-words text-sm font-semibold leading-6 text-slate-950">
                             {tramite.nombre}
                           </h5>
                           <p className="mt-2 text-xs leading-5 text-slate-500">
@@ -2167,10 +2167,10 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
   }
 
   return (
-    <section ref={resultSectionRef} className="rounded-[1.4rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] p-4 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
+    <section ref={resultSectionRef} className="min-w-0 overflow-hidden rounded-[1.4rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] p-3 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Respuesta del asistente</p>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700 sm:text-sm sm:tracking-[0.2em]">Respuesta del asistente</p>
             <h3 className="mt-2 text-xl font-bold text-slate-950 sm:text-2xl">Resultado de la consulta</h3>
           </div>
       </div>
@@ -2198,20 +2198,20 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
           </div>
 
           {activeMatch ? (
-            <article ref={visibleMatchRef} className="rounded-[1.4rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-4 shadow-[0_12px_45px_-35px_rgba(15,23,42,0.35)] sm:rounded-[1.9rem] sm:p-5">
-              <div className="rounded-[1.15rem] border border-slate-100 bg-[linear-gradient(135deg,#f8fafc_0%,#f1f5f9_100%)] px-4 py-4 sm:rounded-[1.6rem] sm:px-5 sm:py-5">
+            <article ref={visibleMatchRef} className="min-w-0 rounded-[1.4rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] p-3 shadow-[0_12px_45px_-35px_rgba(15,23,42,0.35)] sm:rounded-[1.9rem] sm:p-5">
+              <div className="min-w-0 rounded-[1.15rem] border border-slate-100 bg-[linear-gradient(135deg,#f8fafc_0%,#f1f5f9_100%)] px-4 py-4 sm:rounded-[1.6rem] sm:px-5 sm:py-5">
                 <div className="max-w-3xl">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 sm:text-xs sm:tracking-[0.2em]">
                     {hasExplicitPrincipal
                       ? isViewingAlternative
                         ? 'Coincidencia seleccionada'
                         : 'Tu tramite es el siguiente'
                       : 'Ruta seleccionada'}
                   </p>
-                  <h4 className="mt-2 text-xl font-bold leading-tight text-slate-950 sm:text-2xl">
+                  <h4 className="mt-2 break-words text-lg font-bold leading-tight text-slate-950 sm:text-2xl">
                     {activeMatch.nombre}
                   </h4>
-                  <p className="mt-3 inline-flex max-w-full rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium leading-5 text-slate-600 shadow-sm">
+                  <p className="mt-3 inline-flex max-w-full break-words rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium leading-5 text-slate-600 shadow-sm">
                     {cleanDependencyLabel(activeMatch.dependencia)}
                   </p>
                   {isViewingAlternative ? (
@@ -2226,8 +2226,8 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-4">
-                <div className="grid gap-4">
+              <div className="mt-4 grid min-w-0 gap-3 sm:mt-5 sm:gap-4">
+                <div className="grid min-w-0 gap-3 sm:gap-4">
                   {activeMatch.descripcion ? (
                     <DetailCard
                       label="Descripcion del tramite"
@@ -2245,7 +2245,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                   ) : null}
 
                   {activeMatch.fuente_url ? (
-                    <div className="rounded-[1.25rem] border border-emerald-200 bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fffb_100%)] p-4 shadow-sm sm:rounded-3xl sm:p-5">
+                    <div className="min-w-0 rounded-[1.25rem] border border-emerald-200 bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fffb_100%)] p-4 shadow-sm sm:rounded-3xl sm:p-5">
                       <p className="text-xs uppercase tracking-[0.18em] text-emerald-700">Sitio oficial</p>
                       <a
                         href={activeMatch.fuente_url}
@@ -2311,7 +2311,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
           ) : null}
 
           {secondaryMatches.length ? (
-            <div className="rounded-[1.25rem] border border-slate-200 bg-white/80 p-4 shadow-sm sm:rounded-3xl">
+            <div className="min-w-0 rounded-[1.25rem] border border-slate-200 bg-white/80 p-4 shadow-sm sm:rounded-3xl">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
@@ -2334,7 +2334,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                   return (
                     <div
                       key={match.id}
-                      className="rounded-[1.25rem] border border-slate-200 bg-slate-50/80 px-4 py-4 text-left transition sm:rounded-3xl"
+                      className="min-w-0 rounded-[1.25rem] border border-slate-200 bg-slate-50/80 px-4 py-4 text-left transition sm:rounded-3xl"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
@@ -2350,10 +2350,10 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                             </span>
                           </div>
 
-                          <h5 className="mt-3 text-sm font-semibold leading-6 text-slate-950">
+                          <h5 className="mt-3 break-words text-sm font-semibold leading-6 text-slate-950">
                             {match.nombre}
                           </h5>
-                          <p className="mt-1 text-xs leading-5 text-slate-500">
+                          <p className="mt-1 break-words text-xs leading-5 text-slate-500">
                             {cleanDependencyLabel(match.dependencia)}
                           </p>
                           {match.descripcion ? (
@@ -2363,7 +2363,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                           ) : null}
                         </div>
 
-                        <div className="flex flex-none items-center">
+                        <div className="flex w-full flex-none items-center sm:w-auto">
                           <button
                             type="button"
                             onClick={() => handleSelectMatch(match.id)}
@@ -2381,7 +2381,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
           ) : null}
 
           {consulta.sugerencias?.length && !isTooGeneral ? (
-            <div className={`rounded-3xl border p-5 ${
+            <div className={`min-w-0 rounded-3xl border p-4 sm:p-5 ${
               isTooGeneral
                 ? 'border-amber-200 bg-amber-50/70'
                 : isNoMatch
@@ -2405,13 +2405,13 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                     ? 'No hubo una coincidencia suficientemente confiable, pero estas consultas cercanas pueden ayudarte a acercarte al tramite correcto sin empezar desde cero.'
                     : 'Si quieres afinar la consulta o revisar otra ruta cercana, puedes usar una de estas preguntas.'}
               </p>
-              <div className="mt-4 flex flex-wrap gap-3">
+              <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap">
                 {consulta.sugerencias.map((sugerencia) => (
                   <button
                     key={sugerencia}
                     type="button"
                     onClick={() => onUseSuggestion(sugerencia)}
-                    className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50"
+                    className="w-full rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 sm:w-auto"
                   >
                     {sugerencia}
                   </button>
@@ -2430,19 +2430,19 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                   Tu consulta todavia puede referirse a varios temas. En lugar de adivinar, te mostramos rutas reales para que elijas la que mejor se parece a lo que necesitas.
                 </p>
               ) : null}
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
                 {consulta.tramites_relacionados.map((tramite) => (
-                  <article key={tramite.id} className={`rounded-3xl border bg-white p-5 shadow-[0_10px_35px_-30px_rgba(15,23,42,0.35)] ${
+                  <article key={tramite.id} className={`min-w-0 rounded-3xl border bg-white p-4 shadow-[0_10px_35px_-30px_rgba(15,23,42,0.35)] sm:p-5 ${
                     isTooGeneral ? 'border-amber-200/80' : 'border-slate-200'
                   }`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h4 className="text-lg font-semibold text-slate-950">{tramite.nombre}</h4>
+                        <h4 className="break-words text-base font-semibold text-slate-950 sm:text-lg">{tramite.nombre}</h4>
                         <p className="mt-2 text-sm text-slate-600">
                           {cleanDependencyLabel(tramite.dependencia)}
                         </p>
                       </div>
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs uppercase tracking-[0.14em] text-slate-500 sm:tracking-[0.18em]">
                         ID {tramite.id}
                       </span>
                     </div>
@@ -2453,7 +2453,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
                       <button
                         type="button"
                         onClick={() => handleSelectMatch(tramite.id)}
-                        className={`mt-4 inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                        className={`mt-4 inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold transition sm:w-auto ${
                           isTooGeneral
                             ? 'border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-400 hover:bg-amber-100'
                             : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100'
@@ -2518,22 +2518,22 @@ function DetailCardBase({ label, value, tone = 'slate', asList = false, linkUrl 
   const segments = formatDetailSegments(value, asList)
 
   return (
-    <div className={`rounded-[1.25rem] border p-4 shadow-sm sm:rounded-3xl sm:p-5 ${tones[tone] ?? tones.slate}`}>
-      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
+    <div className={`min-w-0 rounded-[1.25rem] border p-4 shadow-sm sm:rounded-3xl sm:p-5 ${tones[tone] ?? tones.slate}`}>
+      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.18em]">{label}</p>
       {segments.length > 1 ? (
         asList ? (
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-4 min-w-0 space-y-3">
             {segments.map((segment) => (
-              <li key={`${label}-${segment.slice(0, 24)}`} className="flex items-start gap-3 text-sm leading-6 text-slate-800">
+              <li key={`${label}-${segment.slice(0, 24)}`} className="flex min-w-0 items-start gap-3 text-sm leading-6 text-slate-800">
                 <span className="mt-2 h-2.5 w-2.5 flex-none rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.14)]" />
                 <RichTextWithLinks value={segment} fallbackUrl={linkUrl} />
               </li>
             ))}
           </ul>
         ) : (
-        <ul className="mt-4 space-y-3">
+        <ul className="mt-4 min-w-0 space-y-3">
           {segments.map((segment) => (
-            <li key={`${label}-${segment.slice(0, 24)}`} className="flex items-start gap-3 text-sm leading-6 text-slate-800">
+            <li key={`${label}-${segment.slice(0, 24)}`} className="flex min-w-0 items-start gap-3 text-sm leading-6 text-slate-800">
               <span className="mt-2 h-2 w-2 flex-none rounded-full bg-emerald-500" />
               <RichTextWithLinks value={segment} fallbackUrl={linkUrl} />
             </li>
@@ -2541,7 +2541,7 @@ function DetailCardBase({ label, value, tone = 'slate', asList = false, linkUrl 
         </ul>
         )
       ) : (
-        <p className="mt-3 text-sm leading-7 text-slate-800">
+        <p className="mt-3 min-w-0 break-words text-sm leading-7 text-slate-800">
           <RichTextWithLinks value={segments[0] ?? value} fallbackUrl={linkUrl} />
         </p>
       )}
@@ -2557,7 +2557,7 @@ function RichTextWithLinks({ value, fallbackUrl = '' }) {
   const parts = buildLinkedTextParts(String(value ?? ''), fallbackUrl)
 
   return (
-    <span>
+    <span className="min-w-0 break-words">
       {parts.map((part, index) =>
         part.href ? (
           <a
@@ -2848,25 +2848,25 @@ function TramitesPanel({ tramites, loadingTramites, tramitesError }) {
     )
   }
   return (
-    <div className="rounded-[2rem] border border-slate-200/70 bg-white/80 p-6 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur">
-      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Tramites activos</p>
-      <h2 className="mt-2 text-2xl font-bold text-slate-950">Base de consulta disponible</h2>
+    <div className="min-w-0 rounded-[1.4rem] border border-slate-200/70 bg-white/80 p-4 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-sm sm:tracking-[0.2em]">Tramites activos</p>
+      <h2 className="mt-2 break-words text-xl font-bold text-slate-950 sm:text-2xl">Base de consulta disponible</h2>
       <p className="mt-2 text-sm leading-6 text-slate-500">
         Vista rapida del catalogo. El detalle completo aparece cuando realizas una consulta.
       </p>
-      <div className="mt-6 grid gap-4">
+      <div className="mt-5 grid min-w-0 gap-3 sm:mt-6 sm:gap-4">
         {tramites.map((tramite) => (
-          <article key={tramite.id} className="rounded-[1.35rem] border border-slate-200 bg-slate-50 px-4 py-4">
-            <div className="flex items-start justify-between gap-3">
+          <article key={tramite.id} className="min-w-0 rounded-[1.35rem] border border-slate-200 bg-slate-50 px-4 py-4">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <h3 className="text-base font-semibold text-slate-900">{tramite.nombre}</h3>
-                <p className="mt-2 text-sm text-slate-600">
+                <h3 className="break-words text-base font-semibold text-slate-900">{tramite.nombre}</h3>
+                <p className="mt-2 break-words text-sm text-slate-600">
                   {getCanonicalDependencyLabel(tramite.dependencia, dependencyOptions)}
                 </p>
               </div>
-              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">ID {tramite.id}</span>
+              <span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 sm:tracking-[0.18em]">ID {tramite.id}</span>
             </div>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
+            <p className="mt-3 break-words text-sm leading-6 text-slate-600">
               {buildCatalogPreview(tramite)}
             </p>
           </article>
@@ -3167,10 +3167,10 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
 
   return (
     <section className={`min-w-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/85 p-3 shadow-[0_20px_70px_-45px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-6 ${className}`}>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Actividad del asistente</p>
-          <h3 className="mt-2 text-2xl font-bold text-slate-950">Consultas recientes</h3>
+      <div className="mb-6 flex min-w-0 flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-sm sm:tracking-[0.2em]">Actividad del asistente</p>
+          <h3 className="mt-2 break-words text-xl font-bold text-slate-950 sm:text-2xl">Consultas recientes</h3>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
             Esta vista nos ayuda a observar preguntas reales, detectar ambiguedades y confirmar si el sistema esta respondiendo con el tramite correcto.
           </p>
@@ -3202,7 +3202,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
       </div>
 
       {!loading && !error ? (
-        <div className="mb-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+        <div className="mb-6 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:rounded-3xl sm:p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-slate-700">
@@ -3220,7 +3220,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
               />
             </label>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-4">
+            <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:rounded-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                 Dia seleccionado
               </p>
@@ -3256,7 +3256,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
       ) : null}
 
       {!loading && !error && logs.length && hasActivityForSelectedDate && catalogAttention.items.length ? (
-        <div className="mb-6 rounded-3xl border border-rose-200 bg-[linear-gradient(180deg,#fff5f5_0%,#fffdfd_100%)] p-5">
+        <div className="mb-6 min-w-0 rounded-2xl border border-rose-200 bg-[linear-gradient(180deg,#fff5f5_0%,#fffdfd_100%)] p-4 sm:rounded-3xl sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700">
@@ -3271,9 +3271,9 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
             </p>
           </div>
 
-          <div className="mt-4 grid gap-3 xl:grid-cols-3">
+          <div className="mt-4 grid min-w-0 gap-3 lg:grid-cols-2 xl:grid-cols-3">
             {catalogAttention.items.map((item) => (
-              <article key={`attention-${item.tramite.id}`} className="rounded-3xl border border-rose-200 bg-white px-4 py-4">
+              <article key={`attention-${item.tramite.id}`} className="min-w-0 rounded-2xl border border-rose-200 bg-white px-4 py-4 sm:rounded-3xl">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">
                     {item.hits} senal(es)
@@ -3282,7 +3282,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                     {humanizeScopeStatus(item.report.scopeStatus)}
                   </span>
                 </div>
-                <h5 className="mt-3 text-sm font-semibold leading-6 text-slate-950">
+                <h5 className="mt-3 break-words text-sm font-semibold leading-6 text-slate-950">
                   {item.tramite.nombre}
                 </h5>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -3310,7 +3310,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
       ) : null}
 
       {!loading && !error && logs.length && hasActivityForSelectedDate ? (
-        <div className="mb-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+        <div className="mb-6 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:rounded-3xl sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -3325,7 +3325,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
             </p>
           </div>
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
             <QuestionInsightChart
               total={totalQuestionsInView}
               title="Distribucion visual del dia"
@@ -3333,7 +3333,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
               items={questionInsightSeries}
             />
 
-            <div className="grid gap-3 xl:grid-cols-2">
+            <div className="grid min-w-0 gap-3 lg:grid-cols-2">
               {questionInsightSeries.map((item) => (
                 <QuestionInsightCard
                   key={item.key}
@@ -3375,7 +3375,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
       {!loading && !error && logs.length && hasActivityForSelectedDate ? (
         <div className="space-y-5">
           {problematicPatterns.length ? (
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:rounded-3xl sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -3390,11 +3390,11 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                 </p>
               </div>
 
-              <div className="mt-4 grid gap-3 xl:grid-cols-3">
+              <div className="mt-4 grid min-w-0 gap-3 lg:grid-cols-2 xl:grid-cols-3">
                 {problematicPatterns.map((pattern) => (
-                  <div key={pattern.key} className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div key={pattern.key} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-semibold leading-6 text-slate-900">{pattern.display}</p>
+                      <p className="break-words text-sm font-semibold leading-6 text-slate-900">{pattern.display}</p>
                       <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                         {pattern.count}
                       </span>
@@ -3408,7 +3408,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
             </div>
           ) : null}
 
-          <div className="flex flex-wrap gap-3">
+          <div className="grid gap-3 sm:flex sm:flex-wrap">
             {filters.map((filter) => (
                 <button
                 key={filter.id}
@@ -3418,7 +3418,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                   setShowAllLogs(false)
                   setExpandedLogId(null)
                 }}
-                className={`inline-flex flex-1 items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition sm:flex-none ${
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition sm:w-auto ${
                   statusFilter === filter.id
                     ? 'border-slate-950 bg-slate-950 text-white'
                     : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
@@ -3432,7 +3432,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
             ))}
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-4 sm:rounded-3xl">
             <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
               <p className="break-words">Mostrando {filteredLogs.length} consulta(s) para el filtro actual.</p>
               <p className="break-words">Despliega una tarjeta para ver la pregunta, el resumen y las opciones sugeridas.</p>
@@ -3449,7 +3449,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                     </p>
                     <h5 className="mt-2 text-lg font-semibold text-slate-950">{group.label}</h5>
                   </div>
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 sm:tracking-[0.18em]">
                     {group.logs.length} consulta(s)
                   </span>
                 </div>
@@ -3514,7 +3514,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
                                 Pregunta realizada por el ciudadano
                               </p>
-                              <p className="mt-3 text-sm font-medium leading-7 text-slate-900">
+                              <p className="mt-3 break-words text-sm font-medium leading-7 text-slate-900">
                                 {log.pregunta}
                               </p>
                             </div>
@@ -3533,7 +3533,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                                 <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
                                   Resumen entregado por el asistente
                                 </p>
-                                <p className="mt-3 text-sm leading-7 text-slate-700">
+                                <p className="mt-3 break-words text-sm leading-7 text-slate-700">
                                   {log.resumen_respuesta}
                                 </p>
                               </div>
@@ -3585,7 +3585,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
           </div>
 
           {filteredLogs.length > 4 ? (
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:rounded-3xl">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -3600,7 +3600,7 @@ function ConsultaActivityPanel({ logs, tramites, loading, error, onRefresh, clas
                 <button
                   type="button"
                   onClick={() => setShowAllLogs((current) => !current)}
-                  className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 sm:w-auto"
                 >
                   {showAllLogs ? 'Mostrar solo 4' : `Ver ${filteredLogs.length - 4} mas`}
                 </button>
@@ -4470,7 +4470,7 @@ function HeaderFeatureCard({ icon, title, body, detailTitle, detailItems = [], a
   }
 
   return (
-    <div className={`rounded-2xl border p-4 transition ${
+    <div className={`min-w-0 rounded-2xl border p-4 transition ${
       isDarkTheme ? 'border-slate-800 bg-slate-950/35' : 'border-slate-200 bg-white/70'
     }`}>
       <div className="flex items-start gap-3">
@@ -4479,7 +4479,7 @@ function HeaderFeatureCard({ icon, title, body, detailTitle, detailItems = [], a
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className={`text-sm font-bold ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>{title}</h3>
+            <h3 className={`min-w-0 break-words text-sm font-bold ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>{title}</h3>
             {detailItems.length ? (
               <button
                 type="button"
@@ -4496,7 +4496,7 @@ function HeaderFeatureCard({ icon, title, body, detailTitle, detailItems = [], a
               </button>
             ) : null}
           </div>
-          <p className={`mt-1 text-sm leading-5 ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>{body}</p>
+          <p className={`mt-1 break-words text-sm leading-5 ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>{body}</p>
         </div>
       </div>
       {isOpen && detailItems.length ? (
@@ -4514,7 +4514,7 @@ function HeaderFeatureCard({ icon, title, body, detailTitle, detailItems = [], a
                 }`}>
                   {index + 1}
                 </span>
-                <span>{item}</span>
+                <span className="min-w-0 break-words">{item}</span>
               </li>
             ))}
           </ol>
@@ -4750,16 +4750,16 @@ function Field({
 }) {
   return (
     <label className={`block min-w-0 ${className}`}>
-      <span className="mb-2 block text-sm font-medium text-slate-700">
+      <span className="mb-2 block break-words text-sm font-medium text-slate-700">
         {label} {required ? <span className="text-rose-500">*</span> : null}
       </span>
       {children}
       {hint
         ? typeof hint === 'string'
-          ? <span className="mt-2 block text-xs text-slate-500">{hint}</span>
+          ? <span className="mt-2 block break-words text-xs leading-5 text-slate-500">{hint}</span>
           : hint
         : null}
-      {error ? <span className="mt-2 block text-xs font-medium text-rose-600">{error}</span> : null}
+      {error ? <span className="mt-2 block break-words text-xs font-medium leading-5 text-rose-600">{error}</span> : null}
     </label>
   )
 }
