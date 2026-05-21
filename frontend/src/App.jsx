@@ -2877,29 +2877,66 @@ function TramitesPanel({ tramites, loadingTramites, tramitesError }) {
 }
 
 function buildCatalogPreview(tramite) {
-  const source =
-    tramite.descripcion ||
-    tramite.tiempo_estimado ||
-    (tramite.dirigido_a ? formatDirectedToSentence(tramite.dirigido_a) : '') ||
-    tramite.pasos ||
-    tramite.requisitos ||
-    ''
-  const cleaned = stripMarkdownLinks(String(source)).replace(/\s+/g, ' ').trim()
+  const normalizedName = normalizeLooseText(tramite.nombre)
+
+  if (normalizedName.includes('cancelacion') || normalizedName.includes('cese')) {
+    return 'Orienta la cancelación o cierre del registro cuando el contribuyente deja de ejercer la actividad económica.'
+  }
+
+  if (normalizedName.includes('correccion') || normalizedName.includes('periodo gravable')) {
+    return 'Permite solicitar correcciones sobre declaraciones tributarias cuando existen errores o inconsistencias.'
+  }
+
+  if (normalizedName.includes('devolucion') || normalizedName.includes('compensacion')) {
+    return 'Guía la solicitud de devolución o compensación cuando hay pagos en exceso o saldos a favor.'
+  }
+
+  if (normalizedName.includes('predial')) {
+    return 'Brinda orientación sobre el impuesto predial de bienes inmuebles y su consulta ante la entidad.'
+  }
+
+  if (normalizedName.includes('espectaculos')) {
+    return 'Apoya consultas relacionadas con eventos, boletería y obligaciones del impuesto de espectáculos públicos.'
+  }
+
+  if (normalizedName.includes('alumbrado')) {
+    return 'Explica información relacionada con el impuesto o cobro del servicio de alumbrado público.'
+  }
+
+  if (normalizedName.includes('paz') && normalizedName.includes('salvo')) {
+    return 'Orienta la generación del certificado que acredita el estado de obligaciones tributarias.'
+  }
+
+  if (normalizedName.includes('registro') && normalizedName.includes('contribuyentes')) {
+    return 'Guía el registro inicial de contribuyentes vinculados a actividades de industria y comercio.'
+  }
+
+  if (normalizedName.includes('modificacion') || normalizedName.includes('actualizacion')) {
+    return 'Permite orientar cambios o actualización de datos registrados ante la dependencia responsable.'
+  }
+
+  if (normalizedName.includes('sisben')) {
+    return 'Orienta la actualización de información registrada en el sistema SISBÉN.'
+  }
+
+  if (normalizedName.includes('licencia') || normalizedName.includes('transito')) {
+    return 'Guía la solicitud de duplicado de documentos asociados al vehículo o licencia de tránsito.'
+  }
+
+  const cleaned = stripMarkdownLinks(String(tramite.descripcion || tramite.tiempo_estimado || ''))
+    .replace(/\s+/g, ' ')
+    .trim()
 
   if (!cleaned) return 'Ficha disponible para consulta ciudadana.'
 
-  return truncateText(cleaned, 120)
+  const firstSentence = cleaned.split(/(?<=[.!?])\s+/)[0]?.trim()
+  return firstSentence && firstSentence.length <= 150
+    ? firstSentence
+    : 'Resumen disponible para orientar la consulta ciudadana sobre este trámite.'
 }
 
 function stripMarkdownLinks(value) {
   return String(value ?? '').replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gi, '$1')
-}
-
-function truncateText(value, maxLength) {
-  const text = String(value ?? '').trim()
-  if (text.length <= maxLength) return text
-  const trimmed = text.slice(0, maxLength).replace(/\s+\S*$/, '').trim()
-  return `${trimmed || text.slice(0, maxLength).trim()}...`
 }
 
 function TramitesAdminList({
