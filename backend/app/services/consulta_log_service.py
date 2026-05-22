@@ -66,7 +66,7 @@ def log_consulta_result(
     return log_entry
 
 
-def list_recent_consulta_logs(db: Session, *, limit: int = 50) -> list[ConsultaLog]:
+def list_recent_consulta_logs(db: Session, *, limit: int = 200) -> list[ConsultaLog]:
     query = select(ConsultaLog).order_by(ConsultaLog.created_at.desc(), ConsultaLog.id.desc()).limit(limit)
     logs = db.scalars(query).all()
 
