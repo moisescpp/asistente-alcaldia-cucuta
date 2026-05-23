@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 const FALLBACK_QUICK_QUESTIONS = [
-  'Consulta por impuesto predial',
-  'Consulta por generacion de paz y salvo',
-  'Consulta por devolucion de pagos en exceso',
-  'Consulta por industria y comercio',
+  { label: 'Impuesto predial', value: 'Consulta por impuesto predial' },
+  { label: 'Paz y salvo', value: 'Consulta por generacion de paz y salvo' },
+  { label: 'Devolucion de pagos', value: 'Consulta por devolucion de pagos en exceso' },
+  { label: 'Industria y comercio', value: 'Consulta por industria y comercio' },
 ]
 const ADMIN_TOKEN_STORAGE_KEY = 'admin-access-token'
 const ADMIN_SESSION_EXPIRES_AT_STORAGE_KEY = 'admin-session-expires-at'
@@ -627,6 +627,10 @@ function App() {
     }
   }
 
+  function handleQuickQuestionSelect(quickQuestion) {
+    setQuestion(resolveQuickQuestionValue(quickQuestion))
+  }
+
   function handleInputChange(event) {
     const { name, value } = event.target
 
@@ -863,13 +867,73 @@ function App() {
             isDarkTheme ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-white/90'
           }`}
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+                  <div className={`hidden rounded-[1.4rem] border p-2.5 sm:block ${
+                    isDarkTheme ? 'border-slate-700/80 bg-slate-950/50' : 'border-slate-200 bg-white/95'
+                  }`}>
+                    <img
+                      src="/logo-alcaldia.png"
+                      alt="Logo Alcaldia de Cucuta"
+                      className="h-12 w-12 object-contain"
+                    />
+                  </div>
+                  <div className="min-w-0 space-y-3">
+                    <h1 className={`max-w-4xl break-words text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>
+                      Asistente Institucional de Tramites
+                    </h1>
+                    <p className={`max-w-3xl text-sm leading-relaxed sm:text-base ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>
+                      Consulta informacion institucional clara y verificable.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] sm:tracking-[0.22em] ${
+                        isDarkTheme
+                          ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
+                          : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      }`}>
+                        Asistente de tramites y servicios
+                      </span>
+                      <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] sm:text-xs sm:tracking-[0.22em] ${
+                        isDarkTheme ? 'text-slate-400' : 'text-slate-500'
+                      }`}>
+                        Plataforma institucional de orientacion - Alcaldia de Cucuta
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+                className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition ${
+                  isDarkTheme
+                    ? 'border-slate-600 bg-slate-950/45 text-slate-100 hover:border-slate-400 hover:bg-slate-900'
+                    : 'border-slate-300 bg-white/90 text-slate-700 hover:border-slate-400 hover:bg-white'
+                }`}
+                aria-label={isDarkTheme ? 'Activar modo claro' : 'Activar modo oscuro'}
+                title={isDarkTheme ? 'Modo claro' : 'Modo oscuro'}
+              >
+                {isDarkTheme ? (
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <circle cx="12" cy="12" r="4" />
+                    <path strokeLinecap="round" d="M12 2v2.5M12 19.5V22M4.93 4.93l1.77 1.77M17.3 17.3l1.77 1.77M2 12h2.5M19.5 12H22M4.93 19.07 6.7 17.3M17.3 6.7l1.77-1.77" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={openAdminView}
                 aria-label="Abrir panel administrativo"
-                className={`inline-flex w-full items-center gap-2 rounded-2xl border px-3 py-2.5 transition sm:w-auto ${
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
                   isDarkTheme
                     ? 'border-slate-700/80 bg-slate-950/50 hover:border-slate-500 hover:bg-slate-950/70'
                     : 'border-slate-200 bg-white/90 hover:border-slate-300 hover:bg-white'
@@ -888,18 +952,7 @@ function App() {
                   <path d="M18 20a6 6 0 0 0-12 0" />
                   <circle cx="12" cy="8" r="4" />
                 </svg>
-                <span className="text-left">
-                  <span className={`block text-[11px] font-semibold uppercase tracking-[0.18em] ${
-                    isDarkTheme ? 'text-slate-400' : 'text-slate-500'
-                  }`}>
-                    Acceso privado
-                  </span>
-                  <span className={`block text-sm font-semibold ${
-                    isDarkTheme ? 'text-slate-100' : 'text-slate-800'
-                  }`}>
-                    Panel admin
-                  </span>
-                </span>
+                <span className={isDarkTheme ? 'text-slate-100' : 'text-slate-800'}>Panel admin</span>
               </button>
               {view === 'admin' ? (
                 <button
@@ -915,22 +968,10 @@ function App() {
                 </button>
               ) : null}
             </div>
-
-            <button
-              type="button"
-              onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
-              className={`inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold transition sm:w-fit ${
-                isDarkTheme
-                  ? 'border-slate-600 bg-slate-950/45 text-slate-100 hover:border-slate-400 hover:bg-slate-900'
-                  : 'border-slate-300 bg-white/90 text-slate-700 hover:border-slate-400 hover:bg-white'
-              }`}
-            >
-              {isDarkTheme ? 'Modo claro' : 'Modo oscuro'}
-            </button>
           </div>
 
-          <div className="mt-4 space-y-5">
-            <div className="space-y-4">
+          <div className="mt-1">
+            {view === '__legacy__' ? <div className="space-y-4">
               <div className="space-y-2">
                 <p className={`text-xs font-semibold uppercase tracking-[0.18em] sm:tracking-[0.28em] ${
                   isDarkTheme ? 'text-slate-400' : 'text-slate-500'
@@ -965,7 +1006,7 @@ function App() {
                   </p>
                 </div>
               </div>
-            </div>
+            </div> : null}
 
             {view === 'ciudadania' ? (
               <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
@@ -1056,12 +1097,12 @@ function App() {
                       <div className="grid gap-3 sm:flex sm:flex-wrap">
                         {quickQuestions.map((quickQuestion) => (
                           <button
-                            key={quickQuestion}
+                            key={quickQuestion.value}
                             type="button"
-                            onClick={() => setQuestion(quickQuestion)}
-                            className="w-full rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 sm:w-auto"
+                            onClick={() => handleQuickQuestionSelect(quickQuestion)}
+                            className="w-full rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-left text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 sm:w-auto sm:text-center"
                           >
-                            {quickQuestion}
+                            {quickQuestion.label}
                           </button>
                         ))}
                       </div>
@@ -1071,12 +1112,13 @@ function App() {
                   {consultaError ? <Message tone="error">{consultaError}</Message> : null}
                 </div>
 
-                <ConsultaResult
-                  consulta={consulta}
-                  isSubmitting={isSubmitting}
-                  onUseSuggestion={setQuestion}
-                  quickQuestions={quickQuestions}
-                />
+                {consulta || isSubmitting ? (
+                  <ConsultaResult
+                    consulta={consulta}
+                    isSubmitting={isSubmitting}
+                    onUseSuggestion={handleQuickQuestionSelect}
+                  />
+                ) : null}
               </section>
 
               <aside className="min-w-0 space-y-5 sm:space-y-6">
@@ -1974,26 +2016,64 @@ function buildQuickQuestions(tramites) {
     'devolucion',
     'alumbrado',
   ]
-  const availableLabels = new Map()
+  const availableQuestions = new Map()
 
   tramites.forEach((tramite) => {
     const normalizedName = normalizeLooseText(tramite.nombre)
-    const label = `Consulta por ${tramite.nombre}`
-    if (!availableLabels.has(normalizedName)) {
-      availableLabels.set(normalizedName, label)
+    const question = {
+      label: buildQuickQuestionLabel(tramite.nombre),
+      value: `Consulta por ${tramite.nombre}`,
+    }
+    if (!availableQuestions.has(normalizedName)) {
+      availableQuestions.set(normalizedName, question)
     }
   })
 
   const prioritizedLabels = prioritizedMatchers.flatMap((matcher) =>
-    Array.from(availableLabels.entries())
+    Array.from(availableQuestions.entries())
       .filter(([normalizedName]) => normalizedName.includes(matcher))
-      .map(([, label]) => label),
+      .map(([, question]) => question),
   )
 
-  const mergedLabels = [...prioritizedLabels, ...availableLabels.values()]
-  const uniqueLabels = [...new Set(mergedLabels)].slice(0, 4)
+  const mergedLabels = [...prioritizedLabels, ...availableQuestions.values()]
+  const uniqueLabels = Array.from(
+    new Map(mergedLabels.map((question) => [question.value, question])).values(),
+  ).slice(0, 4)
 
   return uniqueLabels.length ? uniqueLabels : FALLBACK_QUICK_QUESTIONS
+}
+
+function buildQuickQuestionLabel(tramiteName) {
+  const normalizedName = normalizeLooseText(tramiteName)
+
+  if (normalizedName.includes('predial')) return 'Impuesto predial'
+  if (normalizedName.includes('paz y salvo')) return 'Paz y salvo'
+  if (normalizedName.includes('devolucion')) return 'Devolucion de pagos'
+  if (
+    normalizedName.includes('cancelacion') &&
+    normalizedName.includes('registro de contribuyentes') &&
+    normalizedName.includes('industria y comercio')
+  ) {
+    return 'Cancelar registro ICA'
+  }
+  if (normalizedName.includes('industria y comercio')) return 'Industria y comercio'
+  if (normalizedName.includes('espectaculos')) return 'Espectaculos publicos'
+  if (normalizedName.includes('alumbrado')) return 'Alumbrado publico'
+
+  const words = cleanDependencyLabel(tramiteName)
+    .split(/\s+/)
+    .filter((word) => word.length > 2)
+    .slice(0, 4)
+
+  return words.join(' ')
+}
+
+function resolveQuickQuestionValue(quickQuestion) {
+  if (quickQuestion && typeof quickQuestion === 'object' && 'value' in quickQuestion) {
+    return quickQuestion.value
+  }
+
+  return String(quickQuestion ?? '')
 }
 
 function cleanDependencyLabel(value) {
@@ -2121,7 +2201,7 @@ function getTodayDateKey() {
   return getLogDateKey(new Date())
 }
 
-function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestions }) {
+function ConsultaResult({ consulta, isSubmitting, onUseSuggestion }) {
   const isNoMatch = consulta?.mensaje_estado === 'Sin coincidencias en la base actual'
   const isTooGeneral = consulta?.mensaje_estado === 'Consulta demasiado general'
   const resultSectionRef = useRef(null)
@@ -2468,26 +2548,7 @@ function ConsultaResult({ consulta, isSubmitting, onUseSuggestion, quickQuestion
             </div>
           ) : null}
         </div>
-      ) : (
-        <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-600">
-          La respuesta aparecera aqui cuando envies una consulta al asistente.
-          <p className="mt-3 text-sm leading-6 text-slate-500">
-            Puedes empezar con una pregunta concreta sobre un impuesto, un tramite o una gestion tributaria.
-          </p>
-          <div className="mt-5 flex flex-wrap justify-center gap-3">
-            {quickQuestions.slice(0, 3).map((quickQuestion) => (
-              <button
-                key={quickQuestion}
-                type="button"
-                onClick={() => onUseSuggestion(quickQuestion)}
-                className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50"
-              >
-                {quickQuestion}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      ) : null}
     </section>
   )
 }
@@ -4463,6 +4524,7 @@ function getConsultaLogStatusConfig(messageStatus) {
 
 function HeaderFeatureCard({ icon, title, body, detailTitle, detailItems = [], accent, isDarkTheme }) {
   const [isOpen, setIsOpen] = useState(false)
+  const canToggleDetails = detailItems.length > 0 && icon !== 'catalog'
   const accents = {
     emerald: 'bg-emerald-500/10 text-emerald-500',
     blue: 'bg-sky-500/10 text-sky-500',
@@ -4480,7 +4542,7 @@ function HeaderFeatureCard({ icon, title, body, detailTitle, detailItems = [], a
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <h3 className={`min-w-0 break-words text-sm font-bold ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>{title}</h3>
-            {detailItems.length ? (
+            {canToggleDetails ? (
               <button
                 type="button"
                 onClick={() => setIsOpen((current) => !current)}
@@ -4492,14 +4554,14 @@ function HeaderFeatureCard({ icon, title, body, detailTitle, detailItems = [], a
                 aria-expanded={isOpen}
                 aria-label={`Ver detalle de ${title}`}
               >
-                {isOpen ? 'X' : '?'}
+                {isOpen ? '−' : '+'}
               </button>
             ) : null}
           </div>
           <p className={`mt-1 break-words text-sm leading-5 ${isDarkTheme ? 'text-slate-400' : 'text-slate-600'}`}>{body}</p>
         </div>
       </div>
-      {isOpen && detailItems.length ? (
+      {isOpen && canToggleDetails ? (
         <div className={`mt-4 rounded-2xl border p-3 ${
           isDarkTheme ? 'border-slate-800 bg-slate-950/70' : 'border-slate-200 bg-white'
         }`}>
