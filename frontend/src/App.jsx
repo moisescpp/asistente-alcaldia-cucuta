@@ -2011,15 +2011,17 @@ function buildQuickQuestions(tramites) {
   const prioritizedMatchers = [
     'predial',
     'paz y salvo',
+    'alumbrado',
     'industria y comercio',
     'espectaculos',
     'devolucion',
-    'alumbrado',
   ]
   const availableQuestions = new Map()
 
   tramites.forEach((tramite) => {
     const normalizedName = normalizeLooseText(tramite.nombre)
+    if (shouldExcludeQuickQuestion(normalizedName)) return
+
     const question = {
       label: buildQuickQuestionLabel(tramite.nombre),
       value: `Consulta por ${tramite.nombre}`,
@@ -2049,16 +2051,9 @@ function buildQuickQuestionLabel(tramiteName) {
   if (normalizedName.includes('predial')) return 'Impuesto predial'
   if (normalizedName.includes('paz y salvo')) return 'Paz y salvo'
   if (normalizedName.includes('devolucion')) return 'Devolucion de pagos'
-  if (
-    normalizedName.includes('cancelacion') &&
-    normalizedName.includes('registro de contribuyentes') &&
-    normalizedName.includes('industria y comercio')
-  ) {
-    return 'Cancelar registro ICA'
-  }
   if (normalizedName.includes('industria y comercio')) return 'Industria y comercio'
   if (normalizedName.includes('espectaculos')) return 'Espectaculos publicos'
-  if (normalizedName.includes('alumbrado')) return 'Alumbrado publico'
+  if (normalizedName.includes('alumbrado')) return 'Impuesto sobre alumbrado publico'
 
   const words = cleanDependencyLabel(tramiteName)
     .split(/\s+/)
@@ -2066,6 +2061,14 @@ function buildQuickQuestionLabel(tramiteName) {
     .slice(0, 4)
 
   return words.join(' ')
+}
+
+function shouldExcludeQuickQuestion(normalizedName) {
+  return (
+    normalizedName.includes('cancelacion') &&
+    normalizedName.includes('registro de contribuyentes') &&
+    normalizedName.includes('industria y comercio')
+  )
 }
 
 function resolveQuickQuestionValue(quickQuestion) {
