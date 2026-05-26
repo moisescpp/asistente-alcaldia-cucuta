@@ -265,10 +265,11 @@ def create_tramite(
             detail="No fue posible crear el tramite.",
         ) from exc
 
+    tramite_id = tramite.id
     _sync_tramite_embedding(db, tramite)
 
     return _serialize_tramite(
-        _reload_tramite_snapshot(db, tramite.id) or tramite
+        _reload_tramite_snapshot(db, tramite_id) or tramite
     )
 
 

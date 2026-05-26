@@ -547,6 +547,75 @@ def test_consulta_rejects_generic_multiword_query_even_with_typos(client) -> Non
     assert len(data["tramites_relacionados"]) >= 1
 
 
+def test_consulta_rejects_article_prefixed_generic_tax_query_with_typo(client) -> None:
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "los inpuestos"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Consulta demasiado general"
+    assert data["tramite_principal"] is None
+    assert len(data["sugerencias"]) >= 1
+    assert all(
+        "sisben" not in (tramite["nombre"] or "").lower()
+        for tramite in data["tramites_relacionados"]
+    )
+
+
+def test_generic_tax_typo_clarification_does_not_surface_unrelated_sisben_candidate(
+    client,
+    admin_headers,
+    test_slug_prefix,
+) -> None:
+    create_test_tramite(
+        client,
+        admin_headers,
+        f"{test_slug_prefix}-predgen",
+        nombre=f"Impuesto predial {test_slug_prefix}",
+        descripcion=(
+            "Consulta del impuesto predial municipal para casas, lotes y predios "
+            "con contexto suficiente para validar una aclaracion ciudadana general."
+        ),
+    )
+    create_test_tramite(
+        client,
+        admin_headers,
+        f"{test_slug_prefix}-devgen",
+        nombre=f"Devolucion de pagos {test_slug_prefix}",
+        descripcion=(
+            "Devolucion y compensacion de pagos en exceso de impuestos municipales "
+            "con lenguaje ciudadano suficiente para la validacion de pruebas."
+        ),
+    )
+    create_test_tramite(
+        client,
+        admin_headers,
+        f"{test_slug_prefix}-sisgen",
+        nombre=f"Actualizacion SISBEN {test_slug_prefix}",
+        descripcion=(
+            "Actualizacion de datos del SISBEN para hogares registrados con "
+            "informacion suficiente para diferenciarlo del catalogo tributario."
+        ),
+        dependencia="Departamento Administrativo de Planeacion",
+    )
+
+    response = client.post(
+        "/api/consulta",
+        json={"pregunta": "los inpuestos"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Consulta demasiado general"
+    assert data["tramite_principal"] is None
+    assert all(
+        "sisben" not in (tramite["nombre"] or "").lower()
+        for tramite in data["tramites_relacionados"]
+    )
+
+
 def test_consulta_rejects_generic_payment_phrase_without_specific_context(client) -> None:
     response = client.post(
         "/api/consulta",

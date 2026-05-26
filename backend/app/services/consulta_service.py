@@ -197,6 +197,25 @@ def _build_suggestion_label(tramite: Tramite) -> str:
     return f"Consulta por {tramite.nombre}"
 
 
+def _build_searchable_text(tramite: Tramite) -> str:
+    return " ".join(
+        [
+            _normalize_text(tramite.nombre),
+            _normalize_text(tramite.descripcion),
+            _normalize_text(tramite.requisitos),
+            _normalize_text(tramite.dirigido_a),
+            _normalize_text(tramite.pasos),
+            _normalize_text(tramite.tiempo_estimado),
+            _normalize_text(tramite.medio_seguimiento),
+            _normalize_text(tramite.normatividad),
+            _normalize_text(tramite.costo),
+            _normalize_text(tramite.horario),
+            _normalize_text(tramite.dependencia),
+            _normalize_text(" ".join(get_tramite_semantic_aliases(tramite))),
+        ]
+    )
+
+
 def _stable_catalog_order_key(pregunta: str, tramite: Tramite) -> str:
     reference = f"{_normalize_text(pregunta)}::{tramite.slug or tramite.nombre}"
     return hashlib.sha256(reference.encode("utf-8")).hexdigest()
@@ -443,23 +462,7 @@ def _text_match_metadata(pregunta: str, tramite: Tramite) -> tuple[int, int, boo
     normalized_question = _normalize_text(pregunta)
     tokens = _query_tokens(pregunta)
     specific_tokens = _query_specific_tokens(pregunta)
-
-    searchable_text = " ".join(
-        [
-            _normalize_text(tramite.nombre),
-            _normalize_text(tramite.descripcion),
-            _normalize_text(tramite.requisitos),
-            _normalize_text(tramite.dirigido_a),
-            _normalize_text(tramite.pasos),
-            _normalize_text(tramite.tiempo_estimado),
-            _normalize_text(tramite.medio_seguimiento),
-            _normalize_text(tramite.normatividad),
-            _normalize_text(tramite.costo),
-            _normalize_text(tramite.horario),
-            _normalize_text(tramite.dependencia),
-            _normalize_text(" ".join(get_tramite_semantic_aliases(tramite))),
-        ]
-    )
+    searchable_text = _build_searchable_text(tramite)
     searchable_words = set(_tokenize_text(searchable_text))
 
     total_matches = _count_token_matches(tokens, searchable_words)
@@ -853,6 +856,32 @@ def _query_tokens(pregunta: str) -> list[str]:
     return [token for token in normalized_question.split() if len(token) > 2]
 
 
+def _query_domain_tokens(pregunta: str) -> list[str]:
+    return [
+        token
+        for token in _query_tokens(pregunta)
+        if not _matches_token_group(token, INTENT_QUERY_TOKENS)
+        and token not in TECHNICAL_NOISE_TOKENS
+    ]
+
+
+def _domain_match_count(pregunta: str, tramite: Tramite) -> int:
+    domain_tokens = _query_domain_tokens(pregunta)
+    searchable_text = " ".join(
+        [
+            _normalize_text(tramite.nombre),
+            _normalize_text(tramite.descripcion),
+            _normalize_text(tramite.requisitos),
+            _normalize_text(tramite.dirigido_a),
+            _normalize_text(tramite.pasos),
+            _normalize_text(tramite.normatividad),
+            _normalize_text(" ".join(get_tramite_semantic_aliases(tramite))),
+        ]
+    )
+    searchable_words = set(_tokenize_text(searchable_text))
+    return _count_token_matches(domain_tokens, searchable_words)
+
+
 def _is_overly_generic_query(pregunta: str) -> bool:
     tokens = _query_tokens(pregunta)
     if not tokens:
@@ -993,6 +1022,7 @@ def _find_clarification_candidates(
     pregunta: str,
     tramites: list[Tramite],
 ) -> list[Tramite]:
+    specific_tokens = _query_specific_tokens(pregunta)
     textual_candidates: list[tuple[Tramite, int, int, bool]] = []
     for tramite in tramites:
         if not tramite.activo:
@@ -1006,13 +1036,21 @@ def _find_clarification_candidates(
             pregunta,
             tramite,
         )
+        domain_matches = _domain_match_count(pregunta, tramite)
+
+        if not specific_tokens and domain_matches == 0 and not identifier_phrase_match:
+            continue
 
         if total_matches > 0 or identifier_specific_matches > 0 or identifier_phrase_match:
             textual_candidates.append(
                 (
                     tramite,
-                    max(specific_matches, identifier_specific_matches),
-                    total_matches,
+                    max(
+                        specific_matches,
+                        identifier_specific_matches,
+                        domain_matches if not specific_tokens else 0,
+                    ),
+                    domain_matches if not specific_tokens else total_matches,
                     phrase_match or identifier_phrase_match,
                 )
             )
@@ -1026,9 +1064,10 @@ def _find_clarification_candidates(
         reverse=True,
     )
     candidate_tramites = [tramite for tramite, _, _, _ in textual_candidates[:3]]
+    candidate_tramites = _deduplicate_tramites(candidate_tramites)
 
-    if len(candidate_tramites) >= SEMANTIC_RESULT_LIMIT:
-        return _deduplicate_tramites(candidate_tramites)[:3]
+    if len(candidate_tramites) >= SEMANTIC_RESULT_LIMIT or not specific_tokens:
+        return candidate_tramites[:3]
 
     try:
         embedding = generate_embedding(pregunta)
