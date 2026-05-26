@@ -290,10 +290,10 @@ def test_consulta_falls_back_to_text_when_tramite_has_no_embedding(
     creation_response = create_test_tramite(
         client,
         admin_headers,
-        f"{test_slug_prefix}-vehicular",
-        nombre=f"Impuesto vehicular {test_slug_prefix}",
-        descripcion="Gestion del impuesto vehicular para carros, motos y otros vehiculos registrados por el contribuyente.",
-        dependencia="Secretaria de transito y movilidad",
+        f"{test_slug_prefix}-predial-noemb",
+        nombre=f"Impuesto predial sin embedding {test_slug_prefix}",
+        descripcion="Gestion del impuesto predial municipal para casas, lotes y predios registrados en la ciudad.",
+        dependencia="Secretaria de Hacienda - Rentas e Impuestos",
     )
     tramite_id = creation_response["id"]
 
@@ -308,13 +308,13 @@ def test_consulta_falls_back_to_text_when_tramite_has_no_embedding(
 
     response = client.post(
         "/api/consulta",
-        json={"pregunta": "Impuesto vehicular"},
+        json={"pregunta": "impuesto predial sin embedding"},
     )
 
     assert response.status_code == 200
     data = response.json()
     assert data["tramite_principal"] is not None
-    assert "vehicular" in data["tramite_principal"]["nombre"].lower()
+    assert "predial" in data["tramite_principal"]["nombre"].lower()
 
 
 def test_consulta_understands_citizen_synonym_for_house(client) -> None:
@@ -353,8 +353,6 @@ def test_consulta_understands_house_context_phrase(client) -> None:
         ("paz y salbo municipal", ("paz", "salvo")),
         ("impuesto sobre iluminacion publica", ("alumbrado",)),
         ("necesito saber sobre lo de la luz", ("alumbrado",)),
-        ("quiero actualizar el sisben por cambio de direccion", ("sisben",)),
-        ("se me perdio la tarjeta del carro", ("licencia", "transito")),
     ],
 )
 def test_consulta_handles_core_revenue_tax_catalog_intentions(
@@ -369,6 +367,26 @@ def test_consulta_handles_core_revenue_tax_catalog_intentions(
     assert data["tramite_principal"] is not None
     principal_name = normalize_assert_text(data["tramite_principal"]["nombre"])
     assert any(term in principal_name for term in expected_terms)
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "quiero actualizar el sisben por cambio de direccion",
+        "se me perdio la tarjeta del carro",
+        "impuesto vehicular",
+    ],
+)
+def test_consulta_rejects_out_of_scope_catalog_intentions(client, question) -> None:
+    response = client.post("/api/consulta", json={"pregunta": question})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is None
+    assert data["mensaje_estado"] in {
+        "Sin coincidencias en la base actual",
+        "Consulta demasiado general",
+    }
 
 
 def test_consulta_understands_business_closure_language(
@@ -403,16 +421,7 @@ def test_consulta_understands_business_closure_language(
     assert "cancelacion" in principal_name
 
 
-def test_consulta_understands_citizen_synonym_for_car(client, admin_headers, test_slug_prefix) -> None:
-    create_test_tramite(
-        client,
-        admin_headers,
-        f"{test_slug_prefix}-vehicular-carro",
-        nombre=f"Impuesto vehicular {test_slug_prefix}",
-        descripcion="Gestion del impuesto vehicular para carros, motos y otros vehiculos registrados por el contribuyente.",
-        dependencia="Secretaria de transito y movilidad",
-    )
-
+def test_consulta_rejects_out_of_scope_car_language(client) -> None:
     response = client.post(
         "/api/consulta",
         json={"pregunta": "carro"},
@@ -420,10 +429,11 @@ def test_consulta_understands_citizen_synonym_for_car(client, admin_headers, tes
 
     assert response.status_code == 200
     data = response.json()
-    assert data["tramite_principal"] is not None
-    assert "vehicular" in data["tramite_principal"]["nombre"].lower()
-    assert "Datos registrados:" in data["respuesta"]
-    assert "Informacion pendiente en el sistema:" not in data["respuesta"]
+    assert data["tramite_principal"] is None
+    assert data["mensaje_estado"] in {
+        "Sin coincidencias en la base actual",
+        "Consulta demasiado general",
+    }
 
 
 def test_consulta_prioritizes_supported_payment_candidate(
@@ -484,16 +494,7 @@ def test_consulta_understands_payment_help_alias(client, admin_headers, test_slu
     assert "facilidades de pago" in data["tramite_principal"]["nombre"].lower()
 
 
-def test_consulta_prioritizes_vehicular_over_incidental_transit_matches(client, admin_headers, test_slug_prefix) -> None:
-    create_test_tramite(
-        client,
-        admin_headers,
-        f"{test_slug_prefix}-vehicular-transito",
-        nombre=f"Impuesto vehicular {test_slug_prefix}",
-        descripcion="Gestion del impuesto vehicular para carros, motos y placa dentro de la atencion tributaria municipal.",
-        dependencia="Secretaria de transito y movilidad",
-    )
-
+def test_consulta_rejects_out_of_scope_transit_language(client) -> None:
     response = client.post(
         "/api/consulta",
         json={"pregunta": "Necesito informacion de transito sobre impuesto vehicular"},
@@ -501,8 +502,11 @@ def test_consulta_prioritizes_vehicular_over_incidental_transit_matches(client, 
 
     assert response.status_code == 200
     data = response.json()
-    assert data["tramite_principal"] is not None
-    assert "vehicular" in data["tramite_principal"]["nombre"].lower()
+    assert data["tramite_principal"] is None
+    assert data["mensaje_estado"] in {
+        "Sin coincidencias en la base actual",
+        "Consulta demasiado general",
+    }
 
 
 def test_consulta_rejects_overly_generic_tax_query(client) -> None:
@@ -589,17 +593,26 @@ def test_generic_tax_typo_clarification_does_not_surface_unrelated_sisben_candid
             "con lenguaje ciudadano suficiente para la validacion de pruebas."
         ),
     )
-    create_test_tramite(
-        client,
-        admin_headers,
-        f"{test_slug_prefix}-sisgen",
-        nombre=f"Actualizacion SISBEN {test_slug_prefix}",
-        descripcion=(
-            "Actualizacion de datos del SISBEN para hogares registrados con "
-            "informacion suficiente para diferenciarlo del catalogo tributario."
-        ),
-        dependencia="Departamento Administrativo de Planeacion",
-    )
+    db = SessionLocal()
+    try:
+        tramite = Tramite(
+            nombre=f"Actualizacion SISBEN {test_slug_prefix}",
+            slug=f"{test_slug_prefix}-sisgen",
+            descripcion=(
+                "Actualizacion de datos del SISBEN para hogares registrados con "
+                "informacion suficiente para diferenciarlo del catalogo tributario."
+            ),
+            requisitos="Documento de identidad, ficha SISBEN y soporte del cambio reportado.",
+            costo="Sin costo",
+            horario="Lunes a viernes",
+            dependencia="Departamento Administrativo de Planeacion",
+            fuente_url="https://example.com/sisben-prueba",
+            activo=True,
+        )
+        db.add(tramite)
+        db.commit()
+    finally:
+        db.close()
 
     response = client.post(
         "/api/consulta",
@@ -1055,16 +1068,7 @@ def test_deleted_then_recreated_tramite_is_the_only_consultable_version(
     assert "Ficha recreada" in recreated_data["tramite_principal"]["descripcion"]
 
 
-def test_consulta_tolerates_typo_for_vehicular_query(client, admin_headers, test_slug_prefix) -> None:
-    create_test_tramite(
-        client,
-        admin_headers,
-        f"{test_slug_prefix}-vehicular-typo",
-        nombre=f"Impuesto vehicular {test_slug_prefix}",
-        descripcion="Gestion del impuesto vehicular para carros y motos dentro del catalogo tributario del asistente.",
-        dependencia="Secretaria de transito y movilidad",
-    )
-
+def test_consulta_rejects_typo_for_out_of_scope_vehicular_query(client) -> None:
     response = client.post(
         "/api/consulta",
         json={"pregunta": "impuesto vehivular"},
@@ -1072,8 +1076,11 @@ def test_consulta_tolerates_typo_for_vehicular_query(client, admin_headers, test
 
     assert response.status_code == 200
     data = response.json()
-    assert data["tramite_principal"] is not None
-    assert "vehicular" in data["tramite_principal"]["nombre"].lower()
+    assert data["tramite_principal"] is None
+    assert data["mensaje_estado"] in {
+        "Sin coincidencias en la base actual",
+        "Consulta demasiado general",
+    }
 
 
 def test_consulta_tolerates_typo_for_paz_y_salvo_query(client) -> None:
@@ -1090,16 +1097,7 @@ def test_consulta_tolerates_typo_for_paz_y_salvo_query(client) -> None:
 
 def test_consulta_persists_log_entry_when_logging_is_enabled(client, admin_headers, test_slug_prefix) -> None:
     app.state.disable_consulta_logging = False
-    question = "test-log-carro"
-
-    create_test_tramite(
-        client,
-        admin_headers,
-        f"{test_slug_prefix}-vehicular-log",
-        nombre=f"Impuesto vehicular {test_slug_prefix}",
-        descripcion="Gestion del impuesto vehicular para carros y motos dentro del catalogo tributario del asistente.",
-        dependencia="Secretaria de transito y movilidad",
-    )
+    question = "test-log-predial"
 
     try:
         response = client.post(
@@ -1119,7 +1117,7 @@ def test_consulta_persists_log_entry_when_logging_is_enabled(client, admin_heade
             }
             assert log_entry.origen_respuesta in {"textual", "semantica"}
             assert log_entry.tramite_principal_nombre is not None
-            assert "vehicular" in log_entry.tramite_principal_nombre.lower()
+            assert "predial" in log_entry.tramite_principal_nombre.lower()
             assert log_entry.resumen_respuesta
         finally:
             db.close()

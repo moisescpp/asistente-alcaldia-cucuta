@@ -132,6 +132,57 @@ def test_create_tramite_returns_201_and_persists(client, admin_headers, test_slu
     assert data["semantic_recommended_action"]
 
 
+def test_create_tramite_rejects_out_of_scope_catalog_entry(client, admin_headers, test_slug_prefix) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-sisben-out",
+        nombre=f"Actualizacion SISBEN {test_slug_prefix}",
+        descripcion=(
+            "Permite corregir o actualizar la informacion registrada en la ficha "
+            "del hogar para mantener el SISBEN alineado con la realidad familiar."
+        ),
+        requisitos=(
+            "Documento de identidad, soporte del cambio reportado y ficha SISBEN "
+            "del grupo familiar cuando aplique."
+        ),
+    )
+
+    response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
+
+    assert response.status_code == 422
+    assert "catalogo vigente de rentas e impuestos" in response.json()["detail"].lower()
+
+
+def test_public_list_hides_active_out_of_scope_catalog_entries(client, test_slug_prefix) -> None:
+    db = SessionLocal()
+    try:
+        tramite = Tramite(
+            nombre=f"Actualizacion SISBEN test {test_slug_prefix}",
+            slug=f"{test_slug_prefix}-sisben-list",
+            descripcion=(
+                "Actualizacion de datos del SISBEN para hogares registrados fuera del "
+                "catalogo tributario vigente."
+            ),
+            requisitos="Documento de identidad y ficha SISBEN.",
+            costo="Sin costo",
+            horario="Lunes a viernes",
+            dependencia="Departamento Administrativo de Planeacion",
+            fuente_url="https://example.com/sisben-list",
+            activo=True,
+        )
+        db.add(tramite)
+        db.commit()
+        db.refresh(tramite)
+        hidden_id = tramite.id
+    finally:
+        db.close()
+
+    response = client.get("/api/tramites")
+
+    assert response.status_code == 200
+    listed_ids = [item["id"] for item in response.json()]
+    assert hidden_id not in listed_ids
+
+
 def test_create_tramite_accepts_extended_procedure_fields(
     client,
     admin_headers,

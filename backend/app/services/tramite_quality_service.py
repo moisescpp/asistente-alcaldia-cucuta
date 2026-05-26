@@ -14,12 +14,25 @@ GENERIC_DESCRIPTION_PATTERNS = (
     "no hay descripcion",
 )
 
-HACIENDA_KEYWORDS = {
+CATALOG_SCOPE_KEYWORDS = {
     "hacienda",
     "rentas",
     "impuestos",
     "tributario",
     "tributaria",
+    "liquidacion",
+    "liquidar",
+    "pago",
+    "pagos",
+    "facilidades",
+    "registro",
+    "contribuyentes",
+    "declaracion",
+    "declaraciones",
+    "correccion",
+    "modificacion",
+    "cancelacion",
+    "certificado",
     "predial",
     "industria",
     "comercio",
@@ -29,6 +42,16 @@ HACIENDA_KEYWORDS = {
     "compensacion",
     "paz",
     "salvo",
+}
+
+CATALOG_EXCLUDED_KEYWORDS = {
+    "sisben",
+    "transito",
+    "movilidad",
+    "vehicular",
+    "licencia de transito",
+    "tarjeta de propiedad",
+    "papeles del carro",
 }
 
 
@@ -76,7 +99,52 @@ def _has_tax_context(payload: dict[str, Any]) -> bool:
             ]
         )
     )
-    return any(keyword in searchable for keyword in HACIENDA_KEYWORDS)
+    return any(keyword in searchable for keyword in CATALOG_SCOPE_KEYWORDS)
+
+
+def _contains_scope_keyword(value: str) -> bool:
+    return any(keyword in value for keyword in CATALOG_SCOPE_KEYWORDS)
+
+
+def _contains_excluded_keyword(value: str) -> bool:
+    return any(keyword in value for keyword in CATALOG_EXCLUDED_KEYWORDS)
+
+
+def is_tramite_in_catalog_scope(payload_or_tramite: Any) -> bool:
+    payload = _coerce_payload(payload_or_tramite)
+    primary_searchable = _normalize_text(
+        " ".join(
+            [
+                str(payload.get("nombre") or ""),
+                str(payload.get("slug") or ""),
+                str(payload.get("dependencia") or ""),
+            ]
+        )
+    )
+    searchable = _normalize_text(
+        " ".join(
+            [
+                primary_searchable,
+                str(payload.get("descripcion") or ""),
+                str(payload.get("requisitos") or ""),
+                str(payload.get("dirigido_a") or ""),
+                str(payload.get("pasos") or ""),
+                str(payload.get("medio_seguimiento") or ""),
+                str(payload.get("normatividad") or ""),
+            ]
+        )
+    )
+
+    if _contains_excluded_keyword(primary_searchable):
+        return False
+
+    if _contains_scope_keyword(primary_searchable):
+        return True
+
+    if _contains_excluded_keyword(searchable) and not _contains_scope_keyword(searchable):
+        return False
+
+    return _contains_scope_keyword(searchable)
 
 
 def _extract_alias_count(payload_or_tramite: Any) -> int:
@@ -126,6 +194,7 @@ def assess_tramite_quality(payload_or_tramite: Any) -> TramiteQualityReport:
     requirement_words = _word_count(requirements)
     alias_count = _extract_alias_count(payload_or_tramite)
     has_tax_context = _has_tax_context(payload)
+    is_catalog_scope = is_tramite_in_catalog_scope(payload)
 
     if description_words == 0:
         score -= 40
@@ -170,9 +239,11 @@ def assess_tramite_quality(payload_or_tramite: Any) -> TramiteQualityReport:
         score -= 6
         alerts.append("Falta la dependencia responsable.")
 
-    if dependency and not has_tax_context:
+    if dependency and not is_catalog_scope:
         score -= 10
-        alerts.append("Este tramite no muestra contexto claro de rentas e impuestos.")
+        message = "Este tramite esta fuera del catalogo vigente de rentas e impuestos."
+        alerts.append(message)
+        blocking_issues.append(message)
 
     if embedding_vector is None and "embedding_vector" in payload:
         score -= 10
@@ -195,7 +266,7 @@ def assess_tramite_quality(payload_or_tramite: Any) -> TramiteQualityReport:
     else:
         level = "critico"
 
-    if dependency and not has_tax_context:
+    if dependency and not is_catalog_scope:
         scope_status = "fuera_de_foco"
         recommended_action = (
             "Revisa si este tramite debe seguir activo en Hacienda o si conviene "

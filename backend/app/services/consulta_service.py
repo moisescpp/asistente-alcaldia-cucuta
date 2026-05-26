@@ -128,6 +128,20 @@ TECHNICAL_NOISE_TOKENS = {
     "log",
 }
 
+OUT_OF_SCOPE_QUERY_TERMS = {
+    "sisben",
+    "vehicular",
+    "transito",
+    "movilidad",
+    "licencia",
+    "carro",
+    "carros",
+    "moto",
+    "motos",
+    "placa",
+    "tarjeta de propiedad",
+}
+
 
 def _matches_token_group(token: str, token_group: set[str]) -> bool:
     return any(_is_fuzzy_token_match(token, candidate) for candidate in token_group)
@@ -897,6 +911,11 @@ def _is_overly_generic_query(pregunta: str) -> bool:
     )
 
 
+def _references_out_of_scope_topic(pregunta: str) -> bool:
+    normalized_question = _normalize_text(pregunta)
+    return any(term in normalized_question for term in OUT_OF_SCOPE_QUERY_TERMS)
+
+
 def _candidate_support(pregunta: str, tramite: Tramite) -> tuple[int, int, bool, int, int, bool]:
     total_matches, specific_matches, phrase_match = _text_match_metadata(pregunta, tramite)
     identifier_specific_matches, identifier_phrase_match = _identifier_match_metadata(
@@ -1303,6 +1322,9 @@ def process_consulta(
     pregunta: str,
     tramites: list[Tramite],
 ) -> ConsultaResponse:
+    if _references_out_of_scope_topic(pregunta):
+        return _build_empty_response(pregunta, tramites)
+
     direct_intent_response = _detect_direct_citizen_intent(pregunta, tramites)
     if direct_intent_response is not None:
         return direct_intent_response

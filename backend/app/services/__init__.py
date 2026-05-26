@@ -24,6 +24,7 @@ from app.services.consulta_log_service import (
 )
 from app.services.tramite_quality_service import (
     assess_tramite_quality,
+    is_tramite_in_catalog_scope,
     validate_tramite_payload,
 )
 
@@ -45,6 +46,7 @@ __all__ = [
     "process_consulta",
     "require_admin_session",
     "assess_tramite_quality",
+    "is_tramite_in_catalog_scope",
     "update_tramite_embedding",
     "validate_tramite_payload",
     "verify_admin_pin",

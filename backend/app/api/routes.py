@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.database import get_db_session
+from app.database import SessionLocal, get_db_session
 from app.models import Tramite
 from app.schemas.admin_session import (
     AdminSessionRead,
@@ -25,6 +25,7 @@ from app.services import (
     ensure_admin_session_is_active,
     get_admin_session_remaining_seconds,
     has_insecure_admin_config,
+    is_tramite_in_catalog_scope,
     list_recent_consulta_logs,
     log_consulta_result,
     process_consulta,
@@ -50,21 +51,52 @@ def require_active_admin_session(
 
 AdminSession = Annotated[AdminSessionClaims, Depends(require_active_admin_session)]
 
-def _sync_tramite_embedding(db: Session, tramite: Tramite) -> None:
+def _sync_tramite_embedding(tramite_id: int) -> None:
     try:
-        update_tramite_embedding(db, tramite)
+        snapshot_db = SessionLocal()
+    except SQLAlchemyError:
+        return
+
+    try:
+        snapshot = snapshot_db.get(Tramite, tramite_id)
+        if snapshot is None:
+            return
+
+        update_tramite_embedding(snapshot_db, snapshot)
     except Exception:
-        db.rollback()
+        snapshot_db.rollback()
         # Si el embedding no puede actualizarse en este momento, el tramite sigue
         # disponible y la consulta puede apoyarse en el respaldo textual.
-        pass
+    finally:
+        snapshot_db.close()
 
 
-def _reload_tramite_snapshot(db: Session, tramite_id: int) -> Tramite | None:
+def _reload_tramite_snapshot(tramite_id: int) -> Tramite | None:
     try:
-        return db.get(Tramite, tramite_id)
+        snapshot_db = SessionLocal()
     except SQLAlchemyError:
         return None
+
+    try:
+        snapshot = snapshot_db.get(Tramite, tramite_id)
+        if snapshot is not None:
+            snapshot_db.expunge(snapshot)
+        return snapshot
+    except SQLAlchemyError:
+        return None
+    finally:
+        snapshot_db.close()
+
+
+def _serialize_tramite_snapshot(tramite_id: int) -> TramiteRead:
+    snapshot = _reload_tramite_snapshot(tramite_id)
+    if snapshot is None:
+        raise HTTPException(
+            status_code=503,
+            detail="No fue posible recargar el tramite despues de guardarlo.",
+        )
+
+    return _serialize_tramite(snapshot)
 
 
 def _find_tramite_by_name_or_slug(
@@ -163,7 +195,11 @@ def read_admin_session(claims: AdminSession) -> AdminSessionStatus:
 def list_tramites(db: DbSession) -> list[TramiteRead]:
     try:
         query = select(Tramite).where(Tramite.activo.is_(True)).order_by(Tramite.nombre)
-        tramites = db.scalars(query).all()
+        tramites = [
+            tramite
+            for tramite in db.scalars(query).all()
+            if is_tramite_in_catalog_scope(tramite)
+        ]
     except SQLAlchemyError as exc:
         raise HTTPException(
             status_code=503,
@@ -187,7 +223,7 @@ def get_tramite_detail(tramite_id: int, db: DbSession) -> TramiteRead:
             detail="No fue posible consultar la base de datos.",
         ) from exc
 
-    if tramite is None or not tramite.activo:
+    if tramite is None or not tramite.activo or not is_tramite_in_catalog_scope(tramite):
         raise HTTPException(status_code=404, detail="Tramite no encontrado.")
 
     return _serialize_tramite(tramite)
@@ -240,11 +276,9 @@ def create_tramite(
                 detail="No fue posible reactivar el tramite existente.",
             ) from exc
 
-        _sync_tramite_embedding(db, existing_tramite)
+        _sync_tramite_embedding(tramite_id)
 
-        return _serialize_tramite(
-            _reload_tramite_snapshot(db, tramite_id) or existing_tramite
-        )
+        return _serialize_tramite_snapshot(tramite_id)
 
     tramite = Tramite(**payload.model_dump())
 
@@ -266,11 +300,9 @@ def create_tramite(
         ) from exc
 
     tramite_id = tramite.id
-    _sync_tramite_embedding(db, tramite)
+    _sync_tramite_embedding(tramite_id)
 
-    return _serialize_tramite(
-        _reload_tramite_snapshot(db, tramite_id) or tramite
-    )
+    return _serialize_tramite_snapshot(tramite_id)
 
 
 @router.get(
@@ -284,7 +316,11 @@ def list_inactive_tramites(
 ) -> list[TramiteRead]:
     try:
         query = select(Tramite).where(Tramite.activo.is_(False)).order_by(Tramite.nombre)
-        tramites = db.scalars(query).all()
+        tramites = [
+            tramite
+            for tramite in db.scalars(query).all()
+            if is_tramite_in_catalog_scope(tramite)
+        ]
     except SQLAlchemyError as exc:
         raise HTTPException(
             status_code=503,
@@ -380,11 +416,9 @@ def update_tramite(
             detail="No fue posible actualizar el tramite.",
         ) from exc
 
-    _sync_tramite_embedding(db, tramite)
+    _sync_tramite_embedding(tramite_id)
 
-    return _serialize_tramite(
-        _reload_tramite_snapshot(db, tramite_id) or tramite
-    )
+    return _serialize_tramite_snapshot(tramite_id)
 
 
 @router.delete(
@@ -496,11 +530,9 @@ def reactivate_tramite(
             detail="No fue posible reactivar el tramite.",
         ) from exc
 
-    _sync_tramite_embedding(db, tramite)
+    _sync_tramite_embedding(tramite_id)
 
-    return _serialize_tramite(
-        _reload_tramite_snapshot(db, tramite_id) or tramite
-    )
+    return _serialize_tramite_snapshot(tramite_id)
 
 
 @router.get(
@@ -528,7 +560,11 @@ def consulta_tramites(
 ) -> ConsultaResponse:
     try:
         query = select(Tramite).where(Tramite.activo.is_(True)).order_by(Tramite.nombre)
-        tramites = db.scalars(query).all()
+        tramites = [
+            tramite
+            for tramite in db.scalars(query).all()
+            if is_tramite_in_catalog_scope(tramite)
+        ]
     except SQLAlchemyError as exc:
         raise HTTPException(
             status_code=503,
