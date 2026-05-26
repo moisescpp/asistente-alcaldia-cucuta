@@ -657,6 +657,45 @@ def test_consulta_rejects_overly_generic_payment_query(client) -> None:
     assert len(data["tramites_relacionados"]) >= 1
 
 
+@pytest.mark.parametrize(
+    "question",
+    [
+        "debo saber algo",
+        "debo consultar algo",
+        "debo algo",
+        "tengo deuda",
+        "tengo deudas",
+        "obligaciones",
+    ],
+)
+def test_consulta_rejects_generic_debt_language_without_specific_context(client, question) -> None:
+    response = client.post("/api/consulta", json={"pregunta": question})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mensaje_estado"] == "Consulta demasiado general"
+    assert data["tramite_principal"] is None
+    assert len(data["sugerencias"]) >= 1
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "debo impuestos",
+        "quiero saber si debo impuestos",
+        "certificado de deuda",
+        "deudas con la alcaldia",
+    ],
+)
+def test_consulta_accepts_specific_debt_language_for_paz_y_salvo(client, question) -> None:
+    response = client.post("/api/consulta", json={"pregunta": question})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tramite_principal"] is not None
+    assert "paz y salvo" in normalize_assert_text(data["tramite_principal"]["nombre"])
+
+
 def test_consulta_requests_more_specific_query_for_generic_public_term(client) -> None:
     response = client.post(
         "/api/consulta",
