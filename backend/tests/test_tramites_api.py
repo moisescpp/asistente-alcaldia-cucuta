@@ -273,6 +273,21 @@ def test_create_tramite_rejects_generic_description(client, admin_headers, test_
     assert "descripcion" in response.json()["detail"].lower()
 
 
+def test_create_tramite_rejects_html_content(client, admin_headers, test_slug_prefix) -> None:
+    payload = build_payload(
+        f"{test_slug_prefix}-html-create",
+        descripcion=(
+            "<script>alert(1)</script> Gestion tributaria temporal con contexto "
+            "ciudadano suficiente para validar controles administrativos."
+        ),
+    )
+
+    response = client.post("/api/admin/tramites", json=payload, headers=admin_headers)
+
+    assert response.status_code == 422
+    assert "html" in str(response.json()["detail"]).lower()
+
+
 def test_create_tramite_rejects_short_requirements(client, admin_headers, test_slug_prefix) -> None:
     payload = build_payload(
         f"{test_slug_prefix}-short-req",
@@ -311,6 +326,20 @@ def test_update_tramite_normalizes_dependency_spacing(client, admin_headers, tes
     assert response.status_code == 200
     data = response.json()
     assert data["dependencia"] == "Secretaria de Hacienda - Rentas e Impuestos"
+
+
+def test_update_tramite_rejects_html_content(client, admin_headers, test_slug_prefix) -> None:
+    create_payload = build_payload(f"{test_slug_prefix}-html-update")
+    created = client.post("/api/admin/tramites", json=create_payload, headers=admin_headers).json()
+
+    response = client.put(
+        f"/api/admin/tramites/{created['id']}",
+        json={"pasos": "&lt;img src=x onerror=alert(1)&gt; Radicar documentos en el canal oficial."},
+        headers=admin_headers,
+    )
+
+    assert response.status_code == 422
+    assert "html" in str(response.json()["detail"]).lower()
 
 
 def test_delete_tramite_marks_record_inactive_and_hides_from_public_list(

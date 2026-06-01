@@ -1,12 +1,27 @@
 from datetime import datetime
+import html
+import re
 
 from pydantic import BaseModel, ConfigDict, field_validator
+
+
+HTML_PATTERN = re.compile(
+    r"<!--|-->|<!\[CDATA\[|<!DOCTYPE|</?\s*[a-zA-Z][\w:-]*(?:\s+[^<>]*)?/?>",
+    re.IGNORECASE,
+)
 
 
 def _clean_string(value: str | None) -> str | None:
     if value is None:
         return None
-    return " ".join(value.strip().split())
+    if not isinstance(value, str):
+        return value
+
+    cleaned = " ".join(value.strip().split())
+    if HTML_PATTERN.search(cleaned) or HTML_PATTERN.search(html.unescape(cleaned)):
+        raise ValueError("No se permite incluir HTML en los campos del tramite.")
+
+    return cleaned
 
 
 class TramiteBase(BaseModel):
