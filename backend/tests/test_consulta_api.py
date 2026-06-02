@@ -6,7 +6,10 @@ from app.database import SessionLocal
 from app.main import app
 from app.models import ConsultaLog, Tramite
 from app.services import consulta_service
-from app.services.consulta_service import _build_no_match_suggestions
+from app.services.consulta_service import (
+    _build_no_match_suggestions,
+    _select_semantic_candidates,
+)
 
 
 def build_payload(slug: str, **overrides) -> dict:
@@ -267,6 +270,48 @@ def test_no_match_suggestions_return_distinct_catalog_options() -> None:
 
     assert len(suggestions) == 4
     assert len(set(suggestions)) == 4
+
+
+def test_semantic_selection_accepts_confident_vector_match_without_literal_support() -> None:
+    target = Tramite(
+        id=1,
+        nombre="Exoneracion temporal de obligaciones tributarias",
+        slug="exoneracion-temporal-obligaciones-tributarias",
+        descripcion="Beneficio tributario temporal para contribuyentes con condiciones especiales.",
+        dependencia="Secretaria de Hacienda - Rentas e Impuestos",
+        activo=True,
+    )
+    distractor = Tramite(
+        id=2,
+        nombre="Impuesto predial unificado",
+        slug="impuesto-predial-unificado",
+        descripcion="Consulta del impuesto predial municipal.",
+        dependencia="Secretaria de Hacienda - Rentas e Impuestos",
+        activo=True,
+    )
+
+    selected = _select_semantic_candidates(
+        "necesito una rebaja por afectacion economica",
+        [(target, 0.41), (distractor, 0.60)],
+    )
+
+    assert selected
+    assert selected[0][0].id == target.id
+
+
+def test_semantic_selection_does_not_accept_generic_vector_match_without_support() -> None:
+    target = Tramite(
+        id=1,
+        nombre="Exoneracion temporal de obligaciones tributarias",
+        slug="exoneracion-temporal-obligaciones-tributarias",
+        descripcion="Beneficio tributario temporal para contribuyentes con condiciones especiales.",
+        dependencia="Secretaria de Hacienda - Rentas e Impuestos",
+        activo=True,
+    )
+
+    selected = _select_semantic_candidates("impuestos", [(target, 0.41)])
+
+    assert selected == []
 
 
 def test_consulta_rejects_semantically_close_but_incorrect_topic(client) -> None:

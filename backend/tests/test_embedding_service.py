@@ -121,3 +121,25 @@ def test_embedding_text_uses_requirement_and_dependency_context_for_new_tramite(
     assert "cambio de direccion" in normalized_text
     assert "hacienda" in normalized_text
     assert "rentas" in normalized_text
+
+
+def test_embedding_text_enriches_any_tramite_with_citizen_questions() -> None:
+    tramite = build_tramite(
+        "Exoneracion temporal de obligaciones tributarias",
+        "exoneracion-temporal-obligaciones-tributarias",
+    )
+    tramite.descripcion = (
+        "Solicitud para revisar alivios o beneficios tributarios temporales "
+        "cuando el contribuyente cumple condiciones especiales."
+    )
+    tramite.requisitos = (
+        "Documento de identidad, solicitud formal y soportes que demuestren "
+        "la condicion especial del contribuyente."
+    )
+
+    text = build_tramite_embedding_text(tramite).lower()
+
+    assert "preguntas ciudadanas probables" in text
+    assert "como hago para exoneracion temporal obligaciones tributarias" in text
+    assert "que documentos necesito para exoneracion temporal obligaciones tributarias" in text
+    assert "ayuda con exoneracion temporal obligaciones tributarias" in text

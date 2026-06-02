@@ -49,6 +49,10 @@ def _deduplicate_aliases(values: list[str]) -> list[str]:
     return list(seen.keys())
 
 
+def _limit_aliases(values: list[str], *, max_items: int) -> list[str]:
+    return _deduplicate_aliases(values)[:max_items]
+
+
 INTENT_ALIAS_GROUPS: list[tuple[set[str], list[str]]] = [
     (
         {
@@ -140,6 +144,70 @@ TOPIC_STOPWORDS = {
     "servicio",
 }
 
+CITIZEN_LANGUAGE_TEMPLATES = (
+    "como hago para {topic}",
+    "como puedo hacer {topic}",
+    "necesito hacer {topic}",
+    "quiero hacer {topic}",
+    "quiero solicitar {topic}",
+    "necesito solicitar {topic}",
+    "tramitar {topic}",
+    "sacar {topic}",
+    "pedir {topic}",
+    "radicar {topic}",
+    "consultar {topic}",
+    "informacion de {topic}",
+    "orientacion sobre {topic}",
+    "ayuda con {topic}",
+    "requisitos de {topic}",
+    "requisitos para {topic}",
+    "papeles para {topic}",
+    "documentos para {topic}",
+    "que documentos necesito para {topic}",
+    "donde hago {topic}",
+    "donde puedo hacer {topic}",
+    "donde se tramita {topic}",
+    "cuanto cuesta {topic}",
+    "costo de {topic}",
+    "horario para {topic}",
+    "pasos para {topic}",
+    "seguimiento de {topic}",
+    "estado de {topic}",
+    "hacer {topic} en linea",
+    "tramitar {topic} por internet",
+)
+
+CITIZEN_PAYMENT_TEMPLATES = (
+    "pagar {topic}",
+    "donde pago {topic}",
+    "como pago {topic}",
+    "liquidar {topic}",
+    "recibo de {topic}",
+    "factura de {topic}",
+    "deuda de {topic}",
+    "estoy atrasado con {topic}",
+)
+
+CITIZEN_UPDATE_TEMPLATES = (
+    "cambiar {topic}",
+    "modificar {topic}",
+    "actualizar {topic}",
+    "corregir {topic}",
+    "arreglar datos de {topic}",
+)
+
+CITIZEN_BUSINESS_TEMPLATES = (
+    "abrir negocio con {topic}",
+    "cerrar negocio con {topic}",
+    "registrar negocio para {topic}",
+    "actualizar negocio en {topic}",
+)
+
+MAX_SERIALIZED_ALIASES = 90
+MAX_EMBEDDING_ALIASES = 110
+MAX_PROBABLE_QUESTIONS = 35
+MAX_EMBEDDING_FIELD_CHARS = 1800
+
 
 def _tokenize_normalized_text(value: str | None) -> set[str]:
     normalized = _normalize(value)
@@ -156,6 +224,17 @@ def _clean_phrase(value: str | None) -> str:
         return ""
 
     return re.sub(r"\s+", " ", _normalize(value)).strip(" -,:;")
+
+
+def _truncate_embedding_field(value: str | None, fallback: str) -> str:
+    if not value:
+        return fallback
+
+    cleaned = re.sub(r"\s+", " ", value.strip())
+    if len(cleaned) <= MAX_EMBEDDING_FIELD_CHARS:
+        return cleaned
+
+    return f"{cleaned[:MAX_EMBEDDING_FIELD_CHARS].rstrip()}..."
 
 
 def _extract_phrase_candidates(tramite: Tramite) -> list[str]:
@@ -277,6 +356,93 @@ def _extract_topic_phrases(tramite: Tramite) -> list[str]:
             seen.setdefault(cleaned_candidate, None)
 
     return list(seen.keys())[:10]
+
+
+def _build_citizen_language_aliases(tramite: Tramite) -> list[str]:
+    topic_phrases = _extract_topic_phrases(tramite)
+    if not topic_phrases:
+        return []
+
+    searchable_text = " ".join(
+        [
+            tramite.nombre or "",
+            tramite.slug or "",
+            tramite.descripcion or "",
+            tramite.requisitos or "",
+            tramite.dirigido_a or "",
+            tramite.pasos or "",
+            tramite.tiempo_estimado or "",
+            tramite.medio_seguimiento or "",
+            tramite.normatividad or "",
+            tramite.costo or "",
+            tramite.horario or "",
+            tramite.dependencia or "",
+        ]
+    )
+    searchable_tokens = _tokenize_normalized_text(searchable_text)
+    templates = list(CITIZEN_LANGUAGE_TEMPLATES)
+
+    if searchable_tokens.intersection(
+        {
+            "impuesto",
+            "impuestos",
+            "pago",
+            "pagos",
+            "pagar",
+            "liquidacion",
+            "liquidar",
+            "deuda",
+            "deudas",
+            "obligacion",
+            "obligaciones",
+            "recibo",
+            "factura",
+        }
+    ):
+        templates.extend(CITIZEN_PAYMENT_TEMPLATES)
+
+    if searchable_tokens.intersection(
+        {
+            "actualizacion",
+            "actualizar",
+            "modificacion",
+            "modificar",
+            "correccion",
+            "corregir",
+            "cambio",
+            "cambios",
+            "datos",
+        }
+    ):
+        templates.extend(CITIZEN_UPDATE_TEMPLATES)
+
+    if searchable_tokens.intersection(
+        {
+            "negocio",
+            "comercio",
+            "industria",
+            "contribuyente",
+            "contribuyentes",
+            "actividad",
+            "establecimiento",
+        }
+    ):
+        templates.extend(CITIZEN_BUSINESS_TEMPLATES)
+
+    aliases: list[str] = []
+    for topic in topic_phrases[:6]:
+        aliases.append(topic)
+        for template in templates:
+            aliases.append(template.format(topic=topic))
+
+    if tramite.dependencia:
+        dependencia = _clean_phrase(tramite.dependencia)
+        for topic in topic_phrases[:4]:
+            aliases.append(f"{topic} en {dependencia}")
+            aliases.append(f"{topic} secretaria de hacienda")
+            aliases.append(f"{topic} rentas e impuestos")
+
+    return _deduplicate_aliases(aliases)[:70]
 
 
 def _build_intent_topic_aliases(expansions: list[str], topic_phrases: list[str]) -> list[str]:
@@ -432,13 +598,18 @@ def _get_domain_rule_aliases(tramite: Tramite) -> list[str]:
 
 def _build_alias_generation_prompt(tramite: Tramite) -> str:
     return (
-        "Genera entre 6 y 10 formas cortas y naturales en las que la ciudadania podria "
-        "preguntar por este tramite. Incluye lenguaje cotidiano, intencion y contexto. "
+        "Genera entre 8 y 14 formas cortas y naturales en las que la ciudadania podria "
+        "preguntar por este tramite. Incluye lenguaje cotidiano, intencion, sinonimos, "
+        "contexto, errores comunes de escritura y preguntas completas como las diria "
+        "una persona no tecnica. "
         "Devuelve solo JSON valido con una clave 'aliases' que contenga una lista de strings, sin explicaciones.\n\n"
         f"Nombre: {tramite.nombre}\n"
         f"Descripcion: {tramite.descripcion or 'Sin descripcion registrada'}\n"
+        f"Requisitos: {tramite.requisitos or 'Sin requisitos registrados'}\n"
         f"A quien va dirigido: {tramite.dirigido_a or 'Sin destinatario registrado'}\n"
         f"Pasos: {tramite.pasos or tramite.requisitos or 'Sin pasos registrados'}\n"
+        f"Medio de seguimiento: {tramite.medio_seguimiento or 'Sin medio de seguimiento registrado'}\n"
+        f"Normatividad: {tramite.normatividad or 'Sin normatividad registrada'}\n"
         f"Dependencia: {tramite.dependencia}\n"
     )
 
@@ -504,7 +675,7 @@ def generate_citizen_aliases(tramite: Tramite) -> list[str]:
 
 
 def _serialize_aliases(values: list[str]) -> str | None:
-    aliases = _deduplicate_aliases(values)
+    aliases = _limit_aliases(values, max_items=MAX_SERIALIZED_ALIASES)
     if not aliases:
         return None
     return "\n".join(aliases)
@@ -516,7 +687,10 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
     searchable_text = f"{normalized_name} {normalized_slug}"
     explicit_aliases = _split_alias_text(tramite.alias_ciudadanos)
     inferred_intent_aliases = _infer_intent_aliases(tramite)
-    domain_rule_aliases = _get_domain_rule_aliases(tramite)
+    domain_rule_aliases = [
+        *_get_domain_rule_aliases(tramite),
+        *_build_citizen_language_aliases(tramite),
+    ]
 
     inferred_aliases: list[str]
 
@@ -814,19 +988,22 @@ def get_tramite_semantic_aliases(tramite: Tramite) -> list[str]:
 
 
 def build_tramite_embedding_text(tramite: Tramite) -> str:
-    aliases = get_tramite_semantic_aliases(tramite)
+    aliases = _limit_aliases(
+        get_tramite_semantic_aliases(tramite),
+        max_items=MAX_EMBEDDING_ALIASES,
+    )
     parts = [
         f"Nombre del tramite: {tramite.nombre}",
-        f"Descripcion: {tramite.descripcion or 'Sin descripcion.'}",
-        f"Requisitos: {tramite.requisitos or 'Sin requisitos registrados.'}",
-        f"A quien va dirigido: {tramite.dirigido_a or 'Sin destinatario registrado.'}",
-        f"Pasos: {tramite.pasos or 'Sin pasos registrados.'}",
-        f"Tiempo estimado: {tramite.tiempo_estimado or 'Sin tiempo estimado registrado.'}",
-        f"Medio de seguimiento: {tramite.medio_seguimiento or 'Sin medio de seguimiento registrado.'}",
-        f"Normatividad: {tramite.normatividad or 'Sin normatividad registrada.'}",
-        f"Enlace Click Aqui: {tramite.enlace_click_aqui or 'Sin enlace especifico registrado.'}",
-        f"Costo: {tramite.costo or 'Sin costo registrado.'}",
-        f"Horario: {tramite.horario or 'Sin horario registrado.'}",
+        f"Descripcion: {_truncate_embedding_field(tramite.descripcion, 'Sin descripcion.')}",
+        f"Requisitos: {_truncate_embedding_field(tramite.requisitos, 'Sin requisitos registrados.')}",
+        f"A quien va dirigido: {_truncate_embedding_field(tramite.dirigido_a, 'Sin destinatario registrado.')}",
+        f"Pasos: {_truncate_embedding_field(tramite.pasos, 'Sin pasos registrados.')}",
+        f"Tiempo estimado: {_truncate_embedding_field(tramite.tiempo_estimado, 'Sin tiempo estimado registrado.')}",
+        f"Medio de seguimiento: {_truncate_embedding_field(tramite.medio_seguimiento, 'Sin medio de seguimiento registrado.')}",
+        f"Normatividad: {_truncate_embedding_field(tramite.normatividad, 'Sin normatividad registrada.')}",
+        f"Enlace Click Aqui: {_truncate_embedding_field(tramite.enlace_click_aqui, 'Sin enlace especifico registrado.')}",
+        f"Costo: {_truncate_embedding_field(tramite.costo, 'Sin costo registrado.')}",
+        f"Horario: {_truncate_embedding_field(tramite.horario, 'Sin horario registrado.')}",
         f"Dependencia: {tramite.dependencia}",
     ]
 
@@ -835,6 +1012,12 @@ def build_tramite_embedding_text(tramite: Tramite) -> str:
             "Equivalencias y sinonimos usados por la ciudadania: "
             + ", ".join(aliases),
         )
+        probable_questions = [alias for alias in aliases if len(alias.split()) >= 3]
+        if probable_questions:
+            parts.append(
+                "Preguntas ciudadanas probables: "
+                + " | ".join(probable_questions[:MAX_PROBABLE_QUESTIONS]),
+            )
 
     return "\n".join(parts)
 

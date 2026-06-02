@@ -29,12 +29,14 @@ CLARIFICATION_SUGGESTIONS = [
     "Consulta por industria y comercio",
 ]
 
-SEMANTIC_QUERY_LIMIT = 5
+SEMANTIC_QUERY_LIMIT = 8
 SEMANTIC_RESULT_LIMIT = 3
 SEMANTIC_DISTANCE_THRESHOLD = 0.78
 SEMANTIC_CONFIDENT_DISTANCE_THRESHOLD = 0.50
 SEMANTIC_RELATED_DISTANCE_MARGIN = 0.08
 SEMANTIC_MIN_DISTANCE_GAP = 0.03
+SEMANTIC_STRICT_DISTANCE_THRESHOLD = 0.42
+SEMANTIC_CONFIDENT_MIN_DISTANCE_GAP = 0.12
 GENERIC_QUERY_TOKENS = {
     "consulta",
     "consultar",
@@ -1162,6 +1164,60 @@ def _select_semantic_candidates(
 
     if not ranked_results:
         return []
+
+    distance_ranked_results = sorted(ranked_results, key=lambda item: item[1])
+    if len(specific_tokens) >= 2 and distance_ranked_results:
+        best_semantic_result = distance_ranked_results[0]
+        second_distance = (
+            distance_ranked_results[1][1]
+            if len(distance_ranked_results) > 1
+            else SEMANTIC_DISTANCE_THRESHOLD
+        )
+        distance_gap = second_distance - best_semantic_result[1]
+        has_registered_support = (
+            best_semantic_result[5] > 0
+            or best_semantic_result[6] > 0
+            or best_semantic_result[7]
+        )
+        is_very_close = best_semantic_result[1] <= SEMANTIC_STRICT_DISTANCE_THRESHOLD
+        is_clearly_separated = (
+            best_semantic_result[1] <= SEMANTIC_CONFIDENT_DISTANCE_THRESHOLD
+            and distance_gap >= SEMANTIC_CONFIDENT_MIN_DISTANCE_GAP
+        )
+        is_supported_and_close = (
+            has_registered_support
+            and best_semantic_result[1] <= SEMANTIC_CONFIDENT_DISTANCE_THRESHOLD
+        )
+
+        if is_very_close or is_clearly_separated or is_supported_and_close:
+            related_limit = min(
+                SEMANTIC_DISTANCE_THRESHOLD,
+                best_semantic_result[1] + SEMANTIC_RELATED_DISTANCE_MARGIN,
+            )
+            selected = [
+                (tramite, distance)
+                for (
+                    tramite,
+                    distance,
+                    support_rank,
+                    _identifier_specific_matches,
+                    _identifier_phrase_match,
+                    specific_matches,
+                    total_matches,
+                    phrase_match,
+                ) in distance_ranked_results
+                if tramite.id == best_semantic_result[0].id
+                or (
+                    distance <= related_limit
+                    and (
+                        support_rank > 0
+                        or specific_matches > 0
+                        or total_matches > 0
+                        or phrase_match
+                    )
+                )
+            ]
+            return selected[:SEMANTIC_RESULT_LIMIT]
 
     supported_results = [
         item

@@ -15,20 +15,32 @@ from app.services import update_tramite_embedding
 def main() -> None:
     with SessionLocal() as db:
         tramites = db.scalars(
-            select(Tramite).where(Tramite.activo.is_(True)).order_by(Tramite.id)
+            select(Tramite).order_by(Tramite.id)
         ).all()
 
         if not tramites:
-            print("No hay tramites activos para procesar.")
+            print("No hay tramites para procesar.")
             return
 
         updated = 0
+        failed = 0
         for tramite in tramites:
-            update_tramite_embedding(db, tramite)
-            updated += 1
-            print(f"Embedding actualizado para tramite {tramite.id}: {tramite.nombre}")
+            try:
+                update_tramite_embedding(db, tramite)
+                updated += 1
+                print(f"Embedding actualizado para tramite {tramite.id}: {tramite.nombre}")
+            except Exception as exc:
+                db.rollback()
+                failed += 1
+                print(
+                    "No fue posible actualizar el embedding del tramite "
+                    f"{tramite.id}: {tramite.nombre}. Error: {exc}"
+                )
 
-        print(f"Proceso completado. Embeddings actualizados: {updated}")
+        print(
+            "Proceso completado. "
+            f"Embeddings actualizados: {updated}. Fallidos: {failed}"
+        )
 
 
 if __name__ == "__main__":
