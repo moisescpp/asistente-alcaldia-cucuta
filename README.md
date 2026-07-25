@@ -1,188 +1,285 @@
-# Asistente Alcaldia Cucuta
+🤖 AI Citizen Assistant
 
-Asistente inteligente orientado a tramites estrella del sector de rentas e impuestos de la Alcaldia de San Jose de Cucuta. El proyecto se desarrolla con XP y actualmente se encuentra en la **Iteracion 4**, enfocada en mejorar claridad, precision de respuesta, observabilidad administrativa y experiencia de uso sobre la base RAG ya funcional.
+[Python] [FastAPI] [React] [PostgreSQL] [RAG] [Vercel]
 
-## Estado actual
+Asistente inteligente para la orientación ciudadana mediante IA.
 
-La base tecnica principal ya esta lista. Actualmente el sistema incluye:
+Asistente inteligente desarrollado para orientar a los ciudadanos sobre los trámites del sector de Rentas e Impuestos de la Alcaldía de San José de Cúcuta.
 
-- backend en FastAPI con CRUD administrativo de tramites;
-- frontend en React para consulta ciudadana y gestion administrativa;
-- base de datos PostgreSQL con soporte vectorial mediante `pgvector`;
-- embeddings reales almacenados en `embedding_vector`;
-- recuperacion semantica con distancia de coseno;
-- integracion RAG para orientar al ciudadano con contexto institucional;
-- validacion automatica del backend y bateria funcional de consultas reales.
+El sistema utiliza una arquitectura **Retrieval-Augmented Generation (RAG)** combinada con búsqueda semántica mediante embeddings para ofrecer respuestas precisas y contextualizadas.
 
-## Modulos
+---
 
-- `frontend/`: aplicacion React para ciudadania y panel interno.
-- `backend/`: API en FastAPI, logica semantica, RAG y acceso a PostgreSQL.
+## 🚀 Demo
 
-## Alcance vigente de la Iteracion 4
+🌐 Aplicación en producción
 
-La Iteracion 4 no busca rehacer la arquitectura base, sino **pulir la experiencia sobre el flujo existente**. El foco actual se concentra en:
+https://asistente-alcaldia-cucuta.vercel.app
 
-- hacer mas clara la respuesta ciudadana;
-- mejorar el manejo de consultas ambiguas;
-- registrar y observar mejor la actividad del asistente;
-- facilitar el seguimiento administrativo de preguntas reales;
-- mantener consistencia entre panel administrativo, base de datos y respuesta final.
+---
 
-## Avances ya consolidados en Iteracion 4
+# 📸 Capturas
 
-### Vista ciudadana
+> Agrega aquí imágenes del sistema.
 
-- respuestas mas claras y mejor redactadas;
-- tolerancia a errores tipograficos frecuentes;
-- sugerencias guiadas para reformular consultas;
-- desambiguacion con opciones cercanas cuando la pregunta es demasiado general;
-- preguntas rapidas para arrancar la experiencia con menos friccion;
-- mejoras de accesibilidad como `main`, salto al contenido y foco visible.
+### Inicio
 
-### Panel interno
-
-- registro persistente de consultas realizadas;
-- panel de actividad del asistente;
-- agrupacion por fecha y filtros por estado;
-- deteccion de patrones problematicos;
-- estadisticas visuales sobre como preguntan los ciudadanos;
-- alertas de impacto real para detectar tramites que conviene reforzar primero;
-- buscador y filtro por dependencia en el inventario de tramites;
-- acceso privado al admin con PIN, sesion temporal visible y recuperacion del borrador tras recarga o expiracion;
-- token administrativo tipo JWT firmado con expiracion corta para proteger el panel interno.
-
-## Mejoras laterales ya hechas pero no nucleares para Iteracion 4
-
-Estas mejoras existen en el proyecto, pero **no se consideran el centro de la iteracion**:
-
-- mediciones locales con Lighthouse o Unlighthouse;
-- modo claro y modo oscuro;
-- ajustes cosmeticos de encabezado o branding.
-
-## Funcionalidades disponibles
+![Inicio](docs/images/home.png)
 
 ### Consulta ciudadana
 
-- consulta de tramites por lenguaje natural;
-- recuperacion semantica de tramites de rentas e impuestos;
-- respuesta estructurada con tramite principal, datos registrados y sugerencias;
-- manejo de consultas ambiguas y consultas fuera de alcance;
-- uso de sugerencias y opciones cercanas para precisar una pregunta.
+![Consulta](docs/images/consulta.png)
 
-### Panel interno
+### Panel administrativo
 
-- crear tramites;
-- editar tramites;
-- desactivar tramites;
-- reactivar tramites desactivados desde el inventario admin;
-- proteger el acceso administrativo con una sesion temporal;
-- revisar consultas recientes del asistente;
-- analizar preguntas ambiguas, positivas y sin coincidencia;
-- revisar estadisticas de claridad y señales de catalogo debil;
-- reflejar automaticamente los cambios en la consulta del asistente.
+![Panel](docs/images/admin.png)
 
-## Endpoints principales
+### Estadísticas
 
-- `GET /api/health`
-- `GET /api/tramites`
-- `GET /api/tramites/{id}`
-- `POST /api/admin/tramites`
-- `PUT /api/admin/tramites/{id}`
-- `DELETE /api/admin/tramites/{id}`
-- `GET /api/admin/tramites/desactivados`
-- `POST /api/admin/tramites/{id}/reactivar`
-- `GET /api/admin/consultas`
-- `POST /api/consulta`
+![Estadísticas](docs/images/dashboard.png)
 
-## Ejecucion local
+---
 
-### Backend
+# 📌 Características principales
 
-Entorno valido actual:
+- ✅ Consulta inteligente mediante lenguaje natural
+- ✅ Arquitectura RAG (Retrieval-Augmented Generation)
+- ✅ Búsqueda semántica con pgvector
+- ✅ Embeddings almacenados en PostgreSQL
+- ✅ CRUD administrativo de trámites
+- ✅ Panel de administración
+- ✅ Estadísticas de consultas ciudadanas
+- ✅ Manejo de consultas ambiguas
+- ✅ Autenticación mediante JWT
+- ✅ Interfaz responsive
+- ✅ Despliegue en Vercel
 
-- el backend usa **solo** `backend/.venv`;
-- ese entorno fue recreado y validado el **23 de abril de 2026**;
-- en esta maquina quedo construido con el Python operativo que hoy resuelve a **3.14.3**.
+---
 
-Si `python` en tu terminal apunta a un launcher de Windows y no a un interprete usable, puedes recrear el entorno con la ruta que hoy si funciona:
+# 🛠 Tecnologías utilizadas
 
-```powershell
-cd C:\asistente-alcaldia-cucuta\backend
-& 'C:\Users\perez\AppData\Local\Python\bin\python.exe' -m venv .venv
+## Frontend
+
+- React
+- Vite
+- Tailwind CSS
+- JavaScript
+
+## Backend
+
+- Python
+- FastAPI
+- PostgreSQL
+- pgvector
+- SQLAlchemy
+- JWT Authentication
+
+## Herramientas
+
+- Git
+- GitHub
+- Vercel
+- REST API
+
+---
+
+# 🧠 Arquitectura
+
+```
+Ciudadano
+      │
+      ▼
+Frontend (React)
+      │
+      ▼
+Backend (FastAPI)
+      │
+      ▼
+PostgreSQL + pgvector
+      │
+      ▼
+Embeddings
+      │
+      ▼
+Búsqueda semántica
+      │
+      ▼
+Respuesta al ciudadano
 ```
 
-Luego instala dependencias y ejecuta la API:
+---
 
-```powershell
-cd C:\asistente-alcaldia-cucuta\backend
+# ⚙ Funcionalidades
+
+## Consulta ciudadana
+
+- Consultas mediante lenguaje natural
+- Recuperación semántica de información
+- Respuestas contextualizadas
+- Detección de preguntas ambiguas
+- Recomendaciones automáticas
+- Sugerencias inteligentes
+
+---
+
+## Panel administrativo
+
+- Crear trámites
+- Editar trámites
+- Eliminar trámites
+- Reactivar trámites
+- Dashboard administrativo
+- Registro de consultas
+- Estadísticas
+- Gestión de inventario
+- Protección mediante JWT
+
+---
+
+# 📂 Estructura del proyecto
+
+```
+backend/
+│
+├── app/
+├── scripts/
+├── tests/
+
+frontend/
+│
+├── src/
+├── public/
+
+docs/
+
+README.md
+```
+
+---
+
+# 🔗 API
+
+## Principales Endpoints
+
+```
+GET     /api/health
+
+GET     /api/tramites
+
+GET     /api/tramites/{id}
+
+POST    /api/admin/tramites
+
+PUT     /api/admin/tramites/{id}
+
+DELETE  /api/admin/tramites/{id}
+
+GET     /api/admin/consultas
+
+POST    /api/consulta
+```
+
+---
+
+# ▶ Instalación
+
+## Clonar repositorio
+
+```bash
+git clone https://github.com/moisescpp/asistente-alcaldia-cucuta.git
+```
+
+---
+
+## Backend
+
+```bash
+cd backend
+
+python -m venv .venv
+
 .venv\Scripts\activate
+
 pip install -r requirements.txt
-python -m uvicorn app.main:app --reload
+
+uvicorn app.main:app --reload
 ```
 
-### Frontend
+---
 
-```powershell
-cd C:\asistente-alcaldia-cucuta\frontend
+## Frontend
+
+```bash
+cd frontend
+
+npm install
+
 npm run dev
 ```
 
-## Validacion
+---
 
-### Pruebas automatizadas
+# ✅ Pruebas
 
-```powershell
-cd C:\asistente-alcaldia-cucuta\backend
-.venv\Scripts\activate
+```bash
 pytest -q
 ```
 
-Estado de validacion del entorno vigente:
+Resultado de validación
 
-- `61 passed, 1 skipped` en `pytest -q`
-- `scripts\backfill_embeddings.py` ejecutado correctamente
-- `scripts\validate_rag_queries.py` superado con `0` fallos
-- `scripts\audit_tramite_quality.py` ejecutado correctamente
-
-### Bateria funcional RAG
-
-```powershell
-cd C:\asistente-alcaldia-cucuta\backend
-.venv\Scripts\activate
-python scripts\validate_rag_queries.py
+```
+61 Passed
+1 Skipped
 ```
 
-## Despliegue para pruebas con usuarios
+También se validó correctamente:
 
-El frontend ya puede publicarse en Vercel y el backend esta preparado para desplegarse tambien en Vercel mediante [backend/app/index.py](backend/app/index.py).
+- Backfill de embeddings
+- Auditoría de calidad
+- Validación de consultas RAG
 
-Guia paso a paso del backend:
+---
 
-- [despliegue_backend_vercel.md](docs/despliegue_backend_vercel.md)
+# 🎯 Objetivos del proyecto
 
-## Objetivo tecnico inmediato
+- Mejorar la orientación ciudadana mediante IA.
+- Reducir consultas repetitivas.
+- Facilitar el acceso a los trámites.
+- Implementar recuperación semántica.
+- Centralizar la administración de trámites.
+- Proporcionar métricas para mejorar el servicio.
 
-Cerrar la Iteracion 4 con una validacion funcional clara del flujo completo, asegurando:
+---
 
-- precision en la recuperacion del tramite principal;
-- control de consultas ambiguas con guias utiles;
-- observabilidad real de las preguntas ciudadanas;
-- consistencia entre panel interno, base de datos y respuesta final;
-- seguridad administrativa visible sin perder continuidad de trabajo;
-- y una experiencia ciudadana mas clara sin perder honestidad sobre datos faltantes.
+# 🚀 Próximas mejoras
 
-## Sintesis corta de cierre de Iteracion 4
+- Docker
+- CI/CD
+- Redis
+- Caché semántico
+- Historial de conversaciones
+- Login con OAuth
+- Dashboard avanzado
+- Integración con modelos LLM más recientes
 
-La iteracion ya deja una base casi cerrada para pasar a la siguiente fase:
+---
 
-- respuesta ciudadana mas clara, guiada y navegable;
-- recuperacion semantica y textual mas robusta para preguntas reales;
-- panel admin con actividad, estadisticas y alertas accionables;
-- sesion administrativa privada con cuenta regresiva visible y recuperacion del contexto de trabajo;
-- pruebas del backend, validacion RAG y auditoria del catalogo en verde.
+# 👨‍💻 Autor
 
-Nota de catalogo para pruebas:
+## Moisés Camilo Pérez Prieto
 
-- `ID 1158 - Duplicado de la licencia de tránsito de un vehículo automotor`
-  - hoy aparece como fuera de foco tributario, pero se mantiene solo como tramite de prueba y no como un bloqueo funcional de la iteracion.
+Ingeniero de Sistemas
+
+📍 Cúcuta, Colombia
+
+### LinkedIn
+
+https://linkedin.com/in/moisescamiloperez
+
+### GitHub
+
+https://github.com/moisescpp
+
+---
+
+⭐ Si este proyecto te resulta interesante, no olvides dejar una estrella en el repositorio.
