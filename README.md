@@ -34,7 +34,7 @@ https://asistente-alcaldia-cucuta.vercel.app
 
 ### Estadísticas
 
-![Estadísticas](docs/images/estadisticas.png)
+![Estadísticas](docs/images/dashboard.png)
 
 ---
 
