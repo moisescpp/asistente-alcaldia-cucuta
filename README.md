@@ -18,9 +18,7 @@ https://asistente-alcaldia-cucuta.vercel.app
 
 ---
 
-# 📸 Capturas
-
-> Agrega aquí imágenes del sistema.
+## Capturas del sistema
 
 ### Inicio
 
@@ -32,11 +30,11 @@ https://asistente-alcaldia-cucuta.vercel.app
 
 ### Panel administrativo
 
-![Panel](docs/images/admin.png)
+![Admin](docs/images/admin.png)
 
 ### Estadísticas
 
-![Estadísticas](docs/images/dashboard.png)
+![Estadísticas](docs/images/estadisticas.png)
 
 ---
 
